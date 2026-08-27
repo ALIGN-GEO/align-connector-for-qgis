@@ -30,10 +30,13 @@ NO_RESPONSE = 0
 class HttpResult:
     """A response reduced to what a caller actually decides on."""
 
-    def __init__(self, status, body, error=None):
+    def __init__(self, status, body, error=None, headers=None):
         self.status = status
         self.body = body if body is not None else {}
         self.error = error
+        #: Response headers, lower-cased. Needed by resumable uploads, where the
+        #: store reports what it holds in `Range` rather than in a body.
+        self.headers = headers or {}
 
     @property
     def ok(self):
@@ -62,7 +65,18 @@ class HttpResult:
         return None
 
 
-def _build(url, bearer=None, content_type=None, extra_headers=None):
+def _qt_enum(name, member):
+    """Read a Qt enum member across Qt5 and Qt6.
+
+    Qt6 scoped the enums (`QNetworkRequest.Attribute.X`); Qt5 exposed them flat
+    (`QNetworkRequest.X`). Looking them up by name keeps one source running on
+    both, which is the whole point of importing through `qgis.PyQt`.
+    """
+    group = getattr(QNetworkRequest, name, QNetworkRequest)
+    return getattr(group, member)
+
+
+def _build(url, bearer=None, content_type=None, extra_headers=None, manual_redirects=False):
     request = QNetworkRequest(QUrl(url))
     if content_type:
         request.setRawHeader(b"Content-Type", content_type.encode("ascii"))
@@ -71,6 +85,14 @@ def _build(url, bearer=None, content_type=None, extra_headers=None):
         request.setRawHeader(b"Authorization", "Bearer {}".format(bearer).encode("ascii"))
     for name, value in (extra_headers or {}).items():
         request.setRawHeader(name.encode("ascii"), str(value).encode("utf-8"))
+    if manual_redirects:
+        # A resumable upload answers 308 to mean "keep going". Qt treats 308 as
+        # a redirect and would follow it, turning the store's progress report
+        # into a lost request.
+        request.setAttribute(
+            _qt_enum("Attribute", "RedirectPolicyAttribute"),
+            _qt_enum("RedirectPolicy", "ManualRedirectPolicy"),
+        )
     return request
 
 
@@ -78,8 +100,11 @@ def _finish(blocking, err):
     reply = blocking.reply()
     status = NO_RESPONSE
     payload = None
+    headers = {}
     if reply is not None:
-        status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) or NO_RESPONSE
+        status = reply.attribute(_qt_enum("Attribute", "HttpStatusCodeAttribute")) or NO_RESPONSE
+        for name, value in reply.rawHeaderPairs():
+            headers[bytes(name).decode("latin-1").lower()] = bytes(value).decode("latin-1")
         raw = bytes(reply.content())
         if raw:
             try:
@@ -87,8 +112,8 @@ def _finish(blocking, err):
             except (ValueError, UnicodeDecodeError):
                 payload = None
     if err != QgsBlockingNetworkRequest.NoError and status == NO_RESPONSE:
-        return HttpResult(NO_RESPONSE, None, blocking.errorMessage() or "Network error")
-    return HttpResult(status, payload)
+        return HttpResult(NO_RESPONSE, None, blocking.errorMessage() or "Network error", headers)
+    return HttpResult(status, payload, None, headers)
 
 
 def post_json(url, payload, bearer=None):
@@ -106,7 +131,7 @@ def get_json(url, bearer=None):
     return _finish(blocking, blocking.get(request))
 
 
-def put_bytes(url, data, headers=None):
+def put_bytes(url, data, headers=None, manual_redirects=False):
     """PUT raw bytes to an **opaque** URL, with the headers the API handed back.
 
     The URL and its headers come from ALIGN and are never constructed here:
@@ -114,10 +139,9 @@ def put_bytes(url, data, headers=None):
     the platform (ADR-0045). Presuming a provider — a header prefix, a query
     parameter — would tie every installed copy to today's infrastructure.
     """
-    request = _build(url, extra_headers=headers or {})
+    request = _build(url, extra_headers=headers or {}, manual_redirects=manual_redirects)
     blocking = QgsBlockingNetworkRequest()
     err = blocking.put(request, QByteArray(data))
-    result = _finish(blocking, err)
     # Object stores answer a bare 200 with no body; that is a success, not an
     # unparseable response.
-    return result
+    return _finish(blocking, err)

@@ -29,7 +29,14 @@ jobs:
       - name: Lint
         run: |
           python -m pip install --quiet ruff==0.6.9
-          ruff check align_connector
+          ruff check align_connector scripts
+
+      # The uploader decides where to resume, when to retry and when to stop.
+      # Its transport is injectable, so those decisions are testable without
+      # QGIS and without a network — which is the only reason a three-hour
+      # failure mode can be checked in seconds, on every push.
+      - name: Resumable upload behaviour
+        run: python scripts/smoke_uploader.py
 
   metadata:
     runs-on: ubuntu-latest
