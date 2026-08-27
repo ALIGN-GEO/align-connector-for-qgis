@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="ALIGN">
+  <rect width="24" height="24" rx="5" fill="#1c1b1a"/>
+  <!-- Three stacked rules, flush left: the mark reads as alignment at 16px. -->
+  <rect x="5" y="7"  width="14" height="2" rx="1" fill="#f5f2ec"/>
+  <rect x="5" y="11" width="9"  height="2" rx="1" fill="#f5f2ec" opacity="0.75"/>
+  <rect x="5" y="15" width="11" height="2" rx="1" fill="#f5f2ec" opacity="0.5"/>
+</svg>

@@ -1,0 +1,23 @@
+[general]
+name=ALIGN Connector
+qgisMinimumVersion=3.22
+qgisMaximumVersion=3.99
+description=Publish QGIS layers to your ALIGN organization's Datastore.
+about=Sign in to ALIGN from QGIS and publish a layer to your organization's Datastore in a few clicks — vector and raster. Your ALIGN role decides what you may publish: the plugin never grants access, it carries your identity and shows what the server answers. Requires an ALIGN account (aligngeo.com). This plugin is free software (GPL-2.0-or-later); the ALIGN service it talks to is a commercial product.
+version=0.1.0
+author=Geo Nova
+email=bdelsart@geonova.be
+
+tracker=https://github.com/bdlst/align-connector-for-qgis/issues
+repository=https://github.com/bdlst/align-connector-for-qgis
+homepage=https://aligngeo.com
+
+license=GPL-2.0-or-later
+category=Web
+icon=icon.svg
+tags=align,publish,cloud,datastore,web,upload,vector,raster
+
+experimental=True
+deprecated=False
+server=False
+hasProcessingProvider=False
