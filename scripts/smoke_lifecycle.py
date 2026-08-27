@@ -26,6 +26,9 @@ import sys
 from unittest.mock import MagicMock
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
+
+#: Keeps the QApplication alive for the duration of the check.
+_APP = None
 sys.path.insert(0, str(REPO))
 
 
@@ -33,8 +36,10 @@ def main() -> int:
     from qgis.PyQt.QtWidgets import QApplication, QWidget
 
     # Qt objects need a running application instance; QGIS provides one, we
-    # must stand one up ourselves.
-    app = QApplication.instance() or QApplication([])
+    # must stand one up ourselves — and keep it referenced for the whole run,
+    # because Qt tears the application down when it is garbage-collected.
+    global _APP
+    _APP = QApplication.instance() or QApplication([])
 
     from align_connector import classFactory
 
@@ -59,13 +64,18 @@ def main() -> int:
         print("FAIL: initGui did not add a toolbar icon")
         return 1
 
-    menu_title, action = iface.addPluginToWebMenu.call_args[0]
-    if not action.text():
-        print("FAIL: the registered action has no label")
+    menu_title = iface.addPluginToWebMenu.call_args[0][0]
+    registered = [call[0][1] for call in iface.addPluginToWebMenu.call_args_list]
+    if any(not a.text() for a in registered):
+        print("FAIL: a registered action has no label")
         return 1
-    if action.icon().isNull():
-        print("FAIL: the registered action has no icon — icon.svg did not load")
+
+    # Only the publish action carries the icon — it is the one on the toolbar.
+    toolbar_action = iface.addToolBarIcon.call_args[0][0]
+    if toolbar_action.icon().isNull():
+        print("FAIL: the toolbar action has no icon — icon.svg did not load")
         return 1
+    action = toolbar_action
 
     plugin.unload()
 
@@ -76,16 +86,17 @@ def main() -> int:
     if iface.removeToolBarIcon.call_count != iface.addToolBarIcon.call_count:
         print("FAIL: unload did not remove every toolbar icon initGui added")
         return 1
-    if iface.removePluginWebMenu.call_args[0][1] is not action:
-        print("FAIL: unload removed a different action than the one registered")
+    removed = [call[0][1] for call in iface.removePluginWebMenu.call_args_list]
+    if set(id(a) for a in removed) != set(id(a) for a in registered):
+        print("FAIL: unload removed a different set of actions than initGui registered")
         return 1
 
     # A second unload must not raise: QGIS may call it more than once.
     plugin.unload()
 
     print(
-        "OK — loads, registers '%s' under %s, and unloads cleanly (Qt %s)"
-        % (action.text(), menu_title, app.instance().applicationVersion() or "runtime")
+        "OK — loads, registers %d action(s) under %s (toolbar: '%s'), unloads cleanly"
+        % (len(registered), menu_title, action.text())
     )
     return 0
 

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Plugin lifecycle: what ALIGN Connector adds to QGIS, and what it takes back.
 
-This module owns *only* the lifecycle. Authentication, publishing and dialogs
-live in their own modules — keeping this one small is what makes the plugin
-reloadable during development without leaving orphaned menu entries behind.
+This module owns the lifecycle and the menu state, nothing else. Authentication
+lives in :mod:`align_connector.auth`, publishing will live in its own module —
+keeping this one small is what makes the plugin reloadable during development
+without leaving orphaned menu entries behind.
 
 Two QGIS rules shape the code below and are worth stating, because breaking
 either is invisible until it hurts:
@@ -20,9 +21,12 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import os
 
+from qgis.core import Qgis
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
+
+from .auth import AlignSession
 
 #: Menu title under QGIS' "Web" menu. Kept in one place: it is both what we add
 #: and what we must remove, and the two must never drift apart.
@@ -39,6 +43,14 @@ class AlignConnectorPlugin:
         self.plugin_dir = os.path.dirname(__file__)
         #: Every QAction we registered, so unload can undo exactly this much.
         self._actions = []
+        #: The subset that also went to the toolbar. Tracked separately because
+        #: removing a toolbar icon that was never added is a silent asymmetry —
+        #: harmless today, and exactly the kind of drift that outlives the code
+        #: that caused it.
+        self._toolbar_actions = []
+        self._publish_action = None
+        self._sign_in_action = None
+        self.session = AlignSession()
 
     # -- i18n ---------------------------------------------------------------
 
@@ -56,36 +68,120 @@ class AlignConnectorPlugin:
 
     def initGui(self):  # noqa: N802 — name imposed by the QGIS plugin API
         """Add the plugin's entry points to the QGIS interface."""
-        action = QAction(
-            QIcon(os.path.join(self.plugin_dir, "icon.svg")),
+        self._publish_action = self._add_action(
             self.tr("Publish to ALIGN…"),
-            self.iface.mainWindow(),
+            self.run,
+            icon="icon.svg",
+            status_tip=self.tr("Publish the selected layer to your ALIGN Datastore"),
+            toolbar=True,
         )
-        action.setStatusTip(self.tr("Publish the selected layer to your ALIGN Datastore"))
-        action.triggered.connect(self.run)
+        self._sign_in_action = self._add_action(
+            self.tr("Sign in to ALIGN…"),
+            self._toggle_sign_in,
+            status_tip=self.tr("Connect QGIS to your ALIGN account"),
+        )
 
-        self.iface.addPluginToWebMenu(MENU_TITLE, action)
-        self.iface.addToolBarIcon(action)
-        self._actions.append(action)
+        self.session.signed_in.connect(self._on_signed_in)
+        self.session.signed_out.connect(self._on_signed_out)
+        self.session.failed.connect(self._on_failed)
+        self.session.waiting_for_browser.connect(self._on_waiting)
+
+        self._refresh_state()
 
     def unload(self):
         """Remove everything :meth:`initGui` added — no more, no less."""
         for action in self._actions:
             self.iface.removePluginWebMenu(MENU_TITLE, action)
+        for action in self._toolbar_actions:
             self.iface.removeToolBarIcon(action)
         self._actions.clear()
+        self._toolbar_actions.clear()
+        self._publish_action = None
+        self._sign_in_action = None
+
+    def _add_action(self, text, callback, icon=None, status_tip=None, toolbar=False):
+        action = QAction(text, self.iface.mainWindow())
+        if icon:
+            action.setIcon(QIcon(os.path.join(self.plugin_dir, icon)))
+        if status_tip:
+            action.setStatusTip(status_tip)
+        action.triggered.connect(callback)
+        self.iface.addPluginToWebMenu(MENU_TITLE, action)
+        if toolbar:
+            self.iface.addToolBarIcon(action)
+            self._toolbar_actions.append(action)
+        self._actions.append(action)
+        return action
+
+    # -- state --------------------------------------------------------------
+
+    def _refresh_state(self):
+        """Make the menu say the truth about the current session.
+
+        Publishing stays visible but disabled when signed out: hiding it would
+        leave a user wondering whether the plugin does what they installed it
+        for (honest affordances beat empty menus).
+        """
+        signed_in = self.session.is_signed_in()
+
+        if self._publish_action is not None:
+            self._publish_action.setEnabled(signed_in)
+            self._publish_action.setStatusTip(
+                self.tr("Publish the selected layer to your ALIGN Datastore")
+                if signed_in
+                else self.tr("Sign in to ALIGN first")
+            )
+
+        if self._sign_in_action is not None:
+            account = self.session.account()
+            if signed_in:
+                self._sign_in_action.setText(
+                    self.tr("Sign out of ALIGN ({})").format(account)
+                    if account
+                    else self.tr("Sign out of ALIGN")
+                )
+            else:
+                self._sign_in_action.setText(self.tr("Sign in to ALIGN…"))
+
+    # -- session callbacks --------------------------------------------------
+
+    def _toggle_sign_in(self):
+        if self.session.is_signed_in():
+            self.session.sign_out()
+        else:
+            self.session.sign_in()
+
+    def _on_waiting(self):
+        self._message(
+            self.tr("Finish signing in from your browser, then come back to QGIS."),
+            Qgis.Info,
+        )
+
+    def _on_signed_in(self):
+        self._refresh_state()
+        self._message(self.tr("Connected to ALIGN."), Qgis.Success)
+
+    def _on_signed_out(self):
+        self._refresh_state()
+        self._message(self.tr("Signed out of ALIGN."), Qgis.Info)
+
+    def _on_failed(self, reason):
+        self._refresh_state()
+        self._message(reason, Qgis.Warning)
+
+    def _message(self, text, level):
+        self.iface.messageBar().pushMessage(PLUGIN_NAME, text, level=level, duration=6)
 
     # -- entry point --------------------------------------------------------
 
     def run(self):
         """Open the publish flow.
 
-        Placeholder until the sign-in flow lands (TCK-1661) and publishing
-        follows (TCK-1662). It states plainly what is not built yet rather than
-        opening an empty dialog: a control that pretends to work is worse than
-        one that says it does not.
+        Placeholder until publishing lands (TCK-1662). It states plainly what
+        is not built yet rather than opening an empty dialog: a control that
+        pretends to work is worse than one that says it does not.
         """
-        self.iface.messageBar().pushInfo(
-            PLUGIN_NAME,
-            self.tr("Sign-in and publishing are not wired yet — coming in the next release."),
+        self._message(
+            self.tr("Publishing arrives in the next release — the connection is ready."),
+            Qgis.Info,
         )
