@@ -29,6 +29,7 @@ from qgis.PyQt.QtWidgets import QAction, QApplication, QDialog
 from .auth import AlignSession
 from .publish.dialog import PublishDialog
 from .publish.task import PublishLayerTask
+from .settings_dialog import SettingsDialog
 
 #: Menu title under QGIS' "Web" menu. Kept in one place: it is both what we add
 #: and what we must remove, and the two must never drift apart.
@@ -84,6 +85,11 @@ class AlignConnectorPlugin:
             self.tr("Sign in to ALIGN…"),
             self._toggle_sign_in,
             status_tip=self.tr("Connect QGIS to your ALIGN account"),
+        )
+        self._add_action(
+            self.tr("Settings…"),
+            self._open_settings,
+            status_tip=self.tr("Which ALIGN this plugin talks to, and who you are on it"),
         )
 
         self.session.signed_in.connect(self._on_signed_in)
@@ -155,6 +161,12 @@ class AlignConnectorPlugin:
             self.session.sign_out()
         else:
             self.session.sign_in()
+
+    def _open_settings(self):
+        dialog = SettingsDialog(self.session, self.iface.mainWindow())
+        _exec(dialog)
+        # The dialog can sign in or out; the menu must not keep saying otherwise.
+        self._refresh_state()
 
     def _on_waiting(self):
         self._message(

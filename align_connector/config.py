@@ -33,8 +33,8 @@ CLIENT_ID = "align-connector-qgis"
 SCOPES = ("datastore:publish",)
 
 # Product domains, deliberately — not the hosts they currently resolve to.
-_DEFAULT_APP_URL = "https://app.aligngeo.com"
-_DEFAULT_API_URL = "https://api.aligngeo.com"
+DEFAULT_APP_URL = "https://app.aligngeo.com"
+DEFAULT_API_URL = "https://api.aligngeo.com"
 
 
 def _setting(key, default):
@@ -45,12 +45,12 @@ def _setting(key, default):
 
 def app_url():
     """Base URL of the ALIGN web application (where consent is given)."""
-    return _setting("app_url", _DEFAULT_APP_URL)
+    return _setting("app_url", DEFAULT_APP_URL)
 
 
 def api_url():
     """Base URL of the ALIGN API."""
-    return _setting("api_url", _DEFAULT_API_URL)
+    return _setting("api_url", DEFAULT_API_URL)
 
 
 def set_endpoints(app, api):
@@ -67,6 +67,15 @@ def set_endpoints(app, api):
 def authorize_url():
     """The consent page a browser opens. Not an API endpoint: a human approves here."""
     return "{}/oauth/authorize".format(app_url())
+
+
+def client_endpoint():
+    """Describe this client — the only call that needs no session.
+
+    Used by the settings screen to answer three questions at once: the address
+    resolves, it is an ALIGN, and this plugin is allowlisted on it.
+    """
+    return "{}/api/v1/oauth/clients/{}".format(api_url(), CLIENT_ID)
 
 
 def token_endpoint():
