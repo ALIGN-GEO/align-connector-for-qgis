@@ -57,6 +57,9 @@ class PublishLayerTask(QgsTask):
         self.needs_sign_in = False
         self.was_cancelled = False
         self.asset_id = None
+        #: Fields serialised to JSON text to make the layer writable. Reported
+        #: to the user: a value that changed shape should not do so silently.
+        self.flattened_fields = []
 
         self._workdir = None
 
@@ -64,7 +67,7 @@ class PublishLayerTask(QgsTask):
 
     def run(self):
         try:
-            path, filename, content_type = export_layer(
+            path, filename, content_type, self.flattened_fields = export_layer(
                 self.layer, selected_only=self.selected_only
             )
             self._workdir = os.path.dirname(path)

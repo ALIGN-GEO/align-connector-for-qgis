@@ -247,10 +247,14 @@ class AlignConnectorPlugin:
             self._tasks.remove(task)
 
         if succeeded:
-            self._message(
-                self.tr("“{}” is now in {} on ALIGN.").format(task.asset_name, task.org_name),
-                Qgis.Success,
-            )
+            message = self.tr("“{}” is now in {} on ALIGN.").format(task.asset_name, task.org_name)
+            if task.flattened_fields:
+                # The values are all there, but they changed shape. Saying so
+                # beats letting someone discover it in the Datastore.
+                message += " " + self.tr(
+                    "Complex fields were stored as text: {}."
+                ).format(", ".join(task.flattened_fields))
+            self._message(message, Qgis.Success)
             return
 
         if task.was_cancelled:

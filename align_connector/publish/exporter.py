@@ -15,6 +15,13 @@ looks:
 The layer's own CRS is preserved: ALIGN reprojects server-side, and converting
 here would lose precision for no reason.
 
+**Complex fields are flattened to JSON text before writing.** Open-data layers
+routinely carry map or list attributes — an OpenDataSoft export gives every
+feature a `geo_point_2d` map — and no GIS file format accepts them. Writing
+would fail per feature with "invalid type for field", which reads to the user
+as "this plugin cannot publish my layer". Serialising to text keeps the value
+and lets the publish through; dropping the field would be quieter and worse.
+
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
@@ -22,7 +29,16 @@ import os
 import re
 import tempfile
 
-from qgis.core import QgsCoordinateTransformContext, QgsVectorFileWriter
+from qgis.core import (
+    QgsCoordinateTransformContext,
+    QgsFeature,
+    QgsFields,
+    QgsField,
+    QgsVectorFileWriter,
+    QgsVectorLayer,
+    QgsWkbTypes,
+)
+from qgis.PyQt.QtCore import QVariant
 
 #: Formats we can write, best first. `(driver, extension, content type)`.
 _FORMATS = (
@@ -57,11 +73,73 @@ def available_formats():
     return tuple(fmt for fmt in _FORMATS if fmt[0] in drivers) or _FORMATS
 
 
+
+#: Attribute types no vector format can store. Serialised to JSON text instead.
+_COMPLEX_TYPES = (QVariant.Map, QVariant.List, QVariant.StringList, QVariant.Hash)
+
+
+def _is_complex(field):
+    return field.type() in _COMPLEX_TYPES
+
+
+def _as_text(value):
+    """A JSON rendering of a complex value, stable enough to be read back."""
+    import json
+
+    try:
+        return json.dumps(value, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def flatten_complex_fields(layer, selected_only=False):
+    """Return a layer whose complex attributes are JSON text.
+
+    Returns the original layer untouched when there is nothing to flatten —
+    the common case, and the one that must stay free.
+
+    :returns: ``(layer_to_write, flattened_field_names)``
+    """
+    complex_names = [f.name() for f in layer.fields() if _is_complex(f)]
+    if not complex_names:
+        return layer, []
+
+    fields = QgsFields()
+    for field in layer.fields():
+        if _is_complex(field):
+            fields.append(QgsField(field.name(), QVariant.String))
+        else:
+            fields.append(field)
+
+    uri = "{}?crs={}".format(
+        QgsWkbTypes.displayString(layer.wkbType()),
+        layer.crs().authid() or "EPSG:4326",
+    )
+    flat = QgsVectorLayer(uri, layer.name(), "memory")
+    flat.dataProvider().addAttributes(fields.toList())
+    flat.updateFields()
+
+    source = layer.getSelectedFeatures() if selected_only else layer.getFeatures()
+    written = []
+    for feature in source:
+        copy = QgsFeature(flat.fields())
+        copy.setGeometry(feature.geometry())
+        values = []
+        for field in layer.fields():
+            value = feature[field.name()]
+            values.append(_as_text(value) if _is_complex(field) else value)
+        copy.setAttributes(values)
+        written.append(copy)
+    flat.dataProvider().addFeatures(written)
+    flat.updateExtents()
+
+    return flat, complex_names
+
 def export_layer(layer, selected_only=False, target_dir=None):
     """Write ``layer`` to a temporary file.
 
     :param selected_only: write only the selected features
-    :returns: ``(path, filename, content_type)``
+    :returns: ``(path, filename, content_type, flattened_field_names)``
     :raises ExportFailed: when nothing could be written
     """
     if layer is None:
@@ -80,6 +158,11 @@ def export_layer(layer, selected_only=False, target_dir=None):
     directory = target_dir or tempfile.mkdtemp(prefix="align-publish-")
     last_error = None
 
+    # A flattened copy already holds only the requested features, so the
+    # writer must not filter a second time.
+    source, flattened = flatten_complex_fields(layer, selected_only=selected_only)
+    only_selected = bool(selected_only) and source is layer
+
     for driver, extension, content_type in available_formats():
         filename = safe_basename(layer.name(), extension)
         path = os.path.join(directory, filename)
@@ -87,14 +170,14 @@ def export_layer(layer, selected_only=False, target_dir=None):
         options = QgsVectorFileWriter.SaveVectorOptions()
         options.driverName = driver
         options.fileEncoding = "UTF-8"
-        options.onlySelectedFeatures = bool(selected_only)
+        options.onlySelectedFeatures = only_selected
 
-        error, message = _write(layer, path, options)
+        error, message = _write(source, path, options)
         if error == QgsVectorFileWriter.NoError:
             if not os.path.exists(path) or os.path.getsize(path) == 0:
                 last_error = "the writer produced an empty file"
                 continue
-            return path, filename, content_type
+            return path, filename, content_type, flattened
 
         last_error = message or "the writer refused the layer"
 

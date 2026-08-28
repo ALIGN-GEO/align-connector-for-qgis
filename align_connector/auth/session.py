@@ -209,11 +209,48 @@ class AlignSession(QObject):
     def sign_out(self):
         """Revoke server-side, then forget locally.
 
-        The local half runs even if the network call fails: a token we cannot
-        revoke is a token we should at least stop holding.
+        Two things must both happen, and only one of them is ours to guarantee:
+
+        * **Server-side revocation** ends the session for real. If it does not
+          happen, the device stays listed in ALIGN and its refresh token lives
+          on — the user believes they disconnected, and they did not. So the
+          outcome is checked and reported, never assumed. Signing out and back
+          in used to leave a ghost device behind for exactly this reason.
+        * **Local erasure** runs regardless: a token we cannot revoke is a token
+          we should at least stop holding.
+
+        Both the access and the refresh token are presented. The server ends the
+        whole session from either, but a session whose refresh token has just
+        rotated would otherwise be revoked from a value we no longer hold.
+
+        :returns: ``(True, None)`` when the server confirmed, ``(False, reason)``
+            when the local half is done but the session may still stand.
         """
-        token = token_store.refresh_token()
-        if token:
-            net.post_json(config.revoke_endpoint(), {"token": token})
+        refresh = token_store.refresh_token()
+        access = token_store.access_token()
+
+        confirmed = False
+        reason = None
+        for token in (refresh, access):
+            if not token:
+                continue
+            result = net.post_json(config.revoke_endpoint(), {"token": token})
+            if result.ok:
+                confirmed = True
+                break
+            reason = result.message("ALIGN did not confirm the disconnection")
+
+        if not refresh and not access:
+            # Nothing to revoke: the local store was already empty.
+            confirmed = True
+
         token_store.clear()
         self.signed_out.emit()
+        if not confirmed:
+            self.failed.emit(
+                "Signed out on this computer, but ALIGN did not confirm it: {} "
+                "Revoke the device from Settings → Integrations to be sure.".format(
+                    reason or "no answer from the server."
+                )
+            )
+        return confirmed, reason
