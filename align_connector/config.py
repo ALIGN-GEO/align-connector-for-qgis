@@ -85,6 +85,15 @@ def upload_url_endpoint(org_id):
     return "{}/api/v1/orgs/{}/datastore/upload-url".format(api_url(), org_id)
 
 
+def upload_session_endpoint(org_id):
+    """Resumable transfer — the door this plugin always uses.
+
+    A small file simply travels in one chunk. One path, tested once, beats two
+    that drift apart.
+    """
+    return "{}/api/v1/orgs/{}/datastore/upload-session".format(api_url(), org_id)
+
+
 def finalize_endpoint(org_id, asset_id):
     return "{}/api/v1/orgs/{}/datastore/{}/finalize".format(api_url(), org_id, asset_id)
 

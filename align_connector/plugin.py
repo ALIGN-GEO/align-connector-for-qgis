@@ -21,12 +21,14 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import os
 
-from qgis.core import Qgis
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.core import Qgis, QgsApplication
+from qgis.PyQt.QtCore import QCoreApplication, Qt
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtWidgets import QAction, QApplication, QDialog
 
 from .auth import AlignSession
+from .publish.dialog import PublishDialog
+from .publish.task import PublishLayerTask
 
 #: Menu title under QGIS' "Web" menu. Kept in one place: it is both what we add
 #: and what we must remove, and the two must never drift apart.
@@ -51,6 +53,9 @@ class AlignConnectorPlugin:
         self._publish_action = None
         self._sign_in_action = None
         self.session = AlignSession()
+        #: Running publishes. QGIS' task manager does not own the Python
+        #: object, so dropping our reference would collect a task mid-upload.
+        self._tasks = []
 
     # -- i18n ---------------------------------------------------------------
 
@@ -175,13 +180,83 @@ class AlignConnectorPlugin:
     # -- entry point --------------------------------------------------------
 
     def run(self):
-        """Open the publish flow.
+        """Ask what to publish, then publish it in the background."""
+        if not self.session.is_signed_in():
+            self._message(self.tr("Sign in to ALIGN before publishing."), Qgis.Warning)
+            return
 
-        Placeholder until publishing lands (TCK-1662). It states plainly what
-        is not built yet rather than opening an empty dialog: a control that
-        pretends to work is worse than one that says it does not.
-        """
+        dialog = PublishDialog(self.session, self.iface.mainWindow())
+
+        # Listing organizations is one round trip; the wait cursor is what
+        # tells the user the click registered.
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            usable = dialog.load_organizations()
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        if not usable:
+            self._message(dialog.load_error, Qgis.Warning)
+            return
+
+        if _exec(dialog) != QDialog.Accepted:
+            return
+
+        org = dialog.selected_org()
+        layer = dialog.selected_layer()
+        if org is None or layer is None:
+            return
+
+        task = PublishLayerTask(
+            self.session,
+            layer,
+            org["id"],
+            org["name"],
+            dialog.asset_name(),
+            selected_only=dialog.only_selection(),
+        )
+        task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
+        task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
+        self._tasks.append(task)
+        QgsApplication.taskManager().addTask(task)
+
         self._message(
-            self.tr("Publishing arrives in the next release — the connection is ready."),
+            self.tr("Publishing “{}” to {} — you can keep working.").format(
+                dialog.asset_name(), org["name"]
+            ),
             Qgis.Info,
         )
+
+    def _on_publish_finished(self, task, succeeded):
+        """Report the outcome, in the words of whoever refused it."""
+        if task in self._tasks:
+            self._tasks.remove(task)
+
+        if succeeded:
+            self._message(
+                self.tr("“{}” is now in {} on ALIGN.").format(task.asset_name, task.org_name),
+                Qgis.Success,
+            )
+            return
+
+        if task.was_cancelled:
+            self._message(self.tr("Publishing cancelled. Nothing was catalogued."), Qgis.Info)
+            return
+
+        if task.needs_sign_in:
+            # The session died mid-publish; say so once, and leave the menu
+            # honest about it.
+            self.session.sign_out()
+            self._refresh_state()
+
+        self._message(task.error_message or self.tr("Publishing failed."), Qgis.Warning)
+
+
+def _exec(dialog):
+    """Show a dialog modally on both Qt bindings.
+
+    PyQt5 named it ``exec_`` (``exec`` was a keyword in the Python 2 days);
+    PyQt6 dropped the underscore.
+    """
+    runner = getattr(dialog, "exec", None) or getattr(dialog, "exec_")
+    return runner()
