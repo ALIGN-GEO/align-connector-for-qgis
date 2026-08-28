@@ -38,6 +38,13 @@ jobs:
       - name: Resumable upload behaviour
         run: python scripts/smoke_uploader.py
 
+      # A raster publish decides, before any byte moves, whether the layer has
+      # a file worth sending as it is, whether that file is the user's own (so
+      # nothing may delete it), and whether the layer is a dataset at all. The
+      # QGIS classes are stubbed; those four judgements are not.
+      - name: Raster publish decisions
+        run: python scripts/smoke_raster.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

@@ -35,6 +35,7 @@ from qgis.core import (
     QgsFields,
     QgsField,
     QgsVectorFileWriter,
+    QgsRasterLayer,
     QgsVectorLayer,
     QgsWkbTypes,
 )
@@ -49,6 +50,26 @@ _FORMATS = (
 
 class ExportFailed(Exception):
     """The layer could not be written, with a reason fit to show a human."""
+
+
+class ExportResult(object):
+    """What the publish will send — and what may be deleted afterwards.
+
+    ``workdir`` is the directory *this module created*, or ``None`` when the
+    file belongs to the user. That distinction is the whole point of the class:
+    a raster already stored as a GeoTIFF is sent untouched, and the cleanup step
+    must never be able to reach into the user's own folder.
+    """
+
+    def __init__(self, path, filename, content_type, workdir=None, flattened=(), reused_source=False):
+        self.path = path
+        self.filename = filename
+        self.content_type = content_type
+        self.workdir = workdir
+        #: Attributes serialised to JSON text to make the layer writable.
+        self.flattened = list(flattened)
+        #: True when ``path`` is the user's own file, not a copy we produced.
+        self.reused_source = reused_source
 
 
 def safe_basename(name, extension):
@@ -139,7 +160,7 @@ def export_layer(layer, selected_only=False, target_dir=None):
     """Write ``layer`` to a temporary file.
 
     :param selected_only: write only the selected features
-    :returns: ``(path, filename, content_type, flattened_field_names)``
+    :returns: an :class:`ExportResult`
     :raises ExportFailed: when nothing could be written
     """
     if layer is None:
@@ -177,7 +198,13 @@ def export_layer(layer, selected_only=False, target_dir=None):
             if not os.path.exists(path) or os.path.getsize(path) == 0:
                 last_error = "the writer produced an empty file"
                 continue
-            return path, filename, content_type, flattened
+            return ExportResult(
+                path=path,
+                filename=filename,
+                content_type=content_type,
+                workdir=directory,
+                flattened=flattened,
+            )
 
         last_error = message or "the writer refused the layer"
 
@@ -201,3 +228,50 @@ def _write(layer, path, options):
     error = result[0]
     message = result[1] if len(result) > 1 else ""
     return error, message
+
+
+# ---------------------------------------------------------------------------
+# The one place that answers "what can this plugin send?"
+# ---------------------------------------------------------------------------
+
+def publishable_kind(layer):
+    """``'vector'``, ``'raster'``, or ``None`` when this layer cannot be sent.
+
+    The dialog and the export share this function on purpose. Offering a layer
+    the export would then refuse — or hiding one it could have handled — is the
+    kind of drift two separate lists produce within a release.
+    """
+    if layer is None:
+        return None
+    try:
+        if not layer.isValid():
+            return None
+    except AttributeError:
+        return None
+    if isinstance(layer, QgsVectorLayer):
+        return "vector"
+    if isinstance(layer, QgsRasterLayer):
+        return "raster"
+    return None
+
+
+def export_for_publish(layer, selected_only=False):
+    """Write whatever this layer is into a file ALIGN accepts.
+
+    :returns: an :class:`ExportResult`
+    :raises ExportFailed: when the layer is of a kind the plugin does not send
+    """
+    kind = publishable_kind(layer)
+    if kind == "vector":
+        return export_layer(layer, selected_only=selected_only)
+    if kind == "raster":
+        # Imported here, not at module load: the raster half imports this
+        # module for its result type, so a top-level import would be a cycle.
+        from .raster import export_raster
+
+        return export_raster(layer)
+    raise ExportFailed(
+        "ALIGN can publish vector and raster layers. “{}” is neither.".format(
+            layer.name() if layer is not None else "This layer"
+        )
+    )

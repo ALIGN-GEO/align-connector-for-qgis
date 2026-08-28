@@ -247,6 +247,19 @@ class AlignConnectorPlugin:
             self._tasks.remove(task)
 
         if succeeded:
+            # A failed server-side conversion is not a success worth
+            # celebrating: the file is stored, but nothing can display it.
+            # Announcing "it is now in ALIGN" would be true and useless.
+            if task.derivation_error:
+                self._message(
+                    self.tr(
+                        "“{}” was stored in {}, but ALIGN could not prepare it for display: {} "
+                        "The file is safe in your Datastore."
+                    ).format(task.asset_name, task.org_name, task.derivation_error),
+                    Qgis.Warning,
+                )
+                return
+
             message = self.tr("“{}” is now in {} on ALIGN.").format(task.asset_name, task.org_name)
             if task.flattened_fields:
                 # The values are all there, but they changed shape. Saying so
@@ -254,6 +267,16 @@ class AlignConnectorPlugin:
                 message += " " + self.tr(
                     "Complex fields were stored as text: {}."
                 ).format(", ".join(task.flattened_fields))
+            if task.servable_asset_id:
+                # The reprojection kept the original and produced a second
+                # asset. Two objects now count against the organization's
+                # storage, and the one that opens is not the one just created.
+                message += " " + self.tr(
+                    "It had to be reprojected, so your original was kept and a second, "
+                    "display-ready copy was added — both use storage."
+                )
+            elif task.gis_format == "cog":
+                message += " " + self.tr("It was converted to a Cloud-Optimized GeoTIFF.")
             self._message(message, Qgis.Success)
             return
 

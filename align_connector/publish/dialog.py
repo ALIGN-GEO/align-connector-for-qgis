@@ -5,6 +5,11 @@ Deliberately small. A publish needs four answers — which layer, which
 organization, under what name, and whether to send only the selection — and
 anything else on this screen would be a decision the user did not ask to make.
 
+Vector and raster layers sit in the same list, because from here they are the
+same act: pick a layer, name it, send it. What differs happens afterwards and
+on the server — a raster is normalised to a Cloud-Optimized GeoTIFF once it
+lands — so it is not a choice to put in front of anyone.
+
 One rule shapes it: **organizations are listed as ALIGN returns them, none
 hidden.** It would be tempting to filter out the ones where the user is a
 viewer and cannot publish. That would replace a clear refusal ("your role in
@@ -15,7 +20,9 @@ dialog shows.
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
-from qgis.core import QgsMapLayerType, QgsProject
+import os
+
+from qgis.core import QgsProject
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtWidgets import (
     QCheckBox,
@@ -30,6 +37,8 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from .. import api
+from .exporter import publishable_kind
+from . import raster
 
 
 class PublishDialog(QDialog):
@@ -103,7 +112,7 @@ class PublishDialog(QDialog):
             :attr:`load_error` explaining why.
         """
         if not self._layers:
-            self.load_error = "This project has no vector layer to publish."
+            self.load_error = "This project has no vector or raster layer to publish."
             return False
 
         try:
@@ -130,6 +139,13 @@ class PublishDialog(QDialog):
         if not self.name_edit.text().strip():
             self.name_edit.setText(layer.name())
 
+        if publishable_kind(layer) == "raster":
+            self._describe_raster(layer)
+        else:
+            self._describe_vector(layer)
+
+    def _describe_vector(self, layer):
+        self.selection_box.setVisible(True)
         selected = layer.selectedFeatureCount()
         self.selection_box.setEnabled(selected > 0)
         if selected > 0:
@@ -144,6 +160,34 @@ class PublishDialog(QDialog):
             "background — you can carry on working, and an interrupted transfer resumes.".format(
                 selected if self.selection_box.isChecked() else total
             )
+        )
+
+    def _describe_raster(self, layer):
+        """What a raster publish will actually do, said before it happens.
+
+        A selection means nothing for a raster, so the checkbox goes away
+        rather than sitting there greyed out. And the two facts worth knowing
+        are how much will travel, and that the file is normalised on arrival —
+        both are said now, not discovered in the Datastore afterwards.
+        """
+        self.selection_box.setChecked(False)
+        self.selection_box.setVisible(False)
+
+        source = raster.source_file_of(layer)
+        if source:
+            size = _readable_size(_size_of(source))
+            self.hint.setText(
+                "This layer's GeoTIFF will be sent as it is{}. ALIGN converts it to a "
+                "Cloud-Optimized GeoTIFF on arrival; if that conversion has to reproject the "
+                "data, your original is kept alongside it and both count against your "
+                "storage.".format(" ({})".format(size) if size else "")
+            )
+            return
+
+        self.hint.setText(
+            "A compressed GeoTIFF will be written from this layer and sent. ALIGN converts it "
+            "to a Cloud-Optimized GeoTIFF on arrival; if that conversion has to reproject the "
+            "data, the file you sent is kept alongside it and both count against your storage."
         )
 
     # -- results ------------------------------------------------------------
@@ -173,13 +217,33 @@ class PublishDialog(QDialog):
 
 
 def _publishable_layers():
-    """Vector layers of the current project, in project order."""
-    layers = []
-    for layer in QgsProject.instance().mapLayers().values():
-        try:
-            is_vector = layer.type() == QgsMapLayerType.VectorLayer
-        except AttributeError:  # pragma: no cover — enum moved namespace in Qt6 builds
-            is_vector = layer.type() == 0
-        if is_vector and layer.isValid():
-            layers.append(layer)
-    return layers
+    """The project's layers this plugin can send, in project order.
+
+    The test is `publishable_kind`, shared with the export — so the list can
+    never offer something the publish would then refuse.
+    """
+    return [
+        layer
+        for layer in QgsProject.instance().mapLayers().values()
+        if publishable_kind(layer) is not None
+    ]
+
+
+def _size_of(path):
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return None
+
+
+def _readable_size(size_bytes):
+    """A size a person reads at a glance, or None when it is unknown."""
+    if not size_bytes:
+        return None
+    units = ("bytes", "KB", "MB", "GB", "TB")
+    value = float(size_bytes)
+    for unit in units:
+        if value < 1024 or unit == units[-1]:
+            return "{:.0f} {}".format(value, unit) if unit == "bytes" else "{:.1f} {}".format(value, unit)
+        value /= 1024.0
+    return None

@@ -19,7 +19,7 @@ from qgis.core import QgsTask
 
 from .. import api
 from ..metadata import plugin_version
-from .exporter import ExportFailed, export_layer
+from .exporter import ExportFailed, export_for_publish
 from .uploader import ResumableUploader, UploadCancelled, UploadFailed
 
 #: How the export is weighted against the transfer in the progress bar. Writing
@@ -60,6 +60,12 @@ class PublishLayerTask(QgsTask):
         #: Fields serialised to JSON text to make the layer writable. Reported
         #: to the user: a value that changed shape should not do so silently.
         self.flattened_fields = []
+        #: What ALIGN did with the bytes once they landed. A raster is normalised
+        #: server-side, and the outcome changes what the user should be told —
+        #: including, in one case, that the quota now holds two objects.
+        self.servable_asset_id = None
+        self.derivation_error = None
+        self.gis_format = None
 
         self._workdir = None
 
@@ -67,20 +73,25 @@ class PublishLayerTask(QgsTask):
 
     def run(self):
         try:
-            path, filename, content_type, self.flattened_fields = export_layer(
-                self.layer, selected_only=self.selected_only
-            )
-            self._workdir = os.path.dirname(path)
+            export = export_for_publish(self.layer, selected_only=self.selected_only)
+            self.flattened_fields = export.flattened
+            # Only a directory WE created is ever removed. A raster published
+            # from the user's own GeoTIFF leaves `workdir` empty, and the
+            # cleanup below then has nothing it could reach into.
+            self._workdir = export.workdir
             self.setProgress(_EXPORT_SHARE)
 
-            size_bytes = os.path.getsize(path)
+            size_bytes = os.path.getsize(export.path)
+            # The declared size is what ALIGN checks the organization's
+            # remaining space against — before a single byte is signed for.
+            # A publish that will not fit is refused here, not after an hour.
             session_info = api.open_upload_session(
-                self.session, self.org_id, filename, content_type, size_bytes
+                self.session, self.org_id, export.filename, export.content_type, size_bytes
             )
             self.asset_id = session_info["assetId"]
 
             uploader = ResumableUploader(
-                path,
+                export.path,
                 session_info["sessionUrl"],
                 session_info["chunkSizeBytes"],
             )
@@ -89,16 +100,17 @@ class PublishLayerTask(QgsTask):
                 is_cancelled=self.isCanceled,
             )
 
-            api.finalize(
+            catalogued = api.finalize(
                 self.session,
                 self.org_id,
                 self.asset_id,
-                filename,
+                export.filename,
                 self.asset_name,
                 provenance=self._provenance(),
                 description=self.description,
                 visibility=self.visibility,
             )
+            self._read_derivation(catalogued)
             self.setProgress(100)
             return True
 
@@ -124,6 +136,18 @@ class PublishLayerTask(QgsTask):
         return
 
     # -- internals ----------------------------------------------------------
+
+    def _read_derivation(self, catalogued):
+        """What ALIGN made of the bytes, as the catalogue answer reports it."""
+        if not isinstance(catalogued, dict):
+            return
+        self.gis_format = catalogued.get("gisFormat")
+        self.derivation_error = catalogued.get("derivationError")
+        servable = catalogued.get("servableAssetId")
+        # Only worth carrying when it points somewhere else: that is the case
+        # where the layer to open is NOT the asset this publish created.
+        if servable and servable != self.asset_id:
+            self.servable_asset_id = servable
 
     def _on_upload_progress(self, sent, total):
         if total <= 0:

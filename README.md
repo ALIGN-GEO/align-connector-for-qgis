@@ -2,7 +2,7 @@
 
 Publish QGIS layers to your [ALIGN](https://aligngeo.com) organization's Datastore — vector and raster — without leaving QGIS.
 
-> **Status: early development, not yet distributed.** Signing in and publishing a vector layer are implemented and exercised in QGIS 3.44 LTR; they have not yet been run end to end against a live ALIGN account. Raster publishing and browsing your Datastore from QGIS come next.
+> **Status: early development, not yet distributed.** Signing in and publishing a vector layer are implemented and proven end to end against a live ALIGN account. Raster publishing is implemented and awaiting the same proof. Browsing your Datastore from QGIS comes next.
 
 ## What it does
 
@@ -14,6 +14,28 @@ You work in QGIS. Your data belongs in ALIGN, where your team consumes it and yo
 Large layers keep uploading in the background: you carry on working, the progress is visible, and an interrupted transfer resumes where it stopped rather than starting over.
 
 Your ALIGN role decides what you may do. The plugin never grants access: it carries your identity, and shows you what the server answers. An organization viewer is refused, exactly as in the web app.
+
+## What you can publish
+
+| Your layer | What is sent | What ALIGN stores |
+|---|---|---|
+| Any vector layer QGIS can read | FlatGeobuf (GeoJSON where the driver is missing) | one layer, served as it is |
+| A raster already stored as a GeoTIFF | that file, byte for byte | a Cloud-Optimized GeoTIFF, prepared on arrival |
+| Any other raster GDAL can read | a compressed GeoTIFF written for the occasion | the same |
+
+The list grows as each format is proven end to end rather than merely wired up.
+
+Two things are worth knowing before you send a raster. ALIGN prepares it for
+display when it arrives; **if that preparation has to reproject your data, your
+original is kept alongside the display-ready copy** — nothing is silently
+replaced, and both count against your organization's storage. And a WMS or WCS
+layer is a *connection*, not a dataset: there is no file to publish, so the
+plugin says so instead of uploading an empty one. Remote services are
+registered from the ALIGN web application.
+
+There is no size limit in the plugin. Your organization's remaining storage is
+the limit, and it is checked **before the transfer starts** — a publish that
+would not fit is refused in seconds, not after an hour of uploading.
 
 ## Requirements
 
