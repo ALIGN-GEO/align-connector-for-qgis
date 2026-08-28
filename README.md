@@ -34,6 +34,14 @@ Not yet published to the QGIS plugin repository. Until then, clone this reposito
 
 Then enable **ALIGN Connector** in *Plugins → Manage and Install Plugins → Installed*.
 
+### Working on the plugin
+
+On Windows, `scripts/dev_install.ps1` links this repository into your QGIS profile, so an edit here is picked up by reloading the plugin — no copying between iterations.
+
+> **Do not use QGIS' "Uninstall" button on a linked install.** It deletes the plugin folder and follows the link, erasing the source files in this repository. To turn the plugin off, *uncheck* it in the plugin manager; to remove it for real, run `scripts/dev_install.ps1 -Uninstall`, which removes the link and never touches what it points at.
+>
+> If it already happened: `git restore align_connector/` brings everything back, as long as the work was committed.
+
 ## Security
 
 - Tokens are stored in QGIS' own encrypted authentication database (`QgsAuthManager`). Only an authentication configuration id is kept in the plugin's settings — never a token, and never in your `.qgs` project file.
