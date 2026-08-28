@@ -103,8 +103,13 @@ def _finish(blocking, err):
     headers = {}
     if reply is not None:
         status = reply.attribute(_qt_enum("Attribute", "HttpStatusCodeAttribute")) or NO_RESPONSE
-        for name, value in reply.rawHeaderPairs():
-            headers[bytes(name).decode("latin-1").lower()] = bytes(value).decode("latin-1")
+        # `QgsBlockingNetworkRequest.reply()` hands back a QgsNetworkReplyContent,
+        # not a QNetworkReply: it exposes the header NAMES and a lookup, where
+        # the Qt class exposes pairs. Found the only way this kind of thing is
+        # found — by running it against a real server.
+        for name in reply.rawHeaderList():
+            key = bytes(name).decode("latin-1").lower()
+            headers[key] = bytes(reply.rawHeader(name)).decode("latin-1")
         raw = bytes(reply.content())
         if raw:
             try:
