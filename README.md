@@ -2,14 +2,16 @@
 
 Publish QGIS layers to your [ALIGN](https://aligngeo.com) organization's Datastore — vector and raster — without leaving QGIS.
 
-> **Status: early development.** The plugin currently loads and registers its entry points; sign-in and publishing land in the next two releases. It is not yet distributed.
+> **Status: early development, not yet distributed.** Signing in and publishing a vector layer are implemented and exercised in QGIS 3.44 LTR; they have not yet been run end to end against a live ALIGN account. Raster publishing and browsing your Datastore from QGIS come next.
 
 ## What it does
 
 You work in QGIS. Your data belongs in ALIGN, where your team consumes it and your web maps are built from it. Today that means exporting a file and uploading it through a browser. This plugin removes that round trip:
 
 1. **Sign in once** — the plugin opens your browser, you approve, and it comes back with a token. No password, no API key to copy, nothing to paste.
-2. **Pick a layer and an organization** — publish. Vector or raster.
+2. **Pick a layer and an organization** — publish.
+
+Large layers keep uploading in the background: you carry on working, the progress is visible, and an interrupted transfer resumes where it stopped rather than starting over.
 
 Your ALIGN role decides what you may do. The plugin never grants access: it carries your identity, and shows you what the server answers. An organization viewer is refused, exactly as in the web app.
 
