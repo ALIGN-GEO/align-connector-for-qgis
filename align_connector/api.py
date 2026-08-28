@@ -106,7 +106,7 @@ def open_upload_session(session, org_id, filename, content_type, size_bytes):
     return body
 
 
-def finalize(session, org_id, asset_id, filename, name, provenance=None):
+def finalize(session, org_id, asset_id, filename, name, provenance=None, description=None, visibility=None):
     """Catalogue the asset once its bytes have landed.
 
     The declared size is not re-sent: ALIGN measures what actually arrived, and
@@ -119,6 +119,12 @@ def finalize(session, org_id, asset_id, filename, name, provenance=None):
     payload = {"filename": filename, "name": name}
     if provenance:
         payload["provenance"] = provenance
+    # Sent in the same call that catalogues the bytes: a second call could fail
+    # and leave the asset with a visibility nobody chose.
+    if description:
+        payload["description"] = description
+    if visibility:
+        payload["visibility"] = visibility
 
     result = net.post_json(config.finalize_endpoint(org_id, asset_id), payload, bearer=token)
     if not result.ok:

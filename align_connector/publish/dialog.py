@@ -25,6 +25,7 @@ from qgis.PyQt.QtWidgets import (
     QFormLayout,
     QLabel,
     QLineEdit,
+    QPlainTextEdit,
     QVBoxLayout,
 )
 
@@ -56,7 +57,23 @@ class PublishDialog(QDialog):
         form.addRow("Organization", self.org_box)
 
         self.name_edit = QLineEdit()
-        form.addRow("Name in ALIGN", self.name_edit)
+        form.addRow("Title", self.name_edit)
+
+        self.description_edit = QPlainTextEdit()
+        self.description_edit.setPlaceholderText(
+            "What this layer holds, where it comes from, when it was collected — what a "
+            "colleague would need to know before using it."
+        )
+        self.description_edit.setFixedHeight(72)
+        form.addRow("Description", self.description_edit)
+
+        # Only the two visibilities that make sense from a desktop. `public`
+        # exposes data outside the organization and belongs on the web screen
+        # that explains what that means; `group` would need an audience picker.
+        self.visibility_box = QComboBox()
+        self.visibility_box.addItem("Private — only you", "private")
+        self.visibility_box.addItem("Organization — everyone in this organization", "org")
+        form.addRow("Visibility", self.visibility_box)
 
         self.selection_box = QCheckBox("Publish only the selected features")
         form.addRow("", self.selection_box)
@@ -138,6 +155,14 @@ class PublishDialog(QDialog):
     def selected_org(self):
         org_id = self.org_box.currentData()
         return next((o for o in self._orgs if o["id"] == org_id), None)
+
+    def description(self):
+        """The description, or None. Empty means "no description", not "clear it"."""
+        text = self.description_edit.toPlainText().strip()
+        return text or None
+
+    def visibility(self):
+        return self.visibility_box.currentData()
 
     def asset_name(self):
         layer = self.selected_layer()

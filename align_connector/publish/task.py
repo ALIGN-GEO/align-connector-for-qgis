@@ -30,7 +30,17 @@ _EXPORT_SHARE = 5.0
 class PublishLayerTask(QgsTask):
     """Export one layer, send it, and catalogue it in ALIGN."""
 
-    def __init__(self, session, layer, org_id, org_name, asset_name, selected_only=False):
+    def __init__(
+        self,
+        session,
+        layer,
+        org_id,
+        org_name,
+        asset_name,
+        selected_only=False,
+        description=None,
+        visibility=None,
+    ):
         super().__init__("Publishing “{}” to ALIGN".format(asset_name), QgsTask.CanCancel)
         self.session = session
         self.layer = layer
@@ -38,6 +48,8 @@ class PublishLayerTask(QgsTask):
         self.org_name = org_name
         self.asset_name = asset_name
         self.selected_only = selected_only
+        self.description = description
+        self.visibility = visibility
         self.layer_id = layer.id()
 
         #: Set on completion, read by whoever connected to `taskCompleted`.
@@ -81,6 +93,8 @@ class PublishLayerTask(QgsTask):
                 filename,
                 self.asset_name,
                 provenance=self._provenance(),
+                description=self.description,
+                visibility=self.visibility,
             )
             self.setProgress(100)
             return True

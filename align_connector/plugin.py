@@ -226,6 +226,8 @@ class AlignConnectorPlugin:
             org["name"],
             dialog.asset_name(),
             selected_only=dialog.only_selection(),
+            description=dialog.description(),
+            visibility=dialog.visibility(),
         )
         task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
         task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
