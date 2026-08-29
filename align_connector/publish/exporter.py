@@ -61,7 +61,10 @@ class ExportResult(object):
     must never be able to reach into the user's own folder.
     """
 
-    def __init__(self, path, filename, content_type, workdir=None, flattened=(), reused_source=False):
+    def __init__(
+        self, path, filename, content_type, workdir=None, flattened=(), reused_source=False,
+        already_servable=False,
+    ):
         self.path = path
         self.filename = filename
         self.content_type = content_type
@@ -70,6 +73,9 @@ class ExportResult(object):
         self.flattened = list(flattened)
         #: True when ``path`` is the user's own file, not a copy we produced.
         self.reused_source = reused_source
+        #: True when this file is VERIFIED to need no server-side conversion.
+        #: Declared to ALIGN so the conversion ceiling does not apply to it.
+        self.already_servable = already_servable
 
 
 def safe_basename(name, extension):

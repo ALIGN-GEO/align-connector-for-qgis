@@ -79,24 +79,43 @@ def list_organizations(session):
     ]
 
 
-def open_upload_session(session, org_id, filename, content_type, size_bytes):
+def open_upload_session(session, org_id, filename, content_type, size_bytes, already_servable=False):
     """Open a resumable upload session for one file.
 
     Used for every publish, whatever the size: a small file simply travels in
     one chunk. One path, tested once, rather than two that drift.
 
+    This is also where a publish that cannot succeed is stopped — **before any
+    byte travels**. ALIGN checks the organization's remaining space here, and
+    whether the file is within what it can convert. A refusal costs seconds
+    instead of an hour.
+
+    :param already_servable: the caller has VERIFIED the file needs no
+        conversion (a 3857 COG). Never assert it without checking: the server
+        re-verifies, and a wrong claim only routes the file back through the
+        conversion it said it did not need.
     :returns: ``{"assetId", "protocol", "sessionUrl", "expiresAt", "chunkSizeBytes"}``
     """
     token = session.access_token()
     if not token:
         raise ApiError("You are not signed in to ALIGN.", needs_sign_in=True)
 
+    payload = {"filename": filename, "contentType": content_type, "sizeBytes": size_bytes}
+    if already_servable:
+        payload["alreadyServable"] = True
+
     result = net.post_json(
         config.upload_session_endpoint(org_id),
-        {"filename": filename, "contentType": content_type, "sizeBytes": size_bytes},
+        payload,
         bearer=token,
     )
     if not result.ok:
+        # Two very different refusals share the 413: no room left, and a file
+        # beyond what ALIGN can prepare for display. The server distinguishes
+        # them by code, and so must the message — buying more storage fixes the
+        # first and changes nothing to the second.
+        if result.code() == "DATASTORE_DERIVATION_TOO_LARGE":
+            raise ApiError(result.message("This file is too large for ALIGN to prepare for display."))
         _raise_for(result, "ALIGN refused the upload")
 
     body = result.body

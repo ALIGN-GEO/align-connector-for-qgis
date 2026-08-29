@@ -13,6 +13,15 @@ Two paths, and the first one matters more than it looks:
   and can only lose information;
 * anything else GDAL can read — write one, compressed, and send that.
 
+**A file that is already the serving target is declared as such.** ALIGN
+converts a GeoTIFF to a Cloud-Optimized GeoTIFF in EPSG:3857 on arrival, and
+that conversion has a size ceiling. A file that already IS that has nothing to
+convert, so the ceiling does not apply to it — but only if someone checks the
+header and says so. QGIS ships GDAL; it is better placed than the server to
+check, since the file is right here. The claim is made only after verifying it:
+the server re-verifies anyway, and a wrong claim would simply route the file
+through the conversion it said it did not need.
+
 What is deliberately refused: layers that are not datasets. A WMS or WCS layer
 is a *connection*, not a file; there is nothing to upload, and pretending
 otherwise would produce an empty asset. ALIGN registers remote services from
@@ -66,6 +75,40 @@ def source_file_of(layer):
     return candidate if os.path.isfile(candidate) else None
 
 
+def is_serving_ready(path):
+    """True when this file is already what ALIGN serves: a 3857 COG.
+
+    Mirrors the server's own verdict (`decideTransform`): the CRS must be
+    EPSG:3857 and the layout must be COG. Anything else — including a perfectly
+    good COG in another projection — needs work, and must not be declared as
+    needing none.
+
+    Returns False on any doubt. A false negative costs a size check; a false
+    positive would send a file into a ceiling that was skipped for it.
+    """
+    try:
+        from osgeo import gdal, osr  # noqa: F401 — QGIS ships the GDAL bindings
+    except ImportError:  # pragma: no cover — a QGIS build without the bindings
+        return False
+
+    dataset = None
+    try:
+        gdal.UseExceptions()
+        dataset = gdal.Open(path)
+        if dataset is None:
+            return False
+        if (dataset.GetMetadata("IMAGE_STRUCTURE") or {}).get("LAYOUT") != "COG":
+            return False
+        reference = dataset.GetSpatialRef()
+        if reference is None:
+            return False
+        return reference.GetAuthorityCode(None) == "3857"
+    except Exception:  # noqa: BLE001 — a probe that fails proves nothing
+        return False
+    finally:
+        dataset = None
+
+
 def export_raster(layer, target_dir=None):
     """Produce the GeoTIFF this publish will send.
 
@@ -96,6 +139,7 @@ def export_raster(layer, target_dir=None):
             content_type=RASTER_CONTENT_TYPE,
             workdir=None,
             reused_source=True,
+            already_servable=is_serving_ready(existing),
         )
 
     if provider.xSize() <= 0 or provider.ySize() <= 0:

@@ -86,7 +86,12 @@ class PublishLayerTask(QgsTask):
             # remaining space against — before a single byte is signed for.
             # A publish that will not fit is refused here, not after an hour.
             session_info = api.open_upload_session(
-                self.session, self.org_id, export.filename, export.content_type, size_bytes
+                self.session,
+                self.org_id,
+                export.filename,
+                export.content_type,
+                size_bytes,
+                already_servable=export.already_servable,
             )
             self.asset_id = session_info["assetId"]
 
