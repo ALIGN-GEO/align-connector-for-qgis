@@ -22,9 +22,10 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import os
 
-from qgis.core import QgsProject
+from qgis.core import Qgis, QgsMessageLog, QgsProject
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -65,6 +66,16 @@ class PublishDialog(QDialog):
         self.org_box = QComboBox()
         form.addRow("Organization", self.org_box)
 
+        # What the organization can still spend here, read from ALIGN when an
+        # organization is picked (TCK-2179). Said before the transfer, so a
+        # refusal for space or credits is never the first the user hears of
+        # either. Blank when ALIGN could not say: the server guards regardless.
+        self.capacity = QLabel()
+        self.capacity.setWordWrap(True)
+        self.capacity.setTextFormat(Qt.PlainText)
+        self._capacity_line = None
+        form.addRow("", self.capacity)
+
         self.name_edit = QLineEdit()
         form.addRow("Title", self.name_edit)
 
@@ -101,6 +112,7 @@ class PublishDialog(QDialog):
         layout.addWidget(self.buttons)
 
         self.layer_box.currentIndexChanged.connect(self._on_layer_changed)
+        self.org_box.currentIndexChanged.connect(self._on_org_changed)
         self._on_layer_changed()
 
     # -- data ---------------------------------------------------------------
@@ -131,6 +143,36 @@ class PublishDialog(QDialog):
         return True
 
     # -- interaction --------------------------------------------------------
+
+    def _on_org_changed(self):
+        """Refresh the capacity line for the organization now selected.
+
+        One round trip, under the wait cursor. A failure leaves the line blank
+        and a note in the QGIS log, never an error in the user's face: a
+        capacity ALIGN cannot report does not stop a publish, it only removes a
+        convenience, and the server guards either way.
+        """
+        self._capacity_line = None
+        self.capacity.setText("")
+        org = self.selected_org()
+        if org is None:
+            return
+
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            info = api.capacity(self.session, org["id"])
+        except api.ApiError as exc:
+            QgsMessageLog.logMessage(
+                "Could not read the capacity of {}: {}".format(org["name"], exc.message),
+                "ALIGN Connector",
+                Qgis.Warning,
+            )
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        self._capacity_line = describe_capacity(info)
+        self.capacity.setText(self._capacity_line)
 
     def _on_layer_changed(self):
         layer = self.selected_layer()
@@ -200,6 +242,14 @@ class PublishDialog(QDialog):
         org_id = self.org_box.currentData()
         return next((o for o in self._orgs if o["id"] == org_id), None)
 
+    def capacity_line(self):
+        """The capacity sentence shown for the selected organization, or None.
+
+        Handed to the publish so a refusal about space or credits can say what
+        the organization had, next to what the server says it lacked.
+        """
+        return self._capacity_line
+
     def description(self):
         """The description, or None. Empty means "no description", not "clear it"."""
         text = self.description_edit.toPlainText().strip()
@@ -227,6 +277,29 @@ def _publishable_layers():
         for layer in QgsProject.instance().mapLayers().values()
         if publishable_kind(layer) is not None
     ]
+
+
+def describe_capacity(capacity_info):
+    """One line a publisher reads under the organization picker.
+
+    ``Storage 1.2 GB of 10.0 GB used · 844 credits``. An unlimited storage says
+    so; a figure ALIGN did not give is left out rather than guessed; nothing at
+    all gives an empty string, and the label simply stays blank.
+    """
+    parts = []
+    storage = capacity_info.get("storage") or {}
+    used = storage.get("usedBytes")
+    limit = storage.get("limitBytes")
+    if used is not None:
+        used_text = _readable_size(used) or "0 bytes"
+        if limit:
+            parts.append("Storage {} of {} used".format(used_text, _readable_size(limit)))
+        else:
+            parts.append("Storage {} used, no limit".format(used_text))
+    available = (capacity_info.get("credits") or {}).get("available")
+    if available is not None:
+        parts.append("{} credit{}".format(available, "" if available == 1 else "s"))
+    return " · ".join(parts)
 
 
 def _size_of(path):

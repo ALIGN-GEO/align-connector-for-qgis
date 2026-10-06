@@ -45,6 +45,12 @@ jobs:
       - name: Raster publish decisions
         run: python scripts/smoke_raster.py
 
+      # Before a transfer, the dialog says what the organization can still
+      # spend, and a refusal for space or credits repeats it. The transport is
+      # canned; the reading of ALIGN's answer and the two sentences are not.
+      - name: Capacity line and capacity refusals
+        run: python scripts/smoke_capacity.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

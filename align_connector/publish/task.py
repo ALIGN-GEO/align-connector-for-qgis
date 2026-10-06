@@ -26,6 +26,22 @@ from .uploader import ResumableUploader, UploadCancelled, UploadFailed
 #: the file is quick; sending it is what takes the time.
 _EXPORT_SHARE = 5.0
 
+#: The two refusals that are about what the organization can still spend:
+#: credits for a conversion, space for the file.
+_CAPACITY_REFUSALS = (402, 413)
+
+
+def with_capacity(message, status, capacity_line):
+    """Add what the organization had to a refusal that is about capacity.
+
+    A 402 or a 413 already says what was missing; the line the dialog showed
+    says what there was, so the two read together (TCK-2179). Any other refusal
+    is passed through untouched.
+    """
+    if status in _CAPACITY_REFUSALS and capacity_line:
+        return "{} The organization currently has: {}.".format(message, capacity_line)
+    return message
+
 
 class PublishLayerTask(QgsTask):
     """Export one layer, send it, and catalogue it in ALIGN."""
@@ -40,6 +56,7 @@ class PublishLayerTask(QgsTask):
         selected_only=False,
         description=None,
         visibility=None,
+        capacity_line=None,
     ):
         super().__init__("Publishing “{}” to ALIGN".format(asset_name), QgsTask.CanCancel)
         self.session = session
@@ -50,6 +67,9 @@ class PublishLayerTask(QgsTask):
         self.selected_only = selected_only
         self.description = description
         self.visibility = visibility
+        #: What the dialog showed about the organization's remaining space and
+        #: credits, repeated in a refusal that is about either of them.
+        self.capacity_line = capacity_line
         self.layer_id = layer.id()
 
         #: Set on completion, read by whoever connected to `taskCompleted`.
@@ -127,7 +147,7 @@ class PublishLayerTask(QgsTask):
             self.error_message = str(exc)
             return False
         except api.ApiError as exc:
-            self.error_message = exc.message
+            self.error_message = with_capacity(exc.message, exc.status, self.capacity_line)
             self.needs_sign_in = exc.needs_sign_in
             return False
         finally:

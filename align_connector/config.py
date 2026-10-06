@@ -90,6 +90,11 @@ def orgs_endpoint():
     return "{}/api/v1/orgs".format(api_url())
 
 
+def capacity_endpoint(org_id):
+    """What the organization can still spend: storage and credits (TCK-2179)."""
+    return "{}/api/v1/orgs/{}/capacity".format(api_url(), org_id)
+
+
 def upload_url_endpoint(org_id):
     return "{}/api/v1/orgs/{}/datastore/upload-url".format(api_url(), org_id)
 

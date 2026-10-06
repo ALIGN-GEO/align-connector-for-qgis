@@ -19,12 +19,16 @@ class ApiError(Exception):
 
     :param message: what to show
     :param needs_sign_in: the session is gone; the caller should offer to reconnect
+    :param status: the HTTP status behind the refusal, when there was one. Lets a
+        caller recognise the two refusals that are about capacity (402 credits,
+        413 storage) without parsing the sentence (TCK-2179).
     """
 
-    def __init__(self, message, needs_sign_in=False):
+    def __init__(self, message, needs_sign_in=False, status=None):
         super().__init__(message)
         self.message = message
         self.needs_sign_in = needs_sign_in
+        self.status = status
 
 
 # What each refusal means to someone publishing a layer. The API's own message
@@ -53,10 +57,10 @@ def _raise_for(result, fallback):
         # where "invalid token" tells the user nothing they can do.
         if result.status != 401:
             message = result.message(message)
-        raise ApiError(message, needs_sign_in=needs_sign_in)
+        raise ApiError(message, needs_sign_in=needs_sign_in, status=result.status)
     if result.status == net.NO_RESPONSE:
         raise ApiError("ALIGN could not be reached. Check your connection and try again.")
-    raise ApiError(result.message(fallback))
+    raise ApiError(result.message(fallback), status=result.status)
 
 
 def list_organizations(session):
@@ -82,6 +86,51 @@ def list_organizations(session):
         for item in items
         if isinstance(item, dict) and item.get("id")
     ]
+
+
+def capacity(session, org_id):
+    """What the organization can still spend here — storage and credits (TCK-2179).
+
+    A read for the publisher about to publish. It carries no data and no
+    secret: bytes used and allowed, and whole credits. ALIGN never says what a
+    credit is worth; neither does this.
+
+    :returns: ``{"storage": {"usedBytes", "limitBytes"}, "credits": {"available"}}``
+    :raises ApiError: when the call fails
+    """
+    token = session.access_token()
+    if not token:
+        raise ApiError("You are not signed in to ALIGN.", needs_sign_in=True)
+
+    result = net.get_json(config.capacity_endpoint(org_id), bearer=token)
+    if not result.ok:
+        _raise_for(result, "Could not read what this organization can still spend")
+
+    body = result.body if isinstance(result.body, dict) else None
+    storage = body.get("storage") if body else None
+    credits = body.get("credits") if body else None
+    if not isinstance(storage, dict) or not isinstance(credits, dict):
+        raise ApiError("ALIGN returned an unexpected answer while reading the organization's capacity.")
+    return {
+        "storage": {
+            "usedBytes": _count(storage.get("usedBytes")),
+            "limitBytes": _count(storage.get("limitBytes")),
+        },
+        "credits": {"available": _count(credits.get("available"))},
+    }
+
+
+def _count(value):
+    """A non-negative integer, or None when the server did not say.
+
+    The server's schema promises integers; a client still reads defensively,
+    because the figure ends up in a sentence shown to a person.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if value < 0:
+        return None
+    return int(value)
 
 
 def open_upload_session(session, org_id, filename, content_type, size_bytes, already_servable=False):
