@@ -31,6 +31,11 @@ class ApiError(Exception):
 # is used when it is specific enough; these cover the cases where it is not.
 _REFUSALS = {
     401: ("Your ALIGN session has expired. Sign in again to publish.", True),
+    # TCK-2178 — the conversion this file needs (GeoTIFF → COG, MBTiles →
+    # PMTiles) would cost more credits than the organization has. Refused
+    # before the first byte; the server's sentence carries the two numbers.
+    402: ("Your organization does not have enough credits to convert this file. "
+          "Add credits in Plans & Capacity, then publish again.", False),
     403: ("Your role in this organization does not allow publishing.", False),
     404: ("That organization could not be found, or you are no longer a member of it.", False),
     413: ("There is not enough space left in this organization's Datastore.", False),
@@ -125,17 +130,25 @@ def open_upload_session(session, org_id, filename, content_type, size_bytes, alr
     return body
 
 
-def finalize(session, org_id, asset_id, filename, name, provenance=None, description=None, visibility=None):
+def finalize(session, org_id, asset_id, filename, name, provenance=None, description=None, visibility=None,
+             already_servable=False):
     """Catalogue the asset once its bytes have landed.
 
     The declared size is not re-sent: ALIGN measures what actually arrived, and
-    that measurement is the one that counts against the quota.
+    that measurement is the one that counts against the quota — and against the
+    conversion budget, re-checked here on the real size (TCK-2178). A refusal at
+    this point deletes the uploaded bytes; nothing is catalogued.
+
+    :param already_servable: the same claim made at the upload session — ALIGN
+        does not remember it between the two calls, so it is said again.
     """
     token = session.access_token()
     if not token:
         raise ApiError("Your ALIGN session expired while the file was uploading.", needs_sign_in=True)
 
     payload = {"filename": filename, "name": name}
+    if already_servable:
+        payload["alreadyServable"] = True
     if provenance:
         payload["provenance"] = provenance
     # Sent in the same call that catalogues the bytes: a second call could fail

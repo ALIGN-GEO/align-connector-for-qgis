@@ -114,6 +114,7 @@ class PublishLayerTask(QgsTask):
                 provenance=self._provenance(),
                 description=self.description,
                 visibility=self.visibility,
+                already_servable=export.already_servable,
             )
             self._read_derivation(catalogued)
             self.setProgress(100)
