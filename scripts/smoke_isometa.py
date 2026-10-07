@@ -151,6 +151,15 @@ def test_fields_the_organization_kept_are_named_after_the_publish():
     check(locked_fields_of({"abstract": "x"}, catalogued) == [], "no lockable field sent")
 
 
+def test_an_empty_default_contact_row_is_not_reported_as_cut():
+    empty_row = Record(keywords={}, contacts=[types.SimpleNamespace(name="", organization="", email="", position="", addresses=[])])
+    reading = isometa.read(layer(empty_row))
+    check(reading.iso is None and reading.report == [], "an untouched contact row is nothing, not a cut: {}".format(reading.report))
+    half = Record(keywords={}, contacts=[types.SimpleNamespace(name="Jane", organization="", email="", position="", addresses=[])])
+    reading = isometa.read(layer(half))
+    check(any("Contact without" in line for line in reading.report), "a contact someone started is reported")
+
+
 def main():
     tests = [
         test_the_sheet_fields_travel_and_nothing_else,
@@ -161,6 +170,7 @@ def main():
         test_the_dialog_sentence_names_what_travels_and_what_was_cut,
         test_fields_the_organization_kept_are_named_after_the_publish,
     ]
+    tests.append(test_an_empty_default_contact_row_is_not_reported_as_cut)
     for test in tests:
         test()
         print("ok  {}".format(test.__name__))

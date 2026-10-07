@@ -182,12 +182,16 @@ def _keywords_and_theme(vocabularies, report):
 def _contact(contacts, report):
     """The first contact with both an organisation (or a name) and an email —
     the two fields the sheet shows. Nothing else of a person travels."""
+    filled = False
     for contact in contacts:
         organisation = _text(_get(contact, "organization")) or _text(_get(contact, "name"))
         email = _text(_get(contact, "email"))
         if organisation and "@" in email:
             return {"organisationName": organisation[:MAX_TEXT], "email": email[:320]}
-    if contacts:
+        filled = filled or bool(organisation or email)
+    # QGIS keeps an empty contact row by default: nothing was written, so
+    # there is nothing to report as cut (seen on the first E2E, TCK-2204).
+    if filled:
         report.append("Contact without an organisation and an email: not transmitted.")
     return None
 
