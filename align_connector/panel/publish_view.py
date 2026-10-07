@@ -4,9 +4,11 @@
 What the modal dialog asked for one layer, this asks for any number of them:
 one, several, or the whole project. Each layer keeps its own title and its
 own "selection only" choice; the organization, the visibility and the
-description are the batch's. The briefing of the highlighted layer (what will
-travel, what the style and the metadata become, what is simplified) is shown
-before the send, never discovered after.
+description are the batch's, and so is the web map that can assemble the
+layers once they have all landed (TCK-2204). The briefing of the highlighted
+layer (what will travel, what the style and the metadata become, what is
+simplified) is shown before the send, never discovered after; a layer that
+cannot go is listed greyed with its reason, never hidden.
 
 Organizations are listed as ALIGN returns them, none hidden: the server
 decides who may publish where, and its refusal is what the user is shown.
@@ -35,7 +37,7 @@ from qgis.PyQt.QtWidgets import (
 
 from .. import api
 from ..i18n import tr
-from ..publish import briefing
+from ..publish import briefing, support
 from ..publish.wording import describe_capacity
 from ..qtcompat import qt_enum
 from . import batch
@@ -75,6 +77,13 @@ class PublishView(QWidget):
         self.tree.itemChanged.connect(self._on_item_changed)
         self.tree.currentItemChanged.connect(self._on_current_changed)
         layout.addWidget(self.tree, 1)
+
+        # What cannot go, and why: read before the send, never after.
+        self.blocked = QLabel()
+        self.blocked.setWordWrap(True)
+        self.blocked.setTextFormat(qt_enum(Qt, "TextFormat", "PlainText"))
+        self.blocked.setVisible(False)
+        layout.addWidget(self.blocked)
 
         # -- the highlighted layer -------------------------------------------
         form = QFormLayout()
@@ -116,6 +125,25 @@ class PublishView(QWidget):
         )
         self.description_edit.setFixedHeight(64)
         batch_form.addRow(tr("Description"), self.description_edit)
+
+        # -- the web map (TCK-2204) -------------------------------------------
+        self.webmap_box = QCheckBox(tr("Also create a web map with these layers"))
+        self.webmap_box.toggled.connect(self._on_webmap_toggled)
+        batch_form.addRow("", self.webmap_box)
+        self.webmap_title = QLineEdit()
+        self.webmap_title.setPlaceholderText(tr("Web map title"))
+        self.webmap_title.setEnabled(False)
+        batch_form.addRow(tr("Web map"), self.webmap_title)
+        self.webmap_note = QLabel(
+            tr(
+                "The web map lists the layers in the Layers panel's order, with their visibility; "
+                "groups are flattened. It opens on what the canvas shows."
+            )
+        )
+        self.webmap_note.setWordWrap(True)
+        self.webmap_note.setTextFormat(qt_enum(Qt, "TextFormat", "PlainText"))
+        self.webmap_note.setVisible(False)
+        batch_form.addRow("", self.webmap_note)
         layout.addLayout(batch_form)
 
         self.publish_button = QPushButton(batch.describe_plan([]))
@@ -206,6 +234,11 @@ class PublishView(QWidget):
                 item.setToolTip(1, row.reason)
             self.tree.addTopLevelItem(item)
         self.tree.blockSignals(False)
+        blocked = batch.describe_blocked(self._rows)
+        self.blocked.setText(blocked)
+        self.blocked.setVisible(bool(blocked))
+        if not self.webmap_title.text().strip():
+            self.webmap_title.setText(_project_title())
         self._sync_all_box()
         self._update_button()
         self.tree.setCurrentItem(self._item_of(current) or self._first_enabled_item())
@@ -241,6 +274,12 @@ class PublishView(QWidget):
     def _on_item_changed(self, _item, _column):
         self._sync_all_box()
         self._update_button()
+
+    def _on_webmap_toggled(self, checked):
+        self.webmap_title.setEnabled(checked)
+        self.webmap_note.setVisible(checked)
+        if checked and not self.webmap_title.text().strip():
+            self.webmap_title.setText(_project_title())
 
     def _on_current_changed(self, current, _previous):
         layer = QgsProject.instance().mapLayer(current.data(0, _USER_ROLE())) if current is not None else None
@@ -333,6 +372,7 @@ class PublishView(QWidget):
         if org is None:
             return
         project = QgsProject.instance()
+        root = project.layerTreeRoot()
         requests = []
         for item in self._plans():
             layer = project.mapLayer(item.layer_id)
@@ -340,9 +380,24 @@ class PublishView(QWidget):
                 continue
             # The briefing is read here, on the interface thread, once per
             # layer: the converted style and the metadata go with the task.
-            requests.append(batch.Request(layer, item, briefing.brief(layer, item.selected_only)))
+            # So do what the web map will need: whether QGIS shows the layer
+            # (its group counted), and its geometry.
+            node = root.findLayer(item.layer_id)
+            visible = node.isVisible() if node is not None else True
+            requests.append(
+                batch.Request(
+                    layer,
+                    item,
+                    briefing.brief(layer, item.selected_only),
+                    visible=visible,
+                    geometry_type=support.geojson_geometry_type(layer),
+                )
+            )
         if not requests:
             return
+        web_map_name = None
+        if self.webmap_box.isChecked():
+            web_map_name = self.webmap_title.text().strip() or _project_title()
         self._on_publish(
             batch.Batch(
                 org,
@@ -350,6 +405,7 @@ class PublishView(QWidget):
                 self.description_edit.toPlainText().strip() or None,
                 self._capacity_line,
                 requests,
+                web_map_name=web_map_name,
             )
         )
         # What left is left: a second click must not send it again.
@@ -382,6 +438,15 @@ def _project_layers():
     except (AttributeError, RuntimeError):
         layers = []
     return layers or list(project.mapLayers().values())
+
+
+def _project_title():
+    """The project's title, else its file name, else a name that says so."""
+    project = QgsProject.instance()
+    for name in (project.title(), project.baseName()):
+        if name and name.strip():
+            return name.strip()
+    return tr("Untitled map")
 
 
 def _USER_ROLE():  # noqa: N802 — reads as the Qt constant it stands for

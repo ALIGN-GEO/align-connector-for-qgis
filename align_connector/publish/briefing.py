@@ -19,8 +19,9 @@ import os
 from ..i18n import tr
 from . import isometa
 from . import raster
+from . import support
 from . import symbology
-from .exporter import publishable_kind, reprojection_notice
+from .exporter import reprojection_notice
 from .wording import describe_style, readable_size
 
 
@@ -44,13 +45,17 @@ class Briefing(object):
 
 def brief(layer, selected_only=False):
     """Explain what publishing this layer will do."""
-    kind = publishable_kind(layer)
+    verdict = support.verdict(layer)
+    kind = verdict.kind
     reading = isometa.read(layer)
     name = _call(layer, "name", "") or tr("Layer")
     title = reading.title or name
 
+    if not verdict.publishable:
+        return Briefing(None, verdict.reason, None, None, title)
+
     if kind == "raster":
-        text = _raster_text(layer) + " " + isometa.describe_metadata(reading)
+        text = " ".join([_raster_text(layer)] + verdict.notes + [isometa.describe_metadata(reading)])
         return Briefing(kind, text, None, reading.iso, title)
 
     if kind == "vector":
@@ -62,6 +67,8 @@ def brief(layer, selected_only=False):
         conversion = symbology.convert(layer)
         text += " " + describe_style(conversion)
         text += " " + isometa.describe_metadata(reading)
+        for note in verdict.notes:
+            text += " " + note
         return Briefing(kind, text, conversion.style, reading.iso, title)
 
     return Briefing(None, tr("ALIGN publishes vector and raster layers. This layer is neither."), None, None, title)

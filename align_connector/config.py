@@ -121,3 +121,13 @@ def finalize_endpoint(org_id, asset_id):
 def scope_string():
     """Scopes as the wire format expects them — space-delimited (RFC 6749 §3.3)."""
     return " ".join(SCOPES)
+
+
+def web_map_endpoint(org_id):
+    """Compose a web map from published items (TCK-2204)."""
+    return "{}/api/v1/orgs/{}/datastore/web-maps/from-assets".format(api_url(), org_id)
+
+
+def web_map_url(org_id, asset_id):
+    """The web map in the Map builder."""
+    return "{}/app/{}/map-viewer?webmap={}".format(app_url(), org_id, asset_id)

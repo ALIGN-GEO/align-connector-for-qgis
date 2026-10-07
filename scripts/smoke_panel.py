@@ -39,7 +39,7 @@ from qgis.core import QgsRasterLayer, QgsVectorLayer  # noqa: E402
 
 from align_connector import config  # noqa: E402
 from align_connector.panel import batch, outcome  # noqa: E402
-from align_connector.publish import briefing  # noqa: E402
+from align_connector.publish import briefing, support  # noqa: E402
 from align_connector.publish.wording import readable_size  # noqa: E402
 
 
@@ -71,13 +71,17 @@ def _fill_symbol(fill="#1d4ed8"):
 class Vector(QgsVectorLayer):
     """A vector layer stand-in: valid, in Lambert 72, categorized, documented."""
 
-    def __init__(self, layer_id, name, authid="EPSG:31370", valid=True, selected=0, total=120, title=None, renderer=None):
+    def __init__(self, layer_id, name, authid="EPSG:31370", valid=True, selected=0, total=120, title=None, renderer=None,
+                 geometry=2, wkb="Polygon", provider="ogr"):
         self._id = layer_id
         self._name = name
         self._authid = authid
         self._valid = valid
         self._selected = selected
         self._total = total
+        self._geometry = geometry
+        self._wkb = wkb
+        self._provider = provider
         self._record = Stub(title=title or "", abstract="", keywords={}, licenses=[], rights=[], constraints=[], contacts=[], history=[])
         self._renderer = renderer or Stub(type="singleSymbol", symbol=_fill_symbol())
 
@@ -100,7 +104,13 @@ class Vector(QgsVectorLayer):
         return self._total
 
     def geometryType(self):  # noqa: N802
-        return 2
+        return self._geometry
+
+    def wkbType(self):  # noqa: N802
+        return self._wkb
+
+    def dataProvider(self):  # noqa: N802
+        return Stub(name=self._provider)
 
     def renderer(self):
         return self._renderer
@@ -147,8 +157,8 @@ class Raster(QgsRasterLayer):
         return None
 
 
-class Mesh(object):
-    """Neither vector nor raster."""
+class QgsMeshLayer(object):
+    """Neither vector nor raster: the class name is what QGIS would answer."""
 
     def id(self):
         return "mesh-1"
@@ -173,7 +183,7 @@ def test_every_layer_is_listed_with_a_reason_for_the_refused_ones():
         Raster("r1", "Elevation", source="C:/data/dem.tif"),
         Raster("r2", "Orthophoto (WMS)", source="url=https://example", provider="wms"),
         Vector("v2", "Broken", valid=False),
-        Mesh(),
+        QgsMeshLayer(),
     ]
     rows = batch.rows_of(layers)
     check([r.layer_id for r in rows] == ["v1", "r1", "r2", "mesh-1"] or [r.name for r in rows] == ["Parcels", "Elevation", "Orthophoto (WMS)", "Broken", "Bathymetry mesh"], "every layer, in the order given")
@@ -182,7 +192,42 @@ def test_every_layer_is_listed_with_a_reason_for_the_refused_ones():
     check(rows[1].publishable and rows[1].kind == "raster" and rows[1].title == "Elevation", "a raster proposes its layer name")
     check(not rows[2].publishable and "WMS" in rows[2].reason and "no file" in rows[2].reason, rows[2].reason)
     check(not rows[3].publishable and rows[3].kind is None, "an invalid layer is listed, refused")
-    check(not rows[4].publishable and "vector or raster" in rows[4].reason, rows[4].reason)
+    check(not rows[4].publishable and "mesh layer" in rows[4].reason, rows[4].reason)
+
+
+def test_every_layer_gets_a_verdict_in_words_to_act_on():
+    rows = batch.rows_of([
+        Vector("table", "Attribute table", geometry=4, wkb="NoGeometry"),
+        Vector("arcs", "Road arcs", wkb="CompoundCurve"),
+        Vector("empty", "Empty", total=0),
+        Vector("wfs", "Parcels (WFS)", provider="WFS"),
+        Raster("xyz", "OpenStreetMap", source="type=xyz&url=https://tile.example/{z}/{x}/{y}.png", provider="wms"),
+        Raster("wmts", "Ortho (WMTS)", source="tileMatrixSet=EPSG:3857&url=https://wmts.example", provider="wms"),
+        Raster("dem", "Elevation", source="C:/data/dem.tif"),
+    ])
+    reasons = {row.layer_id: row.reason for row in rows}
+    check("without geometry" in reasons["table"], reasons["table"])
+    check("Curved geometries" in reasons["arcs"] and "Segmentize" in reasons["arcs"], reasons["arcs"])
+    check("No features" in reasons["empty"], reasons["empty"])
+    check(reasons["wfs"] is None, "a WFS layer is published as a snapshot, not refused")
+    check(reasons["xyz"].startswith("A XYZ tiles connection") and "web application" in reasons["xyz"], reasons["xyz"])
+    check(reasons["wmts"].startswith("A WMTS connection"), reasons["wmts"])
+    check(reasons["dem"] is None, "a GDAL file is published")
+
+    summary = batch.describe_blocked(rows)
+    check(summary.startswith("5 layers cannot be published:"), summary)
+    check("Attribute table (" in summary and "OpenStreetMap (" in summary, summary)
+    check(batch.describe_blocked(rows[3:4]) == "", "nothing blocked reads as nothing")
+
+    # The briefing carries what changes on the way for the layers that go.
+    snapshot = briefing.brief(Vector("wfs", "Parcels (WFS)", provider="WFS"))
+    check("snapshot of its features" in snapshot.text, snapshot.text)
+    refused = briefing.brief(Vector("arcs", "Road arcs", wkb="CompoundCurve"))
+    check(refused.kind is None and "Curved geometries" in refused.text, refused.text)
+    check(support.geojson_geometry_type(Vector("pts", "Points", geometry=0)) == "Point", "geometry for the web map")
+    check(support.geojson_geometry_type(Vector("lines", "Lines", geometry=types.SimpleNamespace(name="Line", value=1))) == "LineString",
+          "a QGIS 4 enum geometry reads by name")
+    check(support.geojson_geometry_type(Vector("table", "Table", geometry=4)) is None, "no geometry, no type")
 
 
 def test_one_click_sends_the_checked_publishable_rows_in_panel_order():
@@ -246,8 +291,10 @@ def test_a_raster_is_told_its_size_and_the_conversion_on_arrival():
     written = briefing.brief(Raster("r2", "Derived", source="C:/nowhere/derived.vrt"))
     check(written.text.startswith("A compressed GeoTIFF will be written"), written.text)
 
-    neither = briefing.brief(Mesh())
-    check(neither.kind is None and "vector and raster" in neither.text, neither.text)
+    neither = briefing.brief(QgsMeshLayer())
+    check(neither.kind is None and "mesh layer" in neither.text, neither.text)
+    styled = briefing.brief(Raster("r3", "Hillshade", source="C:/nowhere/hill.tif"))
+    check("Raster styling is not transmitted" in styled.text, styled.text)
 
 
 # -- the outcome --------------------------------------------------------------
@@ -317,6 +364,7 @@ def main():
     tests = [
         test_every_layer_is_listed_with_a_reason_for_the_refused_ones,
         test_one_click_sends_the_checked_publishable_rows_in_panel_order,
+        test_every_layer_gets_a_verdict_in_words_to_act_on,
         test_a_vector_is_told_its_features_reprojection_style_and_metadata,
         test_a_raster_is_told_its_size_and_the_conversion_on_arrival,
         test_a_success_says_where_the_layer_is_and_what_changed,

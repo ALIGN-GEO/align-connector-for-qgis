@@ -5,8 +5,9 @@ One rule shapes the list: **every layer of the project is shown, none
 hidden.** A layer the plugin cannot send is listed greyed with its reason,
 because a silent absence leaves someone wondering why their layer is missing;
 a reason does not. The test for "publishable" is the export's own
-(`publishable_kind`, and the raster export's refusal of a remote service),
-so the list can never offer what the publish would then refuse.
+(`publishable_kind`) sharpened by one verdict per layer (`support.verdict`:
+provider, geometry, count), so the list can never offer what the publish
+would then refuse, and a refusal is read before the send, never after.
 
 Pure: proven by ``scripts/smoke_panel.py``.
 
@@ -14,8 +15,7 @@ Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
 from ..i18n import tr
-from ..publish import isometa
-from ..publish.exporter import publishable_kind
+from ..publish import isometa, support
 
 
 class Row(object):
@@ -47,23 +47,29 @@ class Plan(object):
 
 
 class Request(object):
-    """A plan, resolved: the layer itself and its briefing (style, metadata)."""
+    """A plan, resolved: the layer itself, its briefing (style, metadata), and
+    what the web map will need of it (visibility in QGIS, geometry)."""
 
-    def __init__(self, layer, plan, briefing):
+    def __init__(self, layer, plan, briefing, visible=True, geometry_type=None):
         self.layer = layer
         self.plan = plan
         self.briefing = briefing
+        self.visible = visible
+        self.geometry_type = geometry_type
 
 
 class Batch(object):
-    """What one click on Publish sends: the requests, and what they share."""
+    """What one click on Publish sends: the requests, what they share, and
+    whether a web map should assemble them once they have all landed."""
 
-    def __init__(self, org, visibility, description, capacity_line, requests):
+    def __init__(self, org, visibility, description, capacity_line, requests, web_map_name=None, map_view=None):
         self.org = org
         self.visibility = visibility
         self.description = description
         self.capacity_line = capacity_line
         self.requests = requests
+        self.web_map_name = web_map_name
+        self.map_view = map_view
 
 
 def rows_of(layers):
@@ -72,24 +78,23 @@ def rows_of(layers):
     for layer in layers:
         layer_id = _call(layer, "id", "") or ""
         name = _call(layer, "name", "") or layer_id or tr("Layer")
-        kind = publishable_kind(layer)
+        verdict = support.verdict(layer)
         # The record's own title is a better proposal than the layer name,
         # when someone took the time to write one (TCK-2202).
-        title = isometa.read(layer).title if kind else None
-        rows.append(Row(layer_id, name, kind, _reason(layer, kind), title))
+        title = isometa.read(layer).title if verdict.publishable else None
+        rows.append(Row(layer_id, name, verdict.kind, verdict.reason, title))
     return rows
 
 
-def _reason(layer, kind):
-    if kind is None:
-        return tr("Not a vector or raster layer.")
-    if kind == "raster":
-        # The same verdict the raster export gives: a remote service has no
-        # bytes to publish. Said here, before the layer is even checked.
-        provider = _call(_call(layer, "dataProvider", None), "name", "gdal")
-        if provider and provider != "gdal":
-            return tr("A {} connection, not a dataset: there is no file to publish.").format(provider.upper())
-    return None
+def describe_blocked(rows):
+    """The layers that cannot go, each with its reason, under the list: a
+    refusal the publisher reads before the send, never after. Empty when
+    every layer can go."""
+    blocked = [row for row in rows if not row.publishable]
+    if not blocked:
+        return ""
+    head = tr("1 layer cannot be published:") if len(blocked) == 1 else tr("{} layers cannot be published:").format(len(blocked))
+    return head + " " + "; ".join("{} ({})".format(row.name, row.reason) for row in blocked)
 
 
 def plan(rows, checked_ids, titles=None, selected_only_ids=()):

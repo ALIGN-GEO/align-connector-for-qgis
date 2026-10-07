@@ -66,6 +66,10 @@ def install():
 
     core.QgsVectorFileWriter = QgsVectorFileWriter
     core.QgsRasterFileWriter = QgsRasterFileWriter
+    # A smoke names a geometry type by its WKT word; QGIS answers the same question on its enum.
+    core.QgsWkbTypes.isCurvedType = staticmethod(
+        lambda wkb: str(wkb).startswith(("CircularString", "CompoundCurve", "CurvePolygon", "MultiCurve", "MultiSurface"))
+    )
 
     qtcore = types.ModuleType("qgis.PyQt.QtCore")
     qtcore.QVariant = type("QVariant", (object,), {"Map": 8, "List": 9, "StringList": 11, "Hash": 28})

@@ -28,10 +28,15 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
+from . import config
 from .auth import AlignSession
+from .panel import webmap
+from .panel.camera import canvas_map_view
 from .panel.dock import AlignDock, dock_area
-from .panel.outcome import INFO, SUCCESS, outcome_of
+from .panel.follow import LotFollower
+from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of
 from .publish.task import PublishLayerTask
+from .publish.webmap_task import ComposeWebMapTask
 from .qtcompat import run_exec
 from .settings_dialog import SettingsDialog
 
@@ -65,6 +70,8 @@ class AlignConnectorPlugin:
         #: Running publishes. QGIS' task manager does not own the Python
         #: object, so dropping our reference would collect a task mid-upload.
         self._tasks = []
+        #: The lot each publish task belongs to, when a web map waits for the lot.
+        self._followers = {}
 
     # -- i18n ---------------------------------------------------------------
 
@@ -229,8 +236,16 @@ class AlignConnectorPlugin:
             self.dock.publish.check_only(layer.id())
 
     def _start_batch(self, batch):
-        """One task per layer; the panel follows each, the bar says they left."""
+        """One task per layer; the panel follows each, the bar says they left.
+
+        When the batch asks for a web map, a follower waits for the last task
+        and the camera is read now, from what the publisher is looking at.
+        """
         org = batch.org
+        follower = None
+        if batch.web_map_name:
+            batch.map_view = canvas_map_view(self.iface.mapCanvas())
+            follower = LotFollower(batch, self._on_lot_finished)
         for request in batch.requests:
             task = PublishLayerTask(
                 self.session,
@@ -248,6 +263,9 @@ class AlignConnectorPlugin:
             task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
             task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
             self._tasks.append(task)
+            if follower is not None:
+                follower.started(task, request)
+                self._followers[id(task)] = follower
             self.dock.track(task, org["id"])
             QgsApplication.taskManager().addTask(task)
 
@@ -259,7 +277,51 @@ class AlignConnectorPlugin:
             )
         else:
             text = self.tr("Publishing {} layers to {} — follow them in the ALIGN panel.").format(count, org["name"])
+        if batch.web_map_name:
+            text += " " + self.tr("The web map “{}” will be created once they have all landed.").format(batch.web_map_name)
         self._message(text, Qgis.Info)
+
+    def _on_lot_finished(self, follower):
+        """Every layer of the lot has landed, or failed: ask for the web map."""
+        batch = follower.batch
+        org = batch.org
+        plan = webmap.plan(follower.records())
+        if not plan.layers:
+            self._message(
+                self.tr("No layer of the lot was published, so the web map “{}” was not created.").format(batch.web_map_name),
+                Qgis.Warning,
+            )
+            return
+        task = ComposeWebMapTask(
+            self.session,
+            org["id"],
+            org["name"],
+            batch.web_map_name,
+            plan.layers,
+            map_view=batch.map_view,
+            description=batch.description,
+            visibility=batch.visibility,
+        )
+        left_out = list(plan.left_out)
+        task.taskCompleted.connect(lambda t=task: self._on_web_map_finished(t, True, left_out))
+        task.taskTerminated.connect(lambda t=task: self._on_web_map_finished(t, False, left_out))
+        self._tasks.append(task)
+        self.dock.track(
+            task, org["id"], title=self.tr("Web map “{}”").format(batch.web_map_name), link=config.web_map_url, busy=True
+        )
+        QgsApplication.taskManager().addTask(task)
+
+    def _on_web_map_finished(self, task, succeeded, left_out):
+        if task in self._tasks:
+            self._tasks.remove(task)
+        text = webmap.describe_outcome(task, succeeded, left_out)
+        outcome = Outcome(SUCCESS if succeeded else WARNING, text, task.asset_id if succeeded else None)
+        if self.dock is not None:
+            self.dock.settle(task, outcome)
+        if not succeeded and task.needs_sign_in:
+            self.session.sign_out()
+            self._refresh_state()
+        self._message(text, _LEVELS.get(outcome.level, Qgis.Warning))
 
     def _on_publish_finished(self, task, succeeded):
         """Report the outcome, in the words of whoever refused it."""
@@ -269,6 +331,9 @@ class AlignConnectorPlugin:
         outcome = outcome_of(task, succeeded)
         if self.dock is not None:
             self.dock.settle(task, outcome)
+        follower = self._followers.pop(id(task), None)
+        if follower is not None:
+            follower.finished(task, succeeded)
 
         if not succeeded and task.needs_sign_in:
             # The session died mid-publish; say so once, and leave the menu

@@ -9,7 +9,7 @@ Publish QGIS layers to your [ALIGN](https://aligngeo.com) organization's Datasto
 You work in QGIS. Your data belongs in ALIGN, where your team consumes it and your web maps are built from it. Today that means exporting a file and uploading it through a browser. This plugin removes that round trip:
 
 1. **Sign in once** — the plugin opens your browser, you approve, and it comes back with a token. No password, no API key to copy, nothing to paste.
-2. **Open the ALIGN panel** — tick one layer, several, or the whole project, pick an organization, publish. Each layer becomes its own publication: the panel's Activity view shows every one of them progressing, then what ALIGN made of it, with a link to the item. A layer's context menu offers the same entry for just that layer.
+2. **Open the ALIGN panel** — tick one layer, several, or the whole project, pick an organization, publish. Each layer becomes its own publication: the panel's Activity view shows every one of them progressing, then what ALIGN made of it, with a link to the item. A layer's context menu offers the same entry for just that layer. Tick “Also create a web map” and, once every layer has landed, ALIGN assembles a web map of them in the Layers panel's order, with their visibility, their style and the view your canvas showed, ready to open in the Map builder. A layer the Map builder cannot show (a mesh, a point cloud, a WMS or XYZ connection, a table without geometry, curved geometries) is listed greyed with the reason, never silently skipped.
 
 Large layers keep uploading in the background: you carry on working, the progress is visible, and an interrupted transfer resumes where it stopped rather than starting over.
 

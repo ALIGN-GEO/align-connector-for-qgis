@@ -220,3 +220,39 @@ def finalize(session, org_id, asset_id, filename, name, provenance=None, descrip
     if not result.ok:
         _raise_for(result, "ALIGN could not catalogue the uploaded file")
     return result.body
+
+
+def create_web_map(session, org_id, name, layers, map_view=None, description=None, visibility=None):
+    """Ask ALIGN for the web map that shows published items (TCK-2204).
+
+    :param layers: entries ``{"assetId", "title"?, "visible"?, "geometryType"?,
+        "style"?}``, top of the map first (a legend's order)
+    :returns: ``{"assetId", "name", "layers": [{assetId, layerId}],
+        "skipped": [{assetId, reason}]}``
+    :raises ApiError: when the call fails; ``status`` carries the refusal
+    """
+    token = session.access_token()
+    if not token:
+        raise ApiError("You are not signed in to ALIGN.", needs_sign_in=True)
+
+    payload = {"name": name, "layers": list(layers)}
+    if map_view:
+        payload["mapView"] = map_view
+    if description:
+        payload["description"] = description
+    if visibility:
+        payload["visibility"] = visibility
+
+    result = net.post_json(config.web_map_endpoint(org_id), payload, bearer=token)
+    if not result.ok:
+        _raise_for(result, "Could not create the web map")
+
+    body = result.body if isinstance(result.body, dict) else None
+    if not body or not body.get("assetId"):
+        raise ApiError("ALIGN returned an unexpected answer while creating the web map.")
+    return {
+        "assetId": body["assetId"],
+        "name": body.get("name") or name,
+        "layers": [e for e in (body.get("layers") or []) if isinstance(e, dict)],
+        "skipped": [e for e in (body.get("skipped") or []) if isinstance(e, dict)],
+    }
