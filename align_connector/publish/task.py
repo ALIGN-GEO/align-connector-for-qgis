@@ -31,6 +31,22 @@ _EXPORT_SHARE = 5.0
 _CAPACITY_REFUSALS = (402, 413)
 
 
+#: The sheet fields an organization may enforce, with the words the user reads.
+LOCKABLE_FIELDS = (("useLimitation", "licence"), ("accessConstraints", "access constraints"), ("contact", "contact"))
+
+
+def locked_fields_of(sent, catalogued):
+    """The human names of the metadata fields sent but kept as the organization
+    has them (TCK-2202): present in what was sent, absent from what ALIGN
+    catalogued. Empty when nothing was sent or the answer is unreadable."""
+    if not sent or not isinstance(catalogued, dict):
+        return []
+    stored = catalogued.get("iso")
+    if not isinstance(stored, dict):
+        stored = {}
+    return [label for field, label in LOCKABLE_FIELDS if sent.get(field) is not None and field not in stored]
+
+
 def with_capacity(message, status, capacity_line):
     """Add what the organization had to a refusal that is about capacity.
 
@@ -58,6 +74,7 @@ class PublishLayerTask(QgsTask):
         visibility=None,
         capacity_line=None,
         style=None,
+        iso=None,
     ):
         super().__init__("Publishing “{}” to ALIGN".format(asset_name), QgsTask.CanCancel)
         self.session = session
@@ -75,6 +92,12 @@ class PublishLayerTask(QgsTask):
         #: dialog (QGIS layers are not for other threads to read), sent at
         #: finalize as the item's default style (TCK-2201).
         self.style = style
+        #: The layer's metadata for the item's ISO sheet (TCK-2202), read on
+        #: the interface thread by the dialog.
+        self.iso = iso
+        #: Metadata fields the organization enforces, which the publish could
+        #: not set: read off the catalogued asset, told to the user.
+        self.locked_fields = []
         self.layer_id = layer.id()
 
         #: Set on completion, read by whoever connected to `taskCompleted`.
@@ -145,8 +168,10 @@ class PublishLayerTask(QgsTask):
                 visibility=self.visibility,
                 already_servable=export.already_servable,
                 style=self.style,
+                iso=self.iso,
             )
             self._read_derivation(catalogued)
+            self.locked_fields = locked_fields_of(self.iso, catalogued)
             self.setProgress(100)
             return True
 

@@ -70,6 +70,12 @@ jobs:
       - name: Symbology converted, simplifications reported
         run: python scripts/smoke_symbology.py
 
+      # The layer's metadata fills the item's ISO sheet on ALIGN: the fields
+      # the sheet shows, nothing else; what the organization keeps as its own
+      # is named after the publish.
+      - name: Metadata read for the item sheet
+        run: python scripts/smoke_isometa.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

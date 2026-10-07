@@ -39,6 +39,7 @@ from qgis.PyQt.QtWidgets import (
 
 from .. import api
 from .exporter import publishable_kind, reprojection_notice
+from . import isometa
 from . import raster
 from . import symbology
 
@@ -58,6 +59,9 @@ class PublishDialog(QDialog):
         #: The selected vector layer's symbology, converted (TCK-2201); None
         #: for a raster or a layer that takes ALIGN's default style.
         self._style = None
+        #: The selected layer's metadata for the item's ISO sheet (TCK-2202);
+        #: None when QGIS holds nothing the sheet shows.
+        self._iso = None
 
         layout = QVBoxLayout(self)
         form = QFormLayout()
@@ -182,14 +186,19 @@ class PublishDialog(QDialog):
         layer = self.selected_layer()
         if layer is None:
             return
+        # The record's own title is a better proposal than the layer name,
+        # when someone took the time to write one (TCK-2202).
+        reading = isometa.read(layer)
+        self._iso = reading.iso
         if not self.name_edit.text().strip():
-            self.name_edit.setText(layer.name())
+            self.name_edit.setText(reading.title or layer.name())
 
         self._style = None
         if publishable_kind(layer) == "raster":
             self._describe_raster(layer)
         else:
             self._describe_vector(layer)
+        self.hint.setText(self.hint.text() + " " + isometa.describe_metadata(reading))
 
     def _describe_vector(self, layer):
         self.selection_box.setVisible(True)
@@ -261,6 +270,10 @@ class PublishDialog(QDialog):
     def style(self):
         """The selected layer's converted symbology to send, or None (TCK-2201)."""
         return self._style
+
+    def iso(self):
+        """The selected layer's metadata for the item's sheet, or None (TCK-2202)."""
+        return self._iso
 
     def capacity_line(self):
         """The capacity sentence shown for the selected organization, or None.

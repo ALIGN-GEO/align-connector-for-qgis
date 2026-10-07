@@ -230,6 +230,7 @@ class AlignConnectorPlugin:
             visibility=dialog.visibility(),
             capacity_line=dialog.capacity_line(),
             style=dialog.style(),
+            iso=dialog.iso(),
         )
         task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
         task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
@@ -279,6 +280,13 @@ class AlignConnectorPlugin:
                 )
             elif task.gis_format == "cog":
                 message += " " + self.tr("It was converted to a Cloud-Optimized GeoTIFF.")
+            if task.locked_fields:
+                # The organization enforces these sheet fields: the publish
+                # could not set them, and saying so beats a sheet that quietly
+                # differs from what QGIS holds (TCK-2202).
+                message += " " + self.tr(
+                    "The {} on the item's sheet are set by your organization and were kept as is."
+                ).format(", ".join(task.locked_fields))
             self._message(message, Qgis.Success)
             return
 
