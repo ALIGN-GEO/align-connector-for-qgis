@@ -65,6 +65,9 @@ class GcsResumableTransport:
     complete. Asking where we stand is the same request with no body and a
     ``bytes*/total`` range — which is why resuming needs no bookkeeping of our
     own: the store is the authority on what it holds.
+
+    That ``308`` must reach this class as a status, not as a redirect to
+    follow: ``net.put_bytes`` is what guarantees it (TCK-2195).
     """
 
     def __init__(self, session_url):
@@ -83,7 +86,7 @@ class GcsResumableTransport:
             headers = {"Content-Range": "bytes {}-{}/{}".format(start, end, total)}
             payload = data
 
-        result = net.put_bytes(self.session_url, payload, headers=headers, manual_redirects=True)
+        result = net.put_bytes(self.session_url, payload, headers=headers)
 
         if result.status in (200, 201):
             return ChunkResult(committed=total, complete=True)

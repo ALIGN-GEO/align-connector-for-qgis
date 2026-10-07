@@ -51,6 +51,13 @@ jobs:
       - name: Capacity line and capacity refusals
         run: python scripts/smoke_capacity.py
 
+      # A 308 from the store is progress, a 4xx is a verdict, and only a
+      # transport failure is an error. That reading is shared by the API calls
+      # and by every chunk of a resumable upload; the Qt transport itself can
+      # only be proven in QGIS.
+      - name: Network answers
+        run: python scripts/smoke_net.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

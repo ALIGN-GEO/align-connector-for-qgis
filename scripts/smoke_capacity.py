@@ -39,6 +39,7 @@ def _install_qgis_stubs():
         "QgsFields",
         "QgsField",
         "QgsMessageLog",
+        "QgsNetworkAccessManager",
         "QgsProject",
         "QgsRasterLayer",
         "QgsRasterPipe",
@@ -64,7 +65,7 @@ def _install_qgis_stubs():
     qtcore.QVariant = type("QVariant", (object,), {"Map": 8, "List": 9, "StringList": 11, "Hash": 28})
     qtcore.Qt = type("Qt", (object,), {"PlainText": 0, "WaitCursor": 3})
     qtcore.QSettings = type("QSettings", (object,), {"value": lambda self, key, default=None: default})
-    for name in ("QByteArray", "QUrl"):
+    for name in ("QByteArray", "QEventLoop", "QUrl"):
         setattr(qtcore, name, type(name, (object,), {}))
 
     widgets = types.ModuleType("qgis.PyQt.QtWidgets")
