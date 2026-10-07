@@ -38,7 +38,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from .. import api
-from .exporter import publishable_kind
+from .exporter import publishable_kind, reprojection_notice
 from . import raster
 
 
@@ -197,12 +197,18 @@ class PublishDialog(QDialog):
             self.selection_box.setText("Publish only the selected features (none selected)")
 
         total = layer.featureCount()
-        self.hint.setText(
+        text = (
             "{} features will be written and uploaded. Large layers keep uploading in the "
             "background — you can carry on working, and an interrupted transfer resumes.".format(
                 selected if self.selection_box.isChecked() else total
             )
         )
+        # A reprojection is announced before the send, never discovered after
+        # (TCK-2199); a layer without a system is told what to fix.
+        notice = reprojection_notice(layer.crs().authid(), layer.crs().isValid())
+        if notice:
+            text += " " + notice
+        self.hint.setText(text)
 
     def _describe_raster(self, layer):
         """What a raster publish will actually do, said before it happens.

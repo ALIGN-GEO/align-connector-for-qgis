@@ -58,6 +58,12 @@ jobs:
       - name: Network answers
         run: python scripts/smoke_net.py
 
+      # Every vector leaves in WGS 84: a layer already there is untouched, any
+      # other system is converted and announced, no system at all is refused
+      # before a byte moves. The transformation is QGIS'; the decision is ours.
+      - name: Coordinates leave in WGS 84
+        run: python scripts/smoke_crs.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

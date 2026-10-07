@@ -12,8 +12,13 @@ looks:
 * **GeoJSON** is the fallback, for the rare build where the FlatGeobuf driver
   is missing. It is universal, but larger and lossier on types.
 
-The layer's own CRS is preserved: ALIGN reprojects server-side, and converting
-here would lose precision for no reason.
+**Every vector file leaves in WGS 84 (EPSG:4326).** ALIGN stores a vector as it
+arrives and its viewer reads longitude/latitude: a file in metres (Lambert 72,
+RD New) would land outside the world, silently. Reprojecting here is lossless
+for a vector and uses the project's own transformation context, datum shifts
+and grids included; it is announced before the send, and the original system
+travels in the provenance (TCK-2199). A raster goes the other way — reprojected
+on the server, original kept — because a reprojected raster is not lossless.
 
 **Complex fields are flattened to JSON text before writing.** Open-data layers
 routinely carry map or list attributes — an OpenDataSoft export gives every
@@ -30,10 +35,12 @@ import re
 import tempfile
 
 from qgis.core import (
-    QgsCoordinateTransformContext,
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
     QgsFeature,
     QgsFields,
     QgsField,
+    QgsProject,
     QgsVectorFileWriter,
     QgsRasterLayer,
     QgsVectorLayer,
@@ -63,7 +70,7 @@ class ExportResult(object):
 
     def __init__(
         self, path, filename, content_type, workdir=None, flattened=(), reused_source=False,
-        already_servable=False,
+        already_servable=False, source_crs=None, reprojected=False,
     ):
         self.path = path
         self.filename = filename
@@ -76,6 +83,11 @@ class ExportResult(object):
         #: True when this file is VERIFIED to need no server-side conversion.
         #: Declared to ALIGN so the conversion ceiling does not apply to it.
         self.already_servable = already_servable
+        #: The layer's own coordinate system (``"EPSG:31370"``), recorded in the
+        #: provenance so the origin is never lost; ``None`` when unknown.
+        self.source_crs = source_crs
+        #: True when the file was written in WGS 84 from another system.
+        self.reprojected = reprojected
 
 
 def safe_basename(name, extension):
@@ -99,6 +111,60 @@ def available_formats():
         return _FORMATS
     return tuple(fmt for fmt in _FORMATS if fmt[0] in drivers) or _FORMATS
 
+
+# ---------------------------------------------------------------------------
+# Coordinates: every vector leaves in WGS 84 (TCK-2199)
+# ---------------------------------------------------------------------------
+
+#: The system every vector file is written in. Not a choice offered to the
+#: user: the viewer reads nothing else, and the display projection (Web
+#: Mercator, or the globe) is the viewer's business, not the file's.
+TARGET_AUTHID = "EPSG:4326"
+
+#: Identifiers that already mean longitude/latitude on WGS 84.
+_WGS84_AUTHIDS = ("EPSG:4326", "OGC:CRS84")
+
+KEEP = "keep"
+TRANSFORM = "transform"
+REFUSE = "refuse"
+
+
+def crs_plan(authid, valid=True):
+    """Decide what to do with a layer's coordinates before writing it.
+
+    Pure, so the decision is proven without QGIS. ``valid`` is what
+    ``QgsCoordinateReferenceSystem.isValid()`` says; ``authid`` is the authority
+    identifier (``"EPSG:31370"``), empty when the system has none.
+
+    :returns: ``KEEP`` (already WGS 84), ``TRANSFORM``, or ``REFUSE`` — a layer
+        without a usable system cannot be placed by anyone, and sending it
+        would only move the silence to the map.
+    """
+    if not valid:
+        return REFUSE
+    normalised = (authid or "").strip().upper()
+    if not normalised:
+        # A valid custom system without an authority id still transforms:
+        # QGIS knows it, even though nobody registered it.
+        return TRANSFORM
+    return KEEP if normalised in _WGS84_AUTHIDS else TRANSFORM
+
+
+def reprojection_notice(authid, valid=True):
+    """The sentence a publisher reads before sending, or ``None`` when there is nothing to say."""
+    plan = crs_plan(authid, valid)
+    if plan == REFUSE:
+        return (
+            "This layer has no coordinate reference system. Set one (Layer Properties, "
+            "Source) before publishing."
+        )
+    if plan == TRANSFORM:
+        origin = (authid or "").strip() or "its custom coordinate system"
+        return (
+            "Coordinates will be converted from {} to WGS 84 (EPSG:4326) on export; "
+            "the layer itself is not changed.".format(origin)
+        )
+    return None
 
 
 #: Attribute types no vector format can store. Serialised to JSON text instead.
@@ -138,11 +204,10 @@ def flatten_complex_fields(layer, selected_only=False):
         else:
             fields.append(field)
 
-    uri = "{}?crs={}".format(
-        QgsWkbTypes.displayString(layer.wkbType()),
-        layer.crs().authid() or "EPSG:4326",
-    )
-    flat = QgsVectorLayer(uri, layer.name(), "memory")
+    flat = QgsVectorLayer(QgsWkbTypes.displayString(layer.wkbType()), layer.name(), "memory")
+    # The copy keeps the layer's own system, whatever it is; the writer is what
+    # brings it to WGS 84, once, for the copy and the original alike.
+    flat.setCrs(layer.crs())
     flat.dataProvider().addAttributes(fields.toList())
     flat.updateFields()
 
@@ -162,17 +227,24 @@ def flatten_complex_fields(layer, selected_only=False):
 
     return flat, complex_names
 
+
 def export_layer(layer, selected_only=False, target_dir=None):
-    """Write ``layer`` to a temporary file.
+    """Write ``layer`` to a temporary file, in WGS 84.
 
     :param selected_only: write only the selected features
     :returns: an :class:`ExportResult`
-    :raises ExportFailed: when nothing could be written
+    :raises ExportFailed: when nothing could be written, or when the layer has
+        no coordinate reference system
     """
     if layer is None:
         raise ExportFailed("No layer selected.")
     if not layer.isValid():
         raise ExportFailed("That layer is not valid — QGIS cannot read it.")
+
+    crs = layer.crs()
+    plan = crs_plan(crs.authid(), crs.isValid())
+    if plan == REFUSE:
+        raise ExportFailed(reprojection_notice(crs.authid(), crs.isValid()))
 
     feature_count = layer.selectedFeatureCount() if selected_only else layer.featureCount()
     if feature_count == 0:
@@ -198,6 +270,12 @@ def export_layer(layer, selected_only=False, target_dir=None):
         options.driverName = driver
         options.fileEncoding = "UTF-8"
         options.onlySelectedFeatures = only_selected
+        if plan == TRANSFORM:
+            options.ct = QgsCoordinateTransform(
+                crs,
+                QgsCoordinateReferenceSystem(TARGET_AUTHID),
+                QgsProject.instance().transformContext(),
+            )
 
         error, message = _write(source, path, options)
         if error == QgsVectorFileWriter.NoError:
@@ -210,6 +288,8 @@ def export_layer(layer, selected_only=False, target_dir=None):
                 content_type=content_type,
                 workdir=directory,
                 flattened=flattened,
+                source_crs=crs.authid() or None,
+                reprojected=plan == TRANSFORM,
             )
 
         last_error = message or "the writer refused the layer"
@@ -223,8 +303,11 @@ def _write(layer, path, options):
     ``writeAsVectorFormatV3`` is the current API; older builds in our supported
     range only have V2. The difference is the shape of the return value, not
     the behaviour — so it is absorbed here rather than in the caller.
+
+    The transformation context is the project's: it carries the datum shifts
+    and grids the user chose, which a bare context would silently drop.
     """
-    context = QgsCoordinateTransformContext()
+    context = QgsProject.instance().transformContext()
 
     if hasattr(QgsVectorFileWriter, "writeAsVectorFormatV3"):
         result = QgsVectorFileWriter.writeAsVectorFormatV3(layer, path, context, options)

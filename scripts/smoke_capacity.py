@@ -34,6 +34,8 @@ def _install_qgis_stubs():
     for name in (
         "Qgis",
         "QgsBlockingNetworkRequest",
+        "QgsCoordinateReferenceSystem",
+        "QgsCoordinateTransform",
         "QgsCoordinateTransformContext",
         "QgsFeature",
         "QgsFields",

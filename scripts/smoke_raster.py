@@ -37,10 +37,13 @@ def _install_qgis_stubs():
     """
     core = types.ModuleType("qgis.core")
     for name in (
+        "QgsCoordinateReferenceSystem",
+        "QgsCoordinateTransform",
         "QgsCoordinateTransformContext",
         "QgsFeature",
         "QgsFields",
         "QgsField",
+        "QgsProject",
         "QgsRasterLayer",
         "QgsRasterPipe",
         "QgsVectorLayer",

@@ -86,6 +86,9 @@ class PublishLayerTask(QgsTask):
         self.servable_asset_id = None
         self.derivation_error = None
         self.gis_format = None
+        #: The layer's own coordinate system, recorded in the provenance so the
+        #: origin of a reprojected file is never lost (TCK-2199).
+        self.source_crs = None
 
         self._workdir = None
 
@@ -95,6 +98,7 @@ class PublishLayerTask(QgsTask):
         try:
             export = export_for_publish(self.layer, selected_only=self.selected_only)
             self.flattened_fields = export.flattened
+            self.source_crs = export.source_crs
             # Only a directory WE created is ever removed. A raster published
             # from the user's own GeoTIFF leaves `workdir` empty, and the
             # cleanup below then has nothing it could reach into.
@@ -188,13 +192,18 @@ class PublishLayerTask(QgsTask):
         """
         from qgis.core import Qgis
 
-        return {
+        provenance = {
             "source": "qgis-plugin",
             "sourceLayerId": self.layer_id,
             "clientVersion": plugin_version(),
             "appVersion": Qgis.QGIS_VERSION.split("-")[0],
             "publishedAt": _utc_now(),
         }
+        if self.source_crs:
+            # The system the data was in before leaving: a vector arrives in
+            # WGS 84, and this is how anyone can still tell where it came from.
+            provenance["sourceCrs"] = self.source_crs
+        return provenance
 
     def _cleanup(self):
         """Remove the exported copy. It was never the user's file."""
