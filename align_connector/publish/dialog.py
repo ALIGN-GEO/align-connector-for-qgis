@@ -40,6 +40,7 @@ from qgis.PyQt.QtWidgets import (
 from .. import api
 from .exporter import publishable_kind, reprojection_notice
 from . import raster
+from . import symbology
 
 
 class PublishDialog(QDialog):
@@ -54,6 +55,9 @@ class PublishDialog(QDialog):
         self._layers = _publishable_layers()
         self._orgs = []
         self.load_error = None
+        #: The selected vector layer's symbology, converted (TCK-2201); None
+        #: for a raster or a layer that takes ALIGN's default style.
+        self._style = None
 
         layout = QVBoxLayout(self)
         form = QFormLayout()
@@ -181,6 +185,7 @@ class PublishDialog(QDialog):
         if not self.name_edit.text().strip():
             self.name_edit.setText(layer.name())
 
+        self._style = None
         if publishable_kind(layer) == "raster":
             self._describe_raster(layer)
         else:
@@ -208,6 +213,11 @@ class PublishDialog(QDialog):
         notice = reprojection_notice(layer.crs().authid(), layer.crs().isValid())
         if notice:
             text += " " + notice
+        # The symbology travels too (TCK-2201), and what will not make it is
+        # said here, before the send — never found on the map afterwards.
+        conversion = symbology.convert(layer)
+        self._style = conversion.style
+        text += " " + describe_style(conversion)
         self.hint.setText(text)
 
     def _describe_raster(self, layer):
@@ -248,6 +258,10 @@ class PublishDialog(QDialog):
         org_id = self.org_box.currentData()
         return next((o for o in self._orgs if o["id"] == org_id), None)
 
+    def style(self):
+        """The selected layer's converted symbology to send, or None (TCK-2201)."""
+        return self._style
+
     def capacity_line(self):
         """The capacity sentence shown for the selected organization, or None.
 
@@ -283,6 +297,21 @@ def _publishable_layers():
         for layer in QgsProject.instance().mapLayers().values()
         if publishable_kind(layer) is not None
     ]
+
+
+def describe_style(conversion):
+    """What the publisher reads about the style before sending (TCK-2201).
+
+    ``Style: categorized on zone, 4 classes. Not transmitted: hatched fill
+    rendered flat; labels.`` A layer that takes ALIGN's default style says so.
+    """
+    if conversion.style is None:
+        head = "Style: ALIGN's default will apply."
+    else:
+        head = "Style: {}.".format(conversion.summary or "transmitted")
+    if conversion.report:
+        head += " Simplified: " + " ".join(conversion.report)
+    return head
 
 
 def describe_capacity(capacity_info):

@@ -64,6 +64,12 @@ jobs:
       - name: Coordinates leave in WGS 84
         run: python scripts/smoke_crs.py
 
+      # The layer's symbology travels as ALIGN's canonical style, and what
+      # has no web equivalent is named before the send. Renderers are
+      # stand-ins answering the QGIS method names; the decisions are real.
+      - name: Symbology converted, simplifications reported
+        run: python scripts/smoke_symbology.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

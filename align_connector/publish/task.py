@@ -57,6 +57,7 @@ class PublishLayerTask(QgsTask):
         description=None,
         visibility=None,
         capacity_line=None,
+        style=None,
     ):
         super().__init__("Publishing “{}” to ALIGN".format(asset_name), QgsTask.CanCancel)
         self.session = session
@@ -70,6 +71,10 @@ class PublishLayerTask(QgsTask):
         #: What the dialog showed about the organization's remaining space and
         #: credits, repeated in a refusal that is about either of them.
         self.capacity_line = capacity_line
+        #: The layer's symbology, converted on the interface thread by the
+        #: dialog (QGIS layers are not for other threads to read), sent at
+        #: finalize as the item's default style (TCK-2201).
+        self.style = style
         self.layer_id = layer.id()
 
         #: Set on completion, read by whoever connected to `taskCompleted`.
@@ -139,6 +144,7 @@ class PublishLayerTask(QgsTask):
                 description=self.description,
                 visibility=self.visibility,
                 already_servable=export.already_servable,
+                style=self.style,
             )
             self._read_derivation(catalogued)
             self.setProgress(100)

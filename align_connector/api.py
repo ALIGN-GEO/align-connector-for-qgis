@@ -180,7 +180,7 @@ def open_upload_session(session, org_id, filename, content_type, size_bytes, alr
 
 
 def finalize(session, org_id, asset_id, filename, name, provenance=None, description=None, visibility=None,
-             already_servable=False):
+             already_servable=False, style=None):
     """Catalogue the asset once its bytes have landed.
 
     The declared size is not re-sent: ALIGN measures what actually arrived, and
@@ -190,6 +190,8 @@ def finalize(session, org_id, asset_id, filename, name, provenance=None, descrip
 
     :param already_servable: the same claim made at the upload session — ALIGN
         does not remember it between the two calls, so it is said again.
+    :param style: the layer's symbology in ALIGN's canonical model (TCK-2201),
+        which becomes the item's default style; None sends nothing.
     """
     token = session.access_token()
     if not token:
@@ -206,6 +208,8 @@ def finalize(session, org_id, asset_id, filename, name, provenance=None, descrip
         payload["description"] = description
     if visibility:
         payload["visibility"] = visibility
+    if style:
+        payload["style"] = style
 
     result = net.post_json(config.finalize_endpoint(org_id, asset_id), payload, bearer=token)
     if not result.ok:
