@@ -71,6 +71,10 @@ def install():
     qtcore.QVariant = type("QVariant", (object,), {"Map": 8, "List": 9, "StringList": 11, "Hash": 28})
     qtcore.Qt = type("Qt", (object,), {"PlainText": 0, "WaitCursor": 3})
     qtcore.QSettings = type("QSettings", (object,), {"value": lambda self, key, default=None: default})
+    # No translator on a plain interpreter: a sentence comes back as written.
+    qtcore.QCoreApplication = type(
+        "QCoreApplication", (object,), {"translate": staticmethod(lambda context, text, *args: text)}
+    )
     for name in ("QByteArray", "QEventLoop", "QUrl"):
         setattr(qtcore, name, type(name, (object,), {}))
 

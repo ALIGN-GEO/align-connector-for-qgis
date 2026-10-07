@@ -1,0 +1,398 @@
+# -*- coding: utf-8 -*-
+"""The Publish view: which layers, to which organization, under what names.
+
+What the modal dialog asked for one layer, this asks for any number of them:
+one, several, or the whole project. Each layer keeps its own title and its
+own "selection only" choice; the organization, the visibility and the
+description are the batch's. The briefing of the highlighted layer (what will
+travel, what the style and the metadata become, what is simplified) is shown
+before the send, never discovered after.
+
+Organizations are listed as ALIGN returns them, none hidden: the server
+decides who may publish where, and its refusal is what the user is shown.
+
+Copyright (C) 2026 Geo Nova
+SPDX-License-Identifier: GPL-2.0-or-later
+"""
+from qgis.core import Qgis, QgsMessageLog, QgsProject
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFormLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QPlainTextEdit,
+    QPushButton,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+from .. import api
+from ..i18n import tr
+from ..publish import briefing
+from ..publish.wording import describe_capacity
+from ..qtcompat import qt_enum
+from . import batch
+
+
+class PublishView(QWidget):
+    """Collects what a batch needs, and hands it to the caller in one piece."""
+
+    def __init__(self, session, on_publish, parent=None):
+        """
+        :param on_publish: called with one :class:`batch.Batch` per click on Publish
+        """
+        super().__init__(parent)
+        self.session = session
+        self._on_publish = on_publish
+        self._orgs = []
+        self._capacity_line = None
+        self._titles = {}
+        self._selection_only = set()
+        self._rows = []
+        self._attached = False
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # -- the layers ------------------------------------------------------
+        self.all_box = QCheckBox(tr("Whole project"))
+        self.all_box.toggled.connect(self._on_all_toggled)
+        layout.addWidget(self.all_box)
+
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabels([tr("Layer"), tr("Kind")])
+        self.tree.setRootIsDecorated(False)
+        self.tree.setSelectionMode(qt_enum(QAbstractItemView, "SelectionMode", "SingleSelection"))
+        self.tree.header().setSectionResizeMode(0, qt_enum(QHeaderView, "ResizeMode", "Stretch"))
+        self.tree.header().setStretchLastSection(False)
+        self.tree.itemChanged.connect(self._on_item_changed)
+        self.tree.currentItemChanged.connect(self._on_current_changed)
+        layout.addWidget(self.tree, 1)
+
+        # -- the highlighted layer -------------------------------------------
+        form = QFormLayout()
+        self.title_edit = QLineEdit()
+        self.title_edit.setPlaceholderText(tr("Title on ALIGN"))
+        self.title_edit.textEdited.connect(self._on_title_edited)
+        form.addRow(tr("Title"), self.title_edit)
+        self.selection_box = QCheckBox(tr("Publish only the selected features"))
+        self.selection_box.toggled.connect(self._on_selection_toggled)
+        form.addRow("", self.selection_box)
+        self.briefing = QLabel()
+        self.briefing.setWordWrap(True)
+        self.briefing.setTextFormat(qt_enum(Qt, "TextFormat", "PlainText"))
+        form.addRow("", self.briefing)
+        layout.addLayout(form)
+
+        # -- the batch -------------------------------------------------------
+        batch_form = QFormLayout()
+        self.org_box = QComboBox()
+        self.org_box.currentIndexChanged.connect(self._on_org_changed)
+        batch_form.addRow(tr("Organization"), self.org_box)
+        self.capacity = QLabel()
+        self.capacity.setWordWrap(True)
+        self.capacity.setTextFormat(qt_enum(Qt, "TextFormat", "PlainText"))
+        batch_form.addRow("", self.capacity)
+        # Only the two visibilities that make sense from a desktop. `public`
+        # exposes data outside the organization and belongs on the web screen
+        # that explains what that means; `group` would need an audience picker.
+        self.visibility_box = QComboBox()
+        self.visibility_box.addItem(tr("Private: only you"), "private")
+        self.visibility_box.addItem(tr("Organization: everyone in this organization"), "org")
+        batch_form.addRow(tr("Visibility"), self.visibility_box)
+        self.description_edit = QPlainTextEdit()
+        self.description_edit.setPlaceholderText(
+            tr(
+                "What these layers hold, where they come from, when they were collected: what a "
+                "colleague would need to know before using them."
+            )
+        )
+        self.description_edit.setFixedHeight(64)
+        batch_form.addRow(tr("Description"), self.description_edit)
+        layout.addLayout(batch_form)
+
+        self.publish_button = QPushButton(batch.describe_plan([]))
+        self.publish_button.setEnabled(False)
+        self.publish_button.clicked.connect(self._publish)
+        layout.addWidget(self.publish_button)
+
+    # -- lifecycle ----------------------------------------------------------
+
+    def attach(self):
+        """Follow the project: a layer added, removed or moved reshapes the list.
+
+        Done on first use, not at construction: QGIS loads plugins while it is
+        still starting, and nothing here should touch the project before the
+        panel is actually opened.
+        """
+        if self._attached:
+            return
+        project = QgsProject.instance()
+        root = project.layerTreeRoot()
+        root.addedChildren.connect(self._on_project_changed)
+        root.removedChildren.connect(self._on_project_changed)
+        project.cleared.connect(self._on_project_changed)
+        self._attached = True
+
+    def detach(self):
+        """Stop following the project. Called when the plugin unloads."""
+        if not self._attached:
+            return
+        project = QgsProject.instance()
+        for signal in (project.layerTreeRoot().addedChildren, project.layerTreeRoot().removedChildren, project.cleared):
+            try:
+                signal.disconnect(self._on_project_changed)
+            except (TypeError, RuntimeError):
+                pass
+        self._attached = False
+
+    def showEvent(self, event):  # noqa: N802 — Qt's name
+        super().showEvent(event)
+        # The highlighted layer may have been restyled or documented since:
+        # what is read here is what will be sent.
+        self._on_current_changed(self.tree.currentItem(), None)
+
+    # -- data ---------------------------------------------------------------
+
+    def refresh(self):
+        """Reload organizations and layers. Called when the panel opens."""
+        self.attach()
+        self.refresh_organizations()
+        self.refresh_layers()
+
+    def refresh_organizations(self):
+        self.capacity.setText("")
+        self.org_box.blockSignals(True)
+        self.org_box.clear()
+        self._orgs = []
+        try:
+            self._orgs = api.list_organizations(self.session)
+        except api.ApiError as exc:
+            self.capacity.setText(exc.message)
+        for org in self._orgs:
+            label = org["name"] if not org.get("role") else "{}  ({})".format(org["name"], org["role"])
+            self.org_box.addItem(label, org["id"])
+        self.org_box.blockSignals(False)
+        if not self._orgs and not self.capacity.text():
+            self.capacity.setText(tr("You do not belong to any ALIGN organization yet."))
+        self._on_org_changed()
+
+    def refresh_layers(self):
+        """Rebuild the list from the project, in the Layers panel's order,
+        keeping what was checked."""
+        kept = set(self.checked_ids())
+        current = self._current_layer_id()
+        self._rows = batch.rows_of(_project_layers())
+        self.tree.blockSignals(True)
+        self.tree.clear()
+        for row in self._rows:
+            item = QTreeWidgetItem([row.name, row.kind or "—"])
+            item.setData(0, _USER_ROLE(), row.layer_id)
+            if row.publishable:
+                item.setFlags(item.flags() | qt_enum(Qt, "ItemFlag", "ItemIsUserCheckable"))
+                item.setCheckState(0, _state(row.layer_id in kept))
+                item.setToolTip(0, row.name)
+            else:
+                item.setFlags(item.flags() & ~qt_enum(Qt, "ItemFlag", "ItemIsEnabled"))
+                item.setText(1, row.reason)
+                item.setToolTip(0, row.reason)
+                item.setToolTip(1, row.reason)
+            self.tree.addTopLevelItem(item)
+        self.tree.blockSignals(False)
+        self._sync_all_box()
+        self._update_button()
+        self.tree.setCurrentItem(self._item_of(current) or self._first_enabled_item())
+
+    def check_only(self, layer_id):
+        """Check one layer and nothing else: the layer context menu's entry point."""
+        for item in self._items():
+            if not _checkable(item):
+                continue
+            item.setCheckState(0, _state(item.data(0, _USER_ROLE()) == layer_id))
+        self.tree.setCurrentItem(self._item_of(layer_id))
+
+    def checked_ids(self):
+        return [item.data(0, _USER_ROLE()) for item in self._items() if item.checkState(0) == _state(True)]
+
+    def selected_org(self):
+        org_id = self.org_box.currentData()
+        return next((o for o in self._orgs if o["id"] == org_id), None)
+
+    # -- interaction --------------------------------------------------------
+
+    def _on_project_changed(self, *_args):
+        self.refresh_layers()
+
+    def _on_all_toggled(self, checked):
+        self.tree.blockSignals(True)
+        for item in self._items():
+            if _checkable(item):
+                item.setCheckState(0, _state(checked))
+        self.tree.blockSignals(False)
+        self._update_button()
+
+    def _on_item_changed(self, _item, _column):
+        self._sync_all_box()
+        self._update_button()
+
+    def _on_current_changed(self, current, _previous):
+        layer = QgsProject.instance().mapLayer(current.data(0, _USER_ROLE())) if current is not None else None
+        if layer is None:
+            self.briefing.setText("")
+            self.title_edit.setText("")
+            self.selection_box.setVisible(False)
+            return
+        layer_id = layer.id()
+        row = next((r for r in self._rows if r.layer_id == layer_id), None)
+        info = briefing.brief(layer, layer_id in self._selection_only)
+
+        self.title_edit.blockSignals(True)
+        self.title_edit.setText(self._titles.get(layer_id) or (row.title if row else info.title) or "")
+        self.title_edit.blockSignals(False)
+
+        self.selection_box.blockSignals(True)
+        selected = layer.selectedFeatureCount() if info.kind == "vector" else 0
+        self.selection_box.setVisible(info.kind == "vector")
+        self.selection_box.setEnabled(selected > 0)
+        self.selection_box.setChecked(layer_id in self._selection_only and selected > 0)
+        self.selection_box.setText(
+            tr("Publish only the {} selected features").format(selected)
+            if selected > 0
+            else tr("Publish only the selected features (none selected)")
+        )
+        self.selection_box.blockSignals(False)
+        self.briefing.setText(info.text)
+
+    def _on_title_edited(self, text):
+        current = self.tree.currentItem()
+        if current is not None:
+            self._titles[current.data(0, _USER_ROLE())] = text
+
+    def _on_selection_toggled(self, checked):
+        current = self.tree.currentItem()
+        if current is None:
+            return
+        layer_id = current.data(0, _USER_ROLE())
+        if checked:
+            self._selection_only.add(layer_id)
+        else:
+            self._selection_only.discard(layer_id)
+        self._on_current_changed(current, None)
+
+    def _on_org_changed(self, _index=None):
+        """Refresh the capacity line for the organization now selected (TCK-2179).
+
+        A failure leaves the line blank and a note in the QGIS log, never an
+        error in the user's face: a capacity ALIGN cannot report does not stop
+        a publish, it only removes a convenience, and the server guards.
+        """
+        self._capacity_line = None
+        org = self.selected_org()
+        self._update_button()
+        if org is None:
+            return
+        self.capacity.setText("")
+        QApplication.setOverrideCursor(qt_enum(Qt, "CursorShape", "WaitCursor"))
+        try:
+            info = api.capacity(self.session, org["id"])
+        except api.ApiError as exc:
+            QgsMessageLog.logMessage(
+                "Could not read the capacity of {}: {}".format(org["name"], exc.message),
+                "ALIGN Connector",
+                Qgis.Warning,
+            )
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+        self._capacity_line = describe_capacity(info)
+        self.capacity.setText(self._capacity_line)
+
+    def _sync_all_box(self):
+        checkable = [item for item in self._items() if _checkable(item)]
+        self.all_box.blockSignals(True)
+        self.all_box.setChecked(bool(checkable) and all(item.checkState(0) == _state(True) for item in checkable))
+        self.all_box.blockSignals(False)
+
+    def _update_button(self):
+        plans = self._plans()
+        self.publish_button.setText(batch.describe_plan(plans))
+        self.publish_button.setEnabled(bool(plans) and self.selected_org() is not None)
+
+    def _plans(self):
+        return batch.plan(self._rows, self.checked_ids(), self._titles, self._selection_only)
+
+    def _publish(self):
+        org = self.selected_org()
+        if org is None:
+            return
+        project = QgsProject.instance()
+        requests = []
+        for item in self._plans():
+            layer = project.mapLayer(item.layer_id)
+            if layer is None:
+                continue
+            # The briefing is read here, on the interface thread, once per
+            # layer: the converted style and the metadata go with the task.
+            requests.append(batch.Request(layer, item, briefing.brief(layer, item.selected_only)))
+        if not requests:
+            return
+        self._on_publish(
+            batch.Batch(
+                org,
+                self.visibility_box.currentData(),
+                self.description_edit.toPlainText().strip() or None,
+                self._capacity_line,
+                requests,
+            )
+        )
+        # What left is left: a second click must not send it again.
+        self._on_all_toggled(False)
+        self._sync_all_box()
+
+    # -- items --------------------------------------------------------------
+
+    def _items(self):
+        return [self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount())]
+
+    def _item_of(self, layer_id):
+        return next((item for item in self._items() if item.data(0, _USER_ROLE()) == layer_id), None)
+
+    def _first_enabled_item(self):
+        return next((item for item in self._items() if _checkable(item)), None)
+
+    def _current_layer_id(self):
+        current = self.tree.currentItem()
+        return current.data(0, _USER_ROLE()) if current is not None else None
+
+
+def _project_layers():
+    """The project's layers in the Layers panel's order; the map's order as a
+    fallback for a project whose tree is not there to ask."""
+    project = QgsProject.instance()
+    try:
+        layers = [node.layer() for node in project.layerTreeRoot().findLayers()]
+        layers = [layer for layer in layers if layer is not None]
+    except (AttributeError, RuntimeError):
+        layers = []
+    return layers or list(project.mapLayers().values())
+
+
+def _USER_ROLE():  # noqa: N802 — reads as the Qt constant it stands for
+    return qt_enum(Qt, "ItemDataRole", "UserRole")
+
+
+def _state(checked):
+    return qt_enum(Qt, "CheckState", "Checked" if checked else "Unchecked")
+
+
+def _checkable(item):
+    return bool(item.flags() & qt_enum(Qt, "ItemFlag", "ItemIsUserCheckable")) and bool(
+        item.flags() & qt_enum(Qt, "ItemFlag", "ItemIsEnabled")
+    )

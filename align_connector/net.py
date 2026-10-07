@@ -32,6 +32,8 @@ from qgis.core import QgsBlockingNetworkRequest, QgsNetworkAccessManager
 from qgis.PyQt.QtCore import QByteArray, QEventLoop, QUrl
 from qgis.PyQt.QtNetwork import QNetworkReply, QNetworkRequest
 
+from .qtcompat import qt_enum as _qt_enum, run_exec
+
 #: Marker for a transport failure — no HTTP status was ever received.
 NO_RESPONSE = 0
 
@@ -72,17 +74,6 @@ class HttpResult:
             if isinstance(value, str):
                 return value
         return None
-
-
-def _qt_enum(owner, name, member):
-    """Read a Qt enum member across Qt5 and Qt6.
-
-    Qt6 scoped the enums (`QNetworkRequest.Attribute.X`); Qt5 exposed them flat
-    (`QNetworkRequest.X`). Looking them up by name keeps one source running on
-    both, which is the whole point of importing through `qgis.PyQt`.
-    """
-    group = getattr(owner, name, owner)
-    return getattr(group, member)
 
 
 def _build(url, bearer=None, content_type=None, extra_headers=None, manual_redirects=False):
@@ -213,7 +204,4 @@ def _wait(reply):
     reply.finished.connect(loop.quit)
     if reply.isFinished():
         return
-    # PyQt5 named it ``exec_`` (``exec`` was a keyword in the Python 2 days);
-    # PyQt6 dropped the underscore.
-    runner = getattr(loop, "exec", None) or getattr(loop, "exec_")
-    runner()
+    run_exec(loop)

@@ -33,7 +33,7 @@ import qgis_stubs  # noqa: E402
 qgis_stubs.install()
 
 from align_connector.publish import symbology  # noqa: E402
-from align_connector.publish.dialog import describe_style  # noqa: E402
+from align_connector.publish.wording import describe_style  # noqa: E402
 
 
 class Stub(object):

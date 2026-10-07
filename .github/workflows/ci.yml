@@ -76,6 +76,13 @@ jobs:
       - name: Metadata read for the item sheet
         run: python scripts/smoke_isometa.py
 
+      # The panel decides which layers it lists (every one, with a reason for
+      # those it cannot send), what one click sends (checked rows, panel
+      # order, own titles) and what a finished publication is told. Widgets
+      # need QGIS; these decisions do not.
+      - name: Panel decisions and outcomes
+        run: python scripts/smoke_panel.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

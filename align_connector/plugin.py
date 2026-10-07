@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """Plugin lifecycle: what ALIGN Connector adds to QGIS, and what it takes back.
 
-This module owns the lifecycle and the menu state, nothing else. Authentication
-lives in :mod:`align_connector.auth`, publishing will live in its own module —
-keeping this one small is what makes the plugin reloadable during development
-without leaving orphaned menu entries behind.
+This module owns the lifecycle, the menu state and the hand-off between the
+panel and the publish tasks, nothing else. Authentication lives in
+:mod:`align_connector.auth`, the panel in :mod:`align_connector.panel`, the
+publish itself in :mod:`align_connector.publish`. Keeping this one small is
+what makes the plugin reloadable during development without leaving orphaned
+menu entries behind.
 
 Two QGIS rules shape the code below and are worth stating, because breaking
 either is invisible until it hurts:
@@ -21,14 +23,16 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import os
 
-from qgis.core import Qgis, QgsApplication
-from qgis.PyQt.QtCore import QCoreApplication, Qt
+from qgis.core import Qgis, QgsApplication, QgsMapLayer
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QDialog
+from qgis.PyQt.QtWidgets import QAction
 
 from .auth import AlignSession
-from .publish.dialog import PublishDialog
+from .panel.dock import AlignDock, dock_area
+from .panel.outcome import INFO, SUCCESS, outcome_of
 from .publish.task import PublishLayerTask
+from .qtcompat import run_exec
 from .settings_dialog import SettingsDialog
 
 #: Menu title under QGIS' "Web" menu. Kept in one place: it is both what we add
@@ -51,8 +55,12 @@ class AlignConnectorPlugin:
         #: harmless today, and exactly the kind of drift that outlives the code
         #: that caused it.
         self._toolbar_actions = []
-        self._publish_action = None
+        #: The entries in a layer's context menu, one per layer type: QGIS
+        #: removes one registration per call, so one action per type keeps
+        #: additions and removals countable.
+        self._layer_actions = []
         self._sign_in_action = None
+        self.dock = None
         self.session = AlignSession()
         #: Running publishes. QGIS' task manager does not own the Python
         #: object, so dropping our reference would collect a task mid-upload.
@@ -74,11 +82,11 @@ class AlignConnectorPlugin:
 
     def initGui(self):  # noqa: N802 — name imposed by the QGIS plugin API
         """Add the plugin's entry points to the QGIS interface."""
-        self._publish_action = self._add_action(
+        self._add_action(
             self.tr("Publish to ALIGN…"),
             self.run,
             icon="icon.svg",
-            status_tip=self.tr("Publish the selected layer to your ALIGN Datastore"),
+            status_tip=self.tr("Open the ALIGN panel: publish layers to your Datastore and follow them"),
             toolbar=True,
         )
         self._sign_in_action = self._add_action(
@@ -91,6 +99,22 @@ class AlignConnectorPlugin:
             self._open_settings,
             status_tip=self.tr("Which ALIGN this plugin talks to, and who you are on it"),
         )
+
+        # The panel exists from the start, hidden: QGIS can only give a dock
+        # back its saved place if the dock is there when the window is laid
+        # out. QGIS shows a dock it adds; a tool is opened when asked.
+        self.dock = AlignDock(self.session, self._start_batch, self.iface.mainWindow())
+        self.iface.addDockWidget(dock_area(), self.dock)
+        self.dock.hide()
+
+        # "Publish to ALIGN…" in the context menu of a layer: opens the panel
+        # with that layer checked, and nothing else.
+        for kind in ("Vector", "Raster"):
+            action = QAction(self.tr("Publish to ALIGN…"), self.iface.mainWindow())
+            action.setIcon(QIcon(os.path.join(self.plugin_dir, "icon.svg")))
+            action.triggered.connect(self._publish_current_layer)
+            self.iface.addCustomActionForLayerType(action, None, _layer_type(kind), True)
+            self._layer_actions.append(action)
 
         self.session.signed_in.connect(self._on_signed_in)
         self.session.signed_out.connect(self._on_signed_out)
@@ -105,10 +129,17 @@ class AlignConnectorPlugin:
             self.iface.removePluginWebMenu(MENU_TITLE, action)
         for action in self._toolbar_actions:
             self.iface.removeToolBarIcon(action)
+        for action in self._layer_actions:
+            self.iface.removeCustomActionForLayerType(action)
         self._actions.clear()
         self._toolbar_actions.clear()
-        self._publish_action = None
+        self._layer_actions.clear()
         self._sign_in_action = None
+        if self.dock is not None:
+            self.dock.detach()
+            self.iface.removeDockWidget(self.dock)
+            self.dock.deleteLater()
+            self.dock = None
 
     def _add_action(self, text, callback, icon=None, status_tip=None, toolbar=False):
         action = QAction(text, self.iface.mainWindow())
@@ -127,21 +158,13 @@ class AlignConnectorPlugin:
     # -- state --------------------------------------------------------------
 
     def _refresh_state(self):
-        """Make the menu say the truth about the current session.
+        """Make the menu and the panel say the truth about the current session.
 
-        Publishing stays visible but disabled when signed out: hiding it would
-        leave a user wondering whether the plugin does what they installed it
-        for (honest affordances beat empty menus).
+        The panel is reloaded only when it is open: a hidden panel reading
+        the organizations at every QGIS start would be a network call nobody
+        asked for.
         """
         signed_in = self.session.is_signed_in()
-
-        if self._publish_action is not None:
-            self._publish_action.setEnabled(signed_in)
-            self._publish_action.setStatusTip(
-                self.tr("Publish the selected layer to your ALIGN Datastore")
-                if signed_in
-                else self.tr("Sign in to ALIGN first")
-            )
 
         if self._sign_in_action is not None:
             account = self.session.account()
@@ -154,6 +177,9 @@ class AlignConnectorPlugin:
             else:
                 self._sign_in_action.setText(self.tr("Sign in to ALIGN…"))
 
+        if self.dock is not None:
+            self.dock.refresh(reload=signed_in and self.dock.isVisible())
+
     # -- session callbacks --------------------------------------------------
 
     def _toggle_sign_in(self):
@@ -164,7 +190,7 @@ class AlignConnectorPlugin:
 
     def _open_settings(self):
         dialog = SettingsDialog(self.session, self.iface.mainWindow())
-        _exec(dialog)
+        run_exec(dialog)
         # The dialog can sign in or out; the menu must not keep saying otherwise.
         self._refresh_state()
 
@@ -189,125 +215,77 @@ class AlignConnectorPlugin:
     def _message(self, text, level):
         self.iface.messageBar().pushMessage(PLUGIN_NAME, text, level=level, duration=6)
 
-    # -- entry point --------------------------------------------------------
+    # -- entry points -------------------------------------------------------
 
     def run(self):
-        """Ask what to publish, then publish it in the background."""
-        if not self.session.is_signed_in():
-            self._message(self.tr("Sign in to ALIGN before publishing."), Qgis.Warning)
-            return
+        """Open the ALIGN panel. Signed out, it offers to sign in."""
+        self.dock.show_panel()
 
-        dialog = PublishDialog(self.session, self.iface.mainWindow())
+    def _publish_current_layer(self):
+        """The context menu's entry: the panel, with this one layer checked."""
+        layer = self.iface.layerTreeView().currentLayer() or self.iface.activeLayer()
+        self.dock.show_panel()
+        if layer is not None:
+            self.dock.publish.check_only(layer.id())
 
-        # Listing organizations is one round trip; the wait cursor is what
-        # tells the user the click registered.
-        QApplication.setOverrideCursor(Qt.WaitCursor)
-        try:
-            usable = dialog.load_organizations()
-        finally:
-            QApplication.restoreOverrideCursor()
+    def _start_batch(self, batch):
+        """One task per layer; the panel follows each, the bar says they left."""
+        org = batch.org
+        for request in batch.requests:
+            task = PublishLayerTask(
+                self.session,
+                request.layer,
+                org["id"],
+                org["name"],
+                request.plan.title,
+                selected_only=request.plan.selected_only,
+                description=batch.description,
+                visibility=batch.visibility,
+                capacity_line=batch.capacity_line,
+                style=request.briefing.style,
+                iso=request.briefing.iso,
+            )
+            task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
+            task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
+            self._tasks.append(task)
+            self.dock.track(task, org["id"])
+            QgsApplication.taskManager().addTask(task)
 
-        if not usable:
-            self._message(dialog.load_error, Qgis.Warning)
-            return
-
-        if _exec(dialog) != QDialog.Accepted:
-            return
-
-        org = dialog.selected_org()
-        layer = dialog.selected_layer()
-        if org is None or layer is None:
-            return
-
-        task = PublishLayerTask(
-            self.session,
-            layer,
-            org["id"],
-            org["name"],
-            dialog.asset_name(),
-            selected_only=dialog.only_selection(),
-            description=dialog.description(),
-            visibility=dialog.visibility(),
-            capacity_line=dialog.capacity_line(),
-            style=dialog.style(),
-            iso=dialog.iso(),
-        )
-        task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
-        task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
-        self._tasks.append(task)
-        QgsApplication.taskManager().addTask(task)
-
-        self._message(
-            self.tr("Publishing “{}” to {} — you can keep working.").format(
-                dialog.asset_name(), org["name"]
-            ),
-            Qgis.Info,
-        )
+        self.dock.show_activity()
+        count = len(batch.requests)
+        if count == 1:
+            text = self.tr("Publishing “{}” to {} — follow it in the ALIGN panel.").format(
+                batch.requests[0].plan.title, org["name"]
+            )
+        else:
+            text = self.tr("Publishing {} layers to {} — follow them in the ALIGN panel.").format(count, org["name"])
+        self._message(text, Qgis.Info)
 
     def _on_publish_finished(self, task, succeeded):
         """Report the outcome, in the words of whoever refused it."""
         if task in self._tasks:
             self._tasks.remove(task)
 
-        if succeeded:
-            # A failed server-side conversion is not a success worth
-            # celebrating: the file is stored, but nothing can display it.
-            # Announcing "it is now in ALIGN" would be true and useless.
-            if task.derivation_error:
-                self._message(
-                    self.tr(
-                        "“{}” was stored in {}, but ALIGN could not prepare it for display: {} "
-                        "The file is safe in your Datastore."
-                    ).format(task.asset_name, task.org_name, task.derivation_error),
-                    Qgis.Warning,
-                )
-                return
+        outcome = outcome_of(task, succeeded)
+        if self.dock is not None:
+            self.dock.settle(task, outcome)
 
-            message = self.tr("“{}” is now in {} on ALIGN.").format(task.asset_name, task.org_name)
-            if task.flattened_fields:
-                # The values are all there, but they changed shape. Saying so
-                # beats letting someone discover it in the Datastore.
-                message += " " + self.tr(
-                    "Complex fields were stored as text: {}."
-                ).format(", ".join(task.flattened_fields))
-            if task.servable_asset_id:
-                # The reprojection kept the original and produced a second
-                # asset. Two objects now count against the organization's
-                # storage, and the one that opens is not the one just created.
-                message += " " + self.tr(
-                    "It had to be reprojected, so your original was kept and a second, "
-                    "display-ready copy was added — both use storage."
-                )
-            elif task.gis_format == "cog":
-                message += " " + self.tr("It was converted to a Cloud-Optimized GeoTIFF.")
-            if task.locked_fields:
-                # The organization enforces these sheet fields: the publish
-                # could not set them, and saying so beats a sheet that quietly
-                # differs from what QGIS holds (TCK-2202).
-                message += " " + self.tr(
-                    "The {} on the item's sheet are set by your organization and were kept as is."
-                ).format(", ".join(task.locked_fields))
-            self._message(message, Qgis.Success)
-            return
-
-        if task.was_cancelled:
-            self._message(self.tr("Publishing cancelled. Nothing was catalogued."), Qgis.Info)
-            return
-
-        if task.needs_sign_in:
+        if not succeeded and task.needs_sign_in:
             # The session died mid-publish; say so once, and leave the menu
             # honest about it.
             self.session.sign_out()
             self._refresh_state()
 
-        self._message(task.error_message or self.tr("Publishing failed."), Qgis.Warning)
+        self._message(outcome.text, _LEVELS.get(outcome.level, Qgis.Warning))
 
 
-def _exec(dialog):
-    """Show a dialog modally on both Qt bindings.
+_LEVELS = {SUCCESS: Qgis.Success, INFO: Qgis.Info}
 
-    PyQt5 named it ``exec_`` (``exec`` was a keyword in the Python 2 days);
-    PyQt6 dropped the underscore.
-    """
-    runner = getattr(dialog, "exec", None) or getattr(dialog, "exec_")
-    return runner()
+
+def _layer_type(name):
+    """``Qgis.LayerType.Vector`` (QGIS ≥ 3.30), ``QgsMapLayer.VectorLayer``
+    before: the floor is 3.22, the reference 3.44."""
+    group = getattr(Qgis, "LayerType", None)
+    if group is not None and hasattr(group, name):
+        return getattr(group, name)
+    return getattr(QgsMapLayer, name + "Layer")

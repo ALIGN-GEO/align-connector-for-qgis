@@ -95,6 +95,12 @@ def capacity_endpoint(org_id):
     return "{}/api/v1/orgs/{}/capacity".format(api_url(), org_id)
 
 
+def item_url(org_id, asset_id):
+    """The item's page in the ALIGN web application — where everything QGIS
+    does not redo (sharing, widgets, billing) lives (ADR-0058 §5)."""
+    return "{}/app/{}/datastore/{}".format(app_url(), org_id, asset_id)
+
+
 def upload_url_endpoint(org_id):
     return "{}/api/v1/orgs/{}/datastore/upload-url".format(api_url(), org_id)
 

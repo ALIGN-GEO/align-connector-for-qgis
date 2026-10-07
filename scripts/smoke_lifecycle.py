@@ -11,9 +11,12 @@ What it proves, and why that is worth a script rather than a manual click:
 
 * ``classFactory`` returns a plugin, i.e. the deferred import inside it holds.
 * ``initGui`` registers exactly what we expect, on the real Qt classes.
-* ``unload`` removes **everything** it registered. This is the one QGIS
-  contract that fails silently: a plugin that under-cleans looks fine until a
-  reload, then shows duplicated menu entries wired to a dead object.
+* ``unload`` removes **everything** it registered: menu entries, toolbar
+  icon, the ALIGN dock and the layer context-menu entries. This is the one
+  QGIS contract that fails silently: a plugin that under-cleans looks fine
+  until a reload, then shows duplicated entries wired to a dead object.
+* The ALIGN panel builds on the real Qt classes (QgsDockWidget and the
+  widgets of its two views), which no stub can prove.
 
 It cannot replace opening QGIS once — nothing here draws a pixel — but it
 catches the whole class of errors that only appear at load time.
@@ -77,7 +80,35 @@ def main() -> int:
         return 1
     action = toolbar_action
 
+    # The panel: one dock, named so QGIS can remember its place, hidden until
+    # asked for; and one context-menu entry per layer type it can publish.
+    if iface.addDockWidget.call_count != 1:
+        print("FAIL: initGui must add exactly one dock widget")
+        return 1
+    dock = iface.addDockWidget.call_args[0][1]
+    if not dock.objectName():
+        print("FAIL: the dock has no object name — QGIS could not remember its place")
+        return 1
+    if dock.isVisible():
+        print("FAIL: the dock must stay hidden until the user asks for it")
+        return 1
+    if iface.addCustomActionForLayerType.call_count == 0:
+        print("FAIL: no 'Publish to ALIGN…' entry in the layer context menu")
+        return 1
+    layer_actions = [call[0][0] for call in iface.addCustomActionForLayerType.call_args_list]
+
     plugin.unload()
+
+    if iface.removeDockWidget.call_count != 1 or iface.removeDockWidget.call_args[0][0] is not dock:
+        print("FAIL: unload did not remove the dock it added")
+        return 1
+    if iface.removeCustomActionForLayerType.call_count != len(layer_actions):
+        print("FAIL: unload did not remove every layer context-menu entry initGui added")
+        return 1
+    removed_layer_actions = [call[0][0] for call in iface.removeCustomActionForLayerType.call_args_list]
+    if set(id(a) for a in removed_layer_actions) != set(id(a) for a in layer_actions):
+        print("FAIL: unload removed different context-menu entries than initGui added")
+        return 1
 
     # Symmetry is the point: as many removals as additions, on the same action.
     if iface.removePluginWebMenu.call_count != iface.addPluginToWebMenu.call_count:
@@ -95,8 +126,9 @@ def main() -> int:
     plugin.unload()
 
     print(
-        "OK — loads, registers %d action(s) under %s (toolbar: '%s'), unloads cleanly"
-        % (len(registered), menu_title, action.text())
+        "OK — loads, registers %d action(s) under %s (toolbar: '%s'), one dock, "
+        "%d layer context entr%s, unloads cleanly"
+        % (len(registered), menu_title, action.text(), len(layer_actions), "y" if len(layer_actions) == 1 else "ies")
     )
     return 0
 

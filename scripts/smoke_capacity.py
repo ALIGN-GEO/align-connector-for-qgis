@@ -18,101 +18,17 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import pathlib
 import sys
-import types
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "scripts"))
 
+import qgis_stubs  # noqa: E402
 
-def _install_qgis_stubs():
-    """Stand in for the QGIS and Qt classes the modules import at load time.
-
-    No widget is ever built here: the dialog module is imported for its
-    sentence, the task module for its refusal. Everything else is a name.
-    """
-    core = types.ModuleType("qgis.core")
-    for name in (
-        "Qgis",
-        "QgsBlockingNetworkRequest",
-        "QgsCoordinateReferenceSystem",
-        "QgsCoordinateTransform",
-        "QgsCoordinateTransformContext",
-        "QgsFeature",
-        "QgsFields",
-        "QgsField",
-        "QgsMessageLog",
-        "QgsNetworkAccessManager",
-        "QgsProject",
-        "QgsRasterLayer",
-        "QgsRasterPipe",
-        "QgsTask",
-        "QgsVectorLayer",
-        "QgsWkbTypes",
-    ):
-        setattr(core, name, type(name, (object,), {}))
-
-    class QgsVectorFileWriter(object):
-        NoError = 0
-
-    class QgsRasterFileWriter(object):
-        NoError = 0
-
-        def __init__(self, path):
-            self.path = path
-
-    core.QgsVectorFileWriter = QgsVectorFileWriter
-    core.QgsRasterFileWriter = QgsRasterFileWriter
-
-    qtcore = types.ModuleType("qgis.PyQt.QtCore")
-    qtcore.QVariant = type("QVariant", (object,), {"Map": 8, "List": 9, "StringList": 11, "Hash": 28})
-    qtcore.Qt = type("Qt", (object,), {"PlainText": 0, "WaitCursor": 3})
-    qtcore.QSettings = type("QSettings", (object,), {"value": lambda self, key, default=None: default})
-    for name in ("QByteArray", "QEventLoop", "QUrl"):
-        setattr(qtcore, name, type(name, (object,), {}))
-
-    widgets = types.ModuleType("qgis.PyQt.QtWidgets")
-    for name in (
-        "QApplication",
-        "QCheckBox",
-        "QComboBox",
-        "QDialog",
-        "QDialogButtonBox",
-        "QFormLayout",
-        "QLabel",
-        "QLineEdit",
-        "QPlainTextEdit",
-        "QVBoxLayout",
-    ):
-        setattr(widgets, name, type(name, (object,), {}))
-
-    network = types.ModuleType("qgis.PyQt.QtNetwork")
-    for name in ("QNetworkAccessManager", "QNetworkReply", "QNetworkRequest"):
-        setattr(network, name, type(name, (object,), {}))
-
-    qgis = types.ModuleType("qgis")
-    pyqt = types.ModuleType("qgis.PyQt")
-    qgis.core = core
-    qgis.PyQt = pyqt
-    pyqt.QtCore = qtcore
-    pyqt.QtWidgets = widgets
-    pyqt.QtNetwork = network
-
-    sys.modules.update(
-        {
-            "qgis": qgis,
-            "qgis.core": core,
-            "qgis.PyQt": pyqt,
-            "qgis.PyQt.QtCore": qtcore,
-            "qgis.PyQt.QtWidgets": widgets,
-            "qgis.PyQt.QtNetwork": network,
-        }
-    )
-
-
-_install_qgis_stubs()
+qgis_stubs.install()
 
 from align_connector import api, net  # noqa: E402
-from align_connector.publish.dialog import describe_capacity  # noqa: E402
+from align_connector.publish.wording import describe_capacity  # noqa: E402
 from align_connector.publish.task import with_capacity  # noqa: E402
 
 GB = 1024 ** 3
