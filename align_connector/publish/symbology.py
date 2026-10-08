@@ -90,7 +90,7 @@ def _convert_renderer(renderer, family, report):
     kind = _call(renderer, "type", "")
 
     if kind == "singleSymbol":
-        base, outline = _symbol_paint(_call(renderer, "symbol"), family, report, "the symbol")
+        base, outline = _symbol_paint(_symbol_of(renderer), family, report, "the symbol")
         return _style(family, base, outline, {"type": "simple"}), "single symbol"
 
     if kind == "categorizedSymbol":
@@ -136,7 +136,7 @@ def _categorized(renderer, family, report):
         if not _call(category, "renderState", True):
             report.append("Hidden category '{}' is not transmitted.".format(_call(category, "label", "")))
             continue
-        base, outline = _symbol_paint(_call(category, "symbol"), family, report, "category '{}'".format(_call(category, "label", "")))
+        base, outline = _symbol_paint(_symbol_of(category), family, report, "category '{}'".format(_call(category, "label", "")))
         value = _call(category, "value", None)
         if value is None or value == "":
             # QGIS's "all other values" row: the colour everything else takes.
@@ -167,7 +167,7 @@ def _graduated(renderer, family, report):
     for rng in _call(renderer, "ranges", []) or []:
         if not _call(rng, "renderState", True):
             continue
-        base, outline = _symbol_paint(_call(rng, "symbol"), family, report, "class '{}'".format(_call(rng, "label", "")))
+        base, outline = _symbol_paint(_symbol_of(rng), family, report, "class '{}'".format(_call(rng, "label", "")))
         lower, upper = _call(rng, "lowerValue", None), _call(rng, "upperValue", None)
         if not isinstance(lower, (int, float)) or not isinstance(upper, (int, float)) or upper <= lower:
             continue
@@ -183,7 +183,8 @@ def _graduated(renderer, family, report):
     if _is_size_method(_call(renderer, "graduatedMethod", None)):
         report.append("Graduated by size: the classes keep their colours, the sizes do not vary on the web.")
     rules.sort(key=lambda r: r["range"][0])
-    base, outline = _symbol_paint(_call(_call(renderer, "ranges")[0], "symbol"), family, report, "the first class")
+    ranges = _call(renderer, "ranges", []) or []
+    base, outline = _symbol_paint(_symbol_of(ranges[0]) if ranges else None, family, report, "the first class")
     symbology = {"type": "graduated", "attribute": attribute, "interpolation": "step", "classCount": len(rules), "rules": rules}
     method = _call(_call(renderer, "classificationMethod", None), "id", None)
     if method in _SCHEMES:
@@ -205,7 +206,7 @@ def _rule_based(renderer, family, report):
         if _call(rule, "children", []):
             convertible = False
             break
-        symbol = _call(rule, "symbol")
+        symbol = _symbol_of(rule)
         if symbol is None:
             convertible = False
             break
@@ -231,7 +232,7 @@ def _rule_based(renderer, family, report):
         rules.append(entry)
     if convertible and field and rules:
         if fallback is None:
-            fallback = _symbol_paint(_call(children[0], "symbol"), family, report, "the first rule")
+            fallback = _symbol_paint(_symbol_of(children[0]), family, report, "the first rule")
         base, outline = fallback
         report.append("Rule-based renderer transmitted as categories on '{}'.".format(field))
         return _style(family, base, outline, {"type": "categorized", "attribute": field, "rules": rules}), \
@@ -345,12 +346,12 @@ def _first_symbol(renderer):
     for accessor in ("categories", "ranges"):
         items = _call(renderer, accessor, None)
         if items:
-            symbol = _call(items[0], "symbol")
+            symbol = _symbol_of(items[0])
             if symbol is not None:
                 return symbol
     children = _call(_call(renderer, "rootRule"), "children", None)
     if children:
-        symbol = _call(children[0], "symbol")
+        symbol = _symbol_of(children[0])
         if symbol is not None:
             return symbol
     try:
@@ -358,10 +359,31 @@ def _first_symbol(renderer):
 
         symbols = _call(renderer, "symbols", None, QgsRenderContext())
         if symbols:
-            return symbols[0]
+            return _own(symbols[0])
     except Exception:  # noqa: BLE001 — no render context available, the plain accessor is next
         pass
-    return _call(renderer, "symbol", None)
+    return _symbol_of(renderer)
+
+
+def _symbol_of(holder):
+    """The symbol a renderer, a category, a range or a rule carries, OWNED.
+
+    QGIS hands categories and ranges back as temporary copies, each owning
+    its symbol; the pointer `symbol()` returns dies with the copy, and
+    reading it afterwards is a crash with no traceback (seen on 3.44 with a
+    graduated renderer). A clone belongs to Python and outlives the copy.
+    """
+    return _own(_call(holder, "symbol"))
+
+
+def _own(symbol):
+    clone = getattr(symbol, "clone", None)
+    if not callable(clone):
+        return symbol
+    try:
+        return clone()
+    except Exception:  # noqa: BLE001 — a stand-in without a clone is used as it is
+        return symbol
 
 
 def _is_size_method(method):
