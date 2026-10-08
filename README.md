@@ -25,16 +25,18 @@ Your ALIGN role decides what you may do. The plugin never grants access: it carr
 | A raster already stored as a GeoTIFF | that file, byte for byte | a Cloud-Optimized GeoTIFF, prepared on arrival |
 | A raster read from an MBTiles archive | that archive, byte for byte | the PMTiles; the Map builder shows vector tile archives only, so far |
 | Any other raster GDAL can read | a compressed GeoTIFF written for the occasion | a Cloud-Optimized GeoTIFF |
+| A layer that is a service: XYZ, WMS, WMTS, WFS, OGC API Features, ArcGIS Feature or Map Service, vector tiles, a remote COG or PMTiles, a point cloud or 3D Tiles by URL | its address and what names the layer, no data | a live reference, read when the map opens, one per service |
 
 The list grows as each format is proven end to end rather than merely wired up.
 
 Two things are worth knowing before you send a raster. ALIGN prepares it for
 display when it arrives; **if that preparation has to reproject your data, your
 original is kept alongside the display-ready copy** — nothing is silently
-replaced, and both count against your organization's storage. And a WMS or WCS
-layer is a *connection*, not a dataset: there is no file to publish, so the
-plugin says so instead of uploading an empty one. Remote services are
-registered from the ALIGN web application.
+replaced, and both count against your organization's storage. And a service
+layer is kept as a reference, the way ArcGIS Online keeps it: ALIGN stores the
+address, reads the service when the map opens, and reuses one item for the
+same service however many times it is published. A service whose address
+carries a key or a signature is refused: a reference never stores a credential.
 
 There is no size limit in the plugin. Your organization's remaining storage is
 the limit, and it is checked **before the transfer starts** — a publish that
