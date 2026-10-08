@@ -228,7 +228,7 @@ class PublishLayerTask(QgsTask):
             "sourceLayerId": self.layer_id,
             "clientVersion": plugin_version(),
             "appVersion": Qgis.QGIS_VERSION.split("-")[0],
-            "publishedAt": _utc_now(),
+            "publishedAt": utc_now(),
         }
         if self.source_crs:
             # The system the data was in before leaving: a vector arrives in
@@ -243,7 +243,7 @@ class PublishLayerTask(QgsTask):
             self._workdir = None
 
 
-def _utc_now():
+def utc_now():
     """An ISO-8601 UTC timestamp, the shape the API validates against."""
     from datetime import datetime
 

@@ -18,30 +18,25 @@ SPDX-License-Identifier: GPL-2.0-or-later
 from qgis.core import QgsWkbTypes
 
 from ..i18n import tr
-from . import tiles
+from . import services, tiles, uri
 from .exporter import publishable_kind
+
+#: Layer classes that are a service by URL (TCK-2207), with the provider key
+#: QGIS decodes their source with.
+_SERVICE_CLASSES = ("QgsPointCloudLayer", "QgsTiledSceneLayer")
 
 #: Layer classes the plugin does not publish, with what to call them.
 _UNSUPPORTED_CLASSES = {
     "QgsMeshLayer": "mesh",
-    "QgsPointCloudLayer": "point cloud",
     "QgsAnnotationLayer": "annotation",
     "QgsTiledSceneLayer": "tiled scene (3D tiles)",
     "QgsPluginLayer": "plugin",
     "QgsGroupLayer": "group",
 }
 
-#: Vector providers whose features live on a remote service.
-_REMOTE_VECTOR = {
-    "wfs": "WFS",
-    "oapif": "OGC API Features",
-    "arcgisfeatureserver": "ArcGIS Feature Service",
-}
-
-#: Raster providers that are a connection, not a file.
+#: Raster providers that are a connection the Map builder cannot read live.
 _REMOTE_RASTER = {
     "wcs": "WCS",
-    "arcgismapserver": "ArcGIS Map Service",
     "arcgisimageserver": "ArcGIS Image Service",
 }
 
@@ -52,18 +47,21 @@ _GEOMETRY_NAMES = {0: "Point", 1: "Line", 2: "Polygon", 3: "Unknown", 4: "Null"}
 class Verdict(object):
     """What the panel says about one layer.
 
-    :param kind: ``'vector'``, ``'raster'``, ``'archive'`` or ``None``
+    :param kind: ``'vector'``, ``'raster'``, ``'archive'``, ``'reference'`` or ``None``
     :param reason: why it cannot be published, or ``None`` when it can
     :param notes: sentences the briefing adds (what changes on the way)
     :param unplaceable: why a web map composed from QGIS cannot place the
         item yet, or ``None`` (the item is still published)
+    :param reference: the request that registers the layer as a live
+        reference (TCK-2207), when the layer is a service
     """
 
-    def __init__(self, kind, reason=None, notes=None, unplaceable=None):
+    def __init__(self, kind, reason=None, notes=None, unplaceable=None, reference=None):
         self.kind = kind
         self.reason = reason
         self.notes = notes or []
         self.unplaceable = unplaceable
+        self.reference = reference
 
     @property
     def publishable(self):
@@ -71,6 +69,8 @@ class Verdict(object):
 
 
 def verdict(layer):
+    if type(layer).__name__ in _SERVICE_CLASSES and _call(layer, "isValid", True) is not False:
+        return _service_verdict(layer, _call(layer, "providerType", "") or "")
     kind = publishable_kind(layer)
     if kind is None:
         return Verdict(None, _why_not_a_dataset(layer))
@@ -79,6 +79,15 @@ def verdict(layer):
     if kind == "archive":
         return _archive_verdict(layer)
     return _raster_verdict(layer)
+
+
+def _service_verdict(layer, provider, source_layers=None):
+    """A layer that is a service becomes a live reference (TCK-2207)."""
+    source = _call(layer, "source", "") or ""
+    plan = services.describe_service(provider, uri.decode(provider, source), source, source_layers)
+    if not plan.publishable:
+        return Verdict(None, plan.reason)
+    return Verdict("reference", None, plan.notes, reference=plan.body)
 
 
 def geometry_kind(layer):
@@ -121,33 +130,31 @@ def _vector_verdict(layer):
                 "first (Processing: Segmentize by maximum distance)."
             ),
         )
+    provider = (_call(_call(layer, "dataProvider", None), "name", "") or "").lower()
+    if provider in services.VECTOR_SERVICE_PROVIDERS:
+        # A service is kept as a reference ALIGN reads live, never as a copy
+        # (decision Benjamin 2026-10-08, the AGOL model).
+        return _service_verdict(layer, provider)
     count = _call(layer, "featureCount", -1)
     if count == 0:
         return Verdict("vector", tr("No features: there is nothing to publish."))
-    notes = []
-    provider = (_call(_call(layer, "dataProvider", None), "name", "") or "").lower()
-    service = _REMOTE_VECTOR.get(provider)
-    if service:
-        notes.append(
-            tr(
-                "This layer comes from a {} service: a snapshot of its features is published, "
-                "not a live connection."
-            ).format(service)
-        )
-    return Verdict("vector", None, notes)
+    return Verdict("vector", None, [])
 
 
 def _raster_verdict(layer):
     provider = (_call(_call(layer, "dataProvider", None), "name", "gdal") or "gdal").lower()
+    if provider in services.RASTER_SERVICE_PROVIDERS:
+        return _service_verdict(layer, provider)
     if provider != "gdal":
         return Verdict(
             "raster",
             tr(
-                "A {} connection, not a dataset: there is no file to publish. Add the service "
-                "to ALIGN from the web application instead."
+                "A {} connection: the Map builder cannot read it live, and there is no file to publish."
             ).format(_service_label(provider, _call(layer, "source", "") or "")),
         )
     source = (_call(layer, "source", "") or "").split("|")[0].strip()
+    if services.remote_cog_url(source):
+        return _service_verdict(layer, "gdal")
     if source.lower().endswith(".mbtiles"):
         # The Datastore takes the archive and derives a PMTiles; the Map
         # builder paints vector tile archives only, so far.
@@ -170,6 +177,12 @@ def _raster_verdict(layer):
 
 
 def _archive_verdict(layer):
+    decoded = tiles.decoded_source(layer)
+    plan = tiles.archive_plan(decoded)
+    location = (decoded.get("path") or decoded.get("url") or "").lower()
+    if not plan.publishable and (location.startswith(("http://", "https://")) or (decoded.get("type") or "").lower() == "xyz"):
+        # A remote tile source is a service: a live reference (TCK-2207).
+        return _service_verdict(layer, "vectortile", tiles.source_layers_of(layer))
     plan = tiles.archive_of(layer)
     if not plan.publishable:
         return Verdict("archive", plan.reason)
@@ -188,13 +201,6 @@ def _archive_verdict(layer):
 
 
 def _service_label(provider, source):
-    if provider == "wms":
-        lowered = source.lower()
-        if "type=xyz" in lowered:
-            return "XYZ tiles"
-        if "tilematrixset=" in lowered:
-            return "WMTS"
-        return "WMS"
     return _REMOTE_RASTER.get(provider, provider.upper())
 
 

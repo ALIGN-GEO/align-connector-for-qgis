@@ -391,7 +391,7 @@ class PublishView(QWidget):
                     item,
                     briefing.brief(layer, item.selected_only),
                     visible=visible,
-                    geometry_type=support.geojson_geometry_type(layer) if verdict.kind == "vector" else None,
+                    geometry_type=support.geojson_geometry_type(layer) if verdict.kind != "archive" else None,
                     source_layers=tiles.source_layers_of(layer) if verdict.kind == "archive" else None,
                     unplaceable=verdict.unplaceable,
                 )

@@ -34,14 +34,17 @@ class Briefing(object):
     :param style: the converted style to send, or None
     :param iso: the metadata to send, or None
     :param title: the title to propose (metadata title, else layer name)
+    :param reference: the request that registers the layer as a live
+        reference (TCK-2207), or None when bytes are sent
     """
 
-    def __init__(self, kind, text, style=None, iso=None, title=None):
+    def __init__(self, kind, text, style=None, iso=None, title=None, reference=None):
         self.kind = kind
         self.text = text
         self.style = style
         self.iso = iso
         self.title = title
+        self.reference = reference
 
 
 def brief(layer, selected_only=False):
@@ -54,6 +57,13 @@ def brief(layer, selected_only=False):
 
     if not verdict.publishable:
         return Briefing(None, verdict.reason, None, None, title)
+
+    if kind == "reference":
+        text = " ".join(
+            verdict.notes
+            + [tr("ALIGN keeps the address and the layer name, and reads the service when the map opens. Metadata and style are not transmitted for a reference.")]
+        )
+        return Briefing(kind, text, None, None, title, reference=verdict.reference)
 
     if kind == "raster":
         text = " ".join([_raster_text(layer)] + verdict.notes + [isometa.describe_metadata(reading)])

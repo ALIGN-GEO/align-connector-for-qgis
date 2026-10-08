@@ -256,3 +256,38 @@ def create_web_map(session, org_id, name, layers, map_view=None, description=Non
         "layers": [e for e in (body.get("layers") or []) if isinstance(e, dict)],
         "skipped": [e for e in (body.get("skipped") or []) if isinstance(e, dict)],
     }
+
+
+def create_reference(session, org_id, name, body, provenance=None, description=None, visibility=None):
+    """Register (or find) a live reference to a web service (TCK-2207).
+
+    :param body: ``{"kind", "url", …}`` as `publish.services.describe_service` builds it
+    :returns: ``{"assetId", "created", "name", "gisFormat"}``
+    :raises ApiError: when the call fails; ``status`` carries the refusal
+    """
+    token = session.access_token()
+    if not token:
+        raise ApiError("You are not signed in to ALIGN.", needs_sign_in=True)
+
+    payload = dict(body)
+    payload["name"] = name
+    if provenance:
+        payload["provenance"] = provenance
+    if description:
+        payload["description"] = description
+    if visibility:
+        payload["visibility"] = visibility
+
+    result = net.post_json(config.references_endpoint(org_id), payload, bearer=token)
+    if not result.ok:
+        _raise_for(result, "Could not register the reference")
+
+    answer = result.body if isinstance(result.body, dict) else None
+    if not answer or not answer.get("assetId"):
+        raise ApiError("ALIGN returned an unexpected answer while registering the reference.")
+    return {
+        "assetId": answer["assetId"],
+        "created": bool(answer.get("created", True)),
+        "name": answer.get("name") or name,
+        "gisFormat": answer.get("gisFormat"),
+    }

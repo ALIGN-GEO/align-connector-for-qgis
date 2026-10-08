@@ -35,6 +35,7 @@ from .panel.camera import canvas_map_view
 from .panel.dock import AlignDock, dock_area
 from .panel.follow import LotFollower
 from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of
+from .publish.reference_task import RegisterReferenceTask
 from .publish.task import PublishLayerTask
 from .publish.webmap_task import ComposeWebMapTask
 from .qtcompat import run_exec
@@ -247,19 +248,32 @@ class AlignConnectorPlugin:
             batch.map_view = canvas_map_view(self.iface.mapCanvas())
             follower = LotFollower(batch, self._on_lot_finished)
         for request in batch.requests:
-            task = PublishLayerTask(
-                self.session,
-                request.layer,
-                org["id"],
-                org["name"],
-                request.plan.title,
-                selected_only=request.plan.selected_only,
-                description=batch.description,
-                visibility=batch.visibility,
-                capacity_line=batch.capacity_line,
-                style=request.briefing.style,
-                iso=request.briefing.iso,
-            )
+            if request.briefing.reference is not None:
+                # A service is registered, not uploaded (TCK-2207).
+                task = RegisterReferenceTask(
+                    self.session,
+                    request.layer.id(),
+                    org["id"],
+                    org["name"],
+                    request.plan.title,
+                    request.briefing.reference,
+                    description=batch.description,
+                    visibility=batch.visibility,
+                )
+            else:
+                task = PublishLayerTask(
+                    self.session,
+                    request.layer,
+                    org["id"],
+                    org["name"],
+                    request.plan.title,
+                    selected_only=request.plan.selected_only,
+                    description=batch.description,
+                    visibility=batch.visibility,
+                    capacity_line=batch.capacity_line,
+                    style=request.briefing.style,
+                    iso=request.briefing.iso,
+                )
             task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
             task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
             self._tasks.append(task)

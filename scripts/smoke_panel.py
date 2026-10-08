@@ -72,9 +72,10 @@ class Vector(QgsVectorLayer):
     """A vector layer stand-in: valid, in Lambert 72, categorized, documented."""
 
     def __init__(self, layer_id, name, authid="EPSG:31370", valid=True, selected=0, total=120, title=None, renderer=None,
-                 geometry=2, wkb="Polygon", provider="ogr"):
+                 geometry=2, wkb="Polygon", provider="ogr", source="C:/data/layer.gpkg"):
         self._id = layer_id
         self._name = name
+        self._source = source
         self._authid = authid
         self._valid = valid
         self._selected = selected
@@ -108,6 +109,9 @@ class Vector(QgsVectorLayer):
 
     def wkbType(self):  # noqa: N802
         return self._wkb
+
+    def source(self):
+        return self._source
 
     def dataProvider(self):  # noqa: N802
         return Stub(name=self._provider)
@@ -181,16 +185,16 @@ def test_every_layer_is_listed_with_a_reason_for_the_refused_ones():
     layers = [
         Vector("v1", "Parcels", title="Cadastral parcels 2026"),
         Raster("r1", "Elevation", source="C:/data/dem.tif"),
-        Raster("r2", "Orthophoto (WMS)", source="url=https://example", provider="wms"),
+        Raster("r2", "Coverage (WCS)", source="url=https://example&identifier=dem", provider="wcs"),
         Vector("v2", "Broken", valid=False),
         QgsMeshLayer(),
     ]
     rows = batch.rows_of(layers)
-    check([r.layer_id for r in rows] == ["v1", "r1", "r2", "mesh-1"] or [r.name for r in rows] == ["Parcels", "Elevation", "Orthophoto (WMS)", "Broken", "Bathymetry mesh"], "every layer, in the order given")
+    check([r.layer_id for r in rows] == ["v1", "r1", "r2", "mesh-1"] or [r.name for r in rows] == ["Parcels", "Elevation", "Coverage (WCS)", "Broken", "Bathymetry mesh"], "every layer, in the order given")
     check(len(rows) == 5, "none hidden, not even the ones that cannot be sent")
     check(rows[0].publishable and rows[0].kind == "vector" and rows[0].title == "Cadastral parcels 2026", "the record's title is proposed")
     check(rows[1].publishable and rows[1].kind == "raster" and rows[1].title == "Elevation", "a raster proposes its layer name")
-    check(not rows[2].publishable and "WMS" in rows[2].reason and "no file" in rows[2].reason, rows[2].reason)
+    check(not rows[2].publishable and rows[2].reason.startswith("A WCS connection"), rows[2].reason)
     check(not rows[3].publishable and rows[3].kind is None, "an invalid layer is listed, refused")
     check(not rows[4].publishable and "mesh layer" in rows[4].reason, rows[4].reason)
 
@@ -200,28 +204,29 @@ def test_every_layer_gets_a_verdict_in_words_to_act_on():
         Vector("table", "Attribute table", geometry=4, wkb="NoGeometry"),
         Vector("arcs", "Road arcs", wkb="CompoundCurve"),
         Vector("empty", "Empty", total=0),
-        Vector("wfs", "Parcels (WFS)", provider="WFS"),
-        Raster("xyz", "OpenStreetMap", source="type=xyz&url=https://tile.example/{z}/{x}/{y}.png", provider="wms"),
-        Raster("wmts", "Ortho (WMTS)", source="tileMatrixSet=EPSG:3857&url=https://wmts.example", provider="wms"),
+        Vector("wfs", "Parcels (WFS)", provider="WFS", source="url='https://wfs.example/ows' typename='ns:parcels' version='2.0.0'"),
+        Raster("xyz", "OpenStreetMap", source="type=xyz&url=https://tile.example/{z}/{x}/{y}.png&zmax=19", provider="wms"),
+        Raster("wcs", "Coverage", source="url=https://wcs.example&identifier=dem", provider="wcs"),
         Raster("dem", "Elevation", source="C:/data/dem.tif"),
     ])
     reasons = {row.layer_id: row.reason for row in rows}
+    kinds = {row.layer_id: row.kind for row in rows}
     check("without geometry" in reasons["table"], reasons["table"])
     check("Curved geometries" in reasons["arcs"] and "Segmentize" in reasons["arcs"], reasons["arcs"])
     check("No features" in reasons["empty"], reasons["empty"])
-    check(reasons["wfs"] is None, "a WFS layer is published as a snapshot, not refused")
-    check(reasons["xyz"].startswith("A XYZ tiles connection") and "web application" in reasons["xyz"], reasons["xyz"])
-    check(reasons["wmts"].startswith("A WMTS connection"), reasons["wmts"])
+    check(reasons["wfs"] is None and kinds["wfs"] == "reference", "a WFS layer is a live reference")
+    check(reasons["xyz"] is None and kinds["xyz"] == "reference", "a tile service is a live reference")
+    check(reasons["wcs"].startswith("A WCS connection"), reasons["wcs"])
     check(reasons["dem"] is None, "a GDAL file is published")
 
     summary = batch.describe_blocked(rows)
-    check(summary.startswith("5 layers cannot be published:"), summary)
-    check("Attribute table (" in summary and "OpenStreetMap (" in summary, summary)
+    check(summary.startswith("4 layers cannot be published:"), summary)
+    check("Attribute table (" in summary and "Coverage (" in summary, summary)
     check(batch.describe_blocked(rows[3:4]) == "", "nothing blocked reads as nothing")
 
     # The briefing carries what changes on the way for the layers that go.
-    snapshot = briefing.brief(Vector("wfs", "Parcels (WFS)", provider="WFS"))
-    check("snapshot of its features" in snapshot.text, snapshot.text)
+    live = briefing.brief(Vector("wfs", "Parcels (WFS)", provider="WFS", source="url='https://wfs.example/ows' typename='ns:parcels'"))
+    check("live reference" in live.text and live.reference == {"kind": "wfs", "url": "https://wfs.example/ows", "typeName": "ns:parcels"}, live.text)
     refused = briefing.brief(Vector("arcs", "Road arcs", wkb="CompoundCurve"))
     check(refused.kind is None and "Curved geometries" in refused.text, refused.text)
     check(support.geojson_geometry_type(Vector("pts", "Points", geometry=0)) == "Point", "geometry for the web map")
@@ -234,7 +239,7 @@ def test_one_click_sends_the_checked_publishable_rows_in_panel_order():
     rows = batch.rows_of([
         Vector("v1", "Parcels", title="Cadastral parcels 2026", selected=3),
         Raster("r1", "Elevation", source="C:/data/dem.tif"),
-        Raster("r2", "Orthophoto (WMS)", provider="wms"),
+        Raster("r2", "Coverage (WCS)", source="url=https://example", provider="wcs"),
         Vector("v2", "Roads"),
     ])
     plans = batch.plan(rows, checked_ids=["v2", "r2", "v1"], titles={"v2": "  Road network  ", "v1": ""}, selected_only_ids=["v1", "r2"])

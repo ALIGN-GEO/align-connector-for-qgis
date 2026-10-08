@@ -97,6 +97,13 @@ jobs:
       - name: Cloud-native files leave as they are
         run: python scripts/smoke_cloud.py
 
+      # A layer that is a service (XYZ, WMS, WMTS, WFS, OGC API Features,
+      # ArcGIS, vector tiles, remote COG, point cloud, 3D Tiles) becomes a
+      # live reference: the reading of what QGIS holds, per provider, and
+      # what cannot be a reference, named.
+      - name: Services become live references
+        run: python scripts/smoke_services.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

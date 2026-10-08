@@ -131,3 +131,8 @@ def web_map_endpoint(org_id):
 def web_map_url(org_id, asset_id):
     """The web map in the Map builder."""
     return "{}/app/{}/map-viewer?webmap={}".format(app_url(), org_id, asset_id)
+
+
+def references_endpoint(org_id):
+    """Register a web-service layer as a live reference (TCK-2207)."""
+    return "{}/api/v1/orgs/{}/datastore/references".format(api_url(), org_id)

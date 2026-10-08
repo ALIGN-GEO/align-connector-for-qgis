@@ -23,8 +23,10 @@ _CORE = (
     "QgsField",
     "QgsMessageLog",
     "QgsNetworkAccessManager",
+    "QgsPointCloudLayer",
     "QgsProject",
     "QgsRasterLayer",
+    "QgsTiledSceneLayer",
     "QgsVectorTileLayer",
     "QgsRasterPipe",
     "QgsRenderContext",
@@ -73,6 +75,11 @@ def install():
 
         @staticmethod
         def decodeUri(provider, uri):  # noqa: N802 — QGIS's name
+            # A data-source URI (`key='value'`) is a dialect this stand-in does
+            # not read: it answers nothing, as an older QGIS would, and the
+            # plugin's own plain reader takes over.
+            if "='" in (uri or "") or '="' in (uri or ""):
+                return {}
             decoded = {}
             for part in (uri or "").split("&"):
                 if "=" in part:

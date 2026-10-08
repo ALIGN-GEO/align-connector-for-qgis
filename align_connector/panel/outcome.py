@@ -41,7 +41,17 @@ def outcome_of(task, succeeded):
                 ).format(name, org, task.derivation_error),
                 getattr(task, "asset_id", None),
             )
+        if getattr(task, "created", None) is False:
+            # The same service was already registered in this organization:
+            # one item, reused, as the dedup by service identity decides.
+            return Outcome(
+                SUCCESS,
+                tr("“{}” was already in {} on ALIGN; the existing reference is reused.").format(name, org),
+                getattr(task, "asset_id", None),
+            )
         text = tr("“{}” is now in {} on ALIGN.").format(name, org)
+        if getattr(task, "created", None) is True:
+            text += " " + tr("It is a live reference: ALIGN reads the service when the map opens.")
         flattened = getattr(task, "flattened_fields", None)
         if flattened:
             # The values are all there, but they changed shape. Saying so
