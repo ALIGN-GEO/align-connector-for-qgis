@@ -19,9 +19,12 @@ Your ALIGN role decides what you may do. The plugin never grants access: it carr
 
 | Your layer | What is sent | What ALIGN stores |
 |---|---|---|
-| Any vector layer QGIS can read | FlatGeobuf (GeoJSON where the driver is missing) | one layer, served as it is |
+| Any vector layer QGIS can read | FlatGeobuf (GeoJSON where the driver is missing), in WGS 84 | one layer, served as it is |
+| A vector layer read from a FlatGeobuf or GeoParquet file already in WGS 84 | that file, byte for byte | the same file, served as it is |
+| A vector tile layer read from a PMTiles or MBTiles archive on disk | that archive, byte for byte | the PMTiles (an MBTiles is converted on arrival) |
 | A raster already stored as a GeoTIFF | that file, byte for byte | a Cloud-Optimized GeoTIFF, prepared on arrival |
-| Any other raster GDAL can read | a compressed GeoTIFF written for the occasion | the same |
+| A raster read from an MBTiles archive | that archive, byte for byte | the PMTiles; the Map builder shows vector tile archives only, so far |
+| Any other raster GDAL can read | a compressed GeoTIFF written for the occasion | a Cloud-Optimized GeoTIFF |
 
 The list grows as each format is proven end to end rather than merely wired up.
 
