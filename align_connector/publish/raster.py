@@ -48,8 +48,20 @@ from .exporter import ExportFailed, ExportResult, safe_basename
 RASTER_CONTENT_TYPE = "image/tiff"
 
 #: Extensions we can forward untouched. A `.vrt` is deliberately absent: it is
-#: a few lines of XML pointing at files that would stay on this machine.
-_PASSTHROUGH_EXTENSIONS = (".tif", ".tiff")
+#: a few lines of XML pointing at files that would stay on this machine. An
+#: MBTiles raster leaves as it is too (TCK-2206): ALIGN derives a PMTiles from
+#: it, where a GeoTIFF written from it would flatten a tile pyramid.
+_PASSTHROUGH_EXTENSIONS = (".tif", ".tiff", ".mbtiles")
+
+
+def is_archive(path):
+    return (path or "").lower().endswith(".mbtiles")
+
+
+def content_type_of(path):
+    """What the upload door must be told: a GeoTIFF by its own type, an
+    archive as bytes (ALIGN reads the GIS format from the extension)."""
+    return "application/octet-stream" if is_archive(path) else RASTER_CONTENT_TYPE
 
 #: GDAL creation options for the written GeoTIFF. DEFLATE is lossless and valid
 #: for every band type — the layout is ALIGN's business, the size is ours: this
@@ -133,13 +145,14 @@ def export_raster(layer, target_dir=None):
 
     existing = source_file_of(layer)
     if existing:
+        archive = is_archive(existing)
         return ExportResult(
             path=existing,
-            filename=safe_basename(layer.name(), "tif"),
-            content_type=RASTER_CONTENT_TYPE,
+            filename=safe_basename(layer.name(), "mbtiles" if archive else "tif"),
+            content_type=content_type_of(existing),
             workdir=None,
             reused_source=True,
-            already_servable=is_serving_ready(existing),
+            already_servable=False if archive else is_serving_ready(existing),
         )
 
     if provider.xSize() <= 0 or provider.ySize() <= 0:

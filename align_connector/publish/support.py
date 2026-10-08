@@ -18,13 +18,13 @@ SPDX-License-Identifier: GPL-2.0-or-later
 from qgis.core import QgsWkbTypes
 
 from ..i18n import tr
+from . import tiles
 from .exporter import publishable_kind
 
 #: Layer classes the plugin does not publish, with what to call them.
 _UNSUPPORTED_CLASSES = {
     "QgsMeshLayer": "mesh",
     "QgsPointCloudLayer": "point cloud",
-    "QgsVectorTileLayer": "vector tile",
     "QgsAnnotationLayer": "annotation",
     "QgsTiledSceneLayer": "tiled scene (3D tiles)",
     "QgsPluginLayer": "plugin",
@@ -52,15 +52,18 @@ _GEOMETRY_NAMES = {0: "Point", 1: "Line", 2: "Polygon", 3: "Unknown", 4: "Null"}
 class Verdict(object):
     """What the panel says about one layer.
 
-    :param kind: ``'vector'``, ``'raster'`` or ``None``
+    :param kind: ``'vector'``, ``'raster'``, ``'archive'`` or ``None``
     :param reason: why it cannot be published, or ``None`` when it can
     :param notes: sentences the briefing adds (what changes on the way)
+    :param unplaceable: why a web map composed from QGIS cannot place the
+        item yet, or ``None`` (the item is still published)
     """
 
-    def __init__(self, kind, reason=None, notes=None):
+    def __init__(self, kind, reason=None, notes=None, unplaceable=None):
         self.kind = kind
         self.reason = reason
         self.notes = notes or []
+        self.unplaceable = unplaceable
 
     @property
     def publishable(self):
@@ -73,6 +76,8 @@ def verdict(layer):
         return Verdict(None, _why_not_a_dataset(layer))
     if kind == "vector":
         return _vector_verdict(layer)
+    if kind == "archive":
+        return _archive_verdict(layer)
     return _raster_verdict(layer)
 
 
@@ -142,11 +147,44 @@ def _raster_verdict(layer):
                 "to ALIGN from the web application instead."
             ).format(_service_label(provider, _call(layer, "source", "") or "")),
         )
+    source = (_call(layer, "source", "") or "").split("|")[0].strip()
+    if source.lower().endswith(".mbtiles"):
+        # The Datastore takes the archive and derives a PMTiles; the Map
+        # builder paints vector tile archives only, so far.
+        return Verdict(
+            "raster",
+            None,
+            [
+                tr(
+                    "This MBTiles archive is sent as it is; ALIGN converts it to PMTiles on arrival. "
+                    "The Map builder shows vector tile archives; raster tiles wait for a later version."
+                )
+            ],
+            unplaceable=tr("raster tiles are not displayed by the Map builder yet"),
+        )
     return Verdict(
         "raster",
         None,
         [tr("Raster styling is not transmitted: ALIGN renders the file with its default rendering.")],
     )
+
+
+def _archive_verdict(layer):
+    plan = tiles.archive_of(layer)
+    if not plan.publishable:
+        return Verdict("archive", plan.reason)
+    notes = [
+        tr("This PMTiles archive is sent as it is.")
+        if plan.kind == "pmtiles"
+        else tr("This MBTiles archive is sent as it is; ALIGN converts it to PMTiles on arrival.")
+    ]
+    unplaceable = None
+    if not tiles.source_layers_of(layer):
+        unplaceable = tr("no tile layer is styled in QGIS, so the web map cannot name what to draw")
+        notes.append(
+            tr("No tile layer is styled in QGIS: a web map composed here cannot place the archive; add it from the Map builder instead.")
+        )
+    return Verdict("archive", None, notes, unplaceable)
 
 
 def _service_label(provider, source):

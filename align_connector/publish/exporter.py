@@ -44,6 +44,7 @@ from qgis.core import (
     QgsVectorFileWriter,
     QgsRasterLayer,
     QgsVectorLayer,
+    QgsVectorTileLayer,
     QgsWkbTypes,
 )
 from qgis.PyQt.QtCore import QVariant
@@ -53,6 +54,15 @@ _FORMATS = (
     ("FlatGeobuf", "fgb", "application/x-flatgeobuf"),
     ("GeoJSON", "geojson", "application/geo+json"),
 )
+
+#: Cloud-native vector files the viewer reads as they are (TCK-2206, rule 22:
+#: an upload keeps its format). Sent untouched when nothing has to change on
+#: the way: `extension → (extension sent, content type)`.
+_PASSTHROUGH_VECTOR = {
+    ".fgb": ("fgb", "application/x-flatgeobuf"),
+    ".parquet": ("parquet", "application/vnd.apache.parquet"),
+    ".geoparquet": ("parquet", "application/vnd.apache.parquet"),
+}
 
 
 class ExportFailed(Exception):
@@ -167,6 +177,37 @@ def reprojection_notice(authid, valid=True):
     return None
 
 
+def vector_passthrough(source, provider, authid, valid=True, selected_only=False):
+    """The layer's own file, when it can leave as it is. Pure.
+
+    Three conditions, each one a reason to rewrite otherwise: an OGR file in a
+    format the viewer reads untouched; already in WGS 84 (the viewer's FGB
+    door never reprojects, TCK-2199); the whole layer (a selection is a
+    subset, not the file).
+
+    :returns: ``(path, extension, content_type)`` or ``None``
+    """
+    if selected_only or (provider or "").lower() != "ogr":
+        return None
+    candidate = (source or "").split("|")[0].strip()
+    entry = _PASSTHROUGH_VECTOR.get(os.path.splitext(candidate)[1].lower())
+    if entry is None or crs_plan(authid, valid) != KEEP:
+        return None
+    return candidate, entry[0], entry[1]
+
+
+def passthrough_source_of(layer, selected_only=False):
+    """`vector_passthrough` for a real layer, with the file checked on disk."""
+    crs = layer.crs()
+    provider = layer.dataProvider()
+    ready = vector_passthrough(
+        layer.source(), provider.name() if provider is not None else "", crs.authid(), crs.isValid(), selected_only
+    )
+    if ready is None or not os.path.isfile(ready[0]):
+        return None
+    return ready
+
+
 #: Attribute types no vector format can store. Serialised to JSON text instead.
 _COMPLEX_TYPES = (QVariant.Map, QVariant.List, QVariant.StringList, QVariant.Hash)
 
@@ -254,6 +295,20 @@ def export_layer(layer, selected_only=False, target_dir=None):
             else "That layer has no features."
         )
 
+    # A file the viewer reads as it is leaves as it is (TCK-2206): nothing is
+    # rewritten, nothing is reprojected, nothing is deleted afterwards.
+    ready = passthrough_source_of(layer, selected_only)
+    if ready is not None:
+        path, extension, content_type = ready
+        return ExportResult(
+            path=path,
+            filename=safe_basename(layer.name(), extension),
+            content_type=content_type,
+            workdir=None,
+            reused_source=True,
+            source_crs=crs.authid() or None,
+        )
+
     directory = target_dir or tempfile.mkdtemp(prefix="align-publish-")
     last_error = None
 
@@ -324,7 +379,8 @@ def _write(layer, path, options):
 # ---------------------------------------------------------------------------
 
 def publishable_kind(layer):
-    """``'vector'``, ``'raster'``, or ``None`` when this layer cannot be sent.
+    """``'vector'``, ``'raster'``, ``'archive'`` (a vector tile archive on
+    disk, TCK-2206), or ``None`` when this layer cannot be sent.
 
     The dialog and the export share this function on purpose. Offering a layer
     the export would then refuse — or hiding one it could have handled — is the
@@ -341,6 +397,8 @@ def publishable_kind(layer):
         return "vector"
     if isinstance(layer, QgsRasterLayer):
         return "raster"
+    if isinstance(layer, QgsVectorTileLayer):
+        return "archive"
     return None
 
 
@@ -359,6 +417,10 @@ def export_for_publish(layer, selected_only=False):
         from .raster import export_raster
 
         return export_raster(layer)
+    if kind == "archive":
+        from .tiles import export_archive
+
+        return export_archive(layer)
     raise ExportFailed(
         "ALIGN can publish vector and raster layers. “{}” is neither.".format(
             layer.name() if layer is not None else "This layer"

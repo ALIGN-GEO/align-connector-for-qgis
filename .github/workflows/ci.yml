@@ -90,6 +90,13 @@ jobs:
       - name: Web map from a finished lot
         run: python scripts/smoke_webmap.py
 
+      # A file the viewer reads as it is leaves as it is: FlatGeobuf and
+      # GeoParquet already in WGS 84, PMTiles and MBTiles archives. The
+      # decisions (extension, system, selection, archive source, tile layers)
+      # are proven without QGIS; the bytes are the user's own.
+      - name: Cloud-native files leave as they are
+        run: python scripts/smoke_cloud.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

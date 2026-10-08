@@ -25,6 +25,7 @@ _CORE = (
     "QgsNetworkAccessManager",
     "QgsProject",
     "QgsRasterLayer",
+    "QgsVectorTileLayer",
     "QgsRasterPipe",
     "QgsRenderContext",
     "QgsTask",
@@ -66,6 +67,25 @@ def install():
 
     core.QgsVectorFileWriter = QgsVectorFileWriter
     core.QgsRasterFileWriter = QgsRasterFileWriter
+
+    class _Registry(object):
+        """QGIS decodes `key=value&key=value` URIs; the stub reads them the same way."""
+
+        @staticmethod
+        def decodeUri(provider, uri):  # noqa: N802 — QGIS's name
+            decoded = {}
+            for part in (uri or "").split("&"):
+                if "=" in part:
+                    key, value = part.split("=", 1)
+                    decoded[key.strip()] = value.strip()
+            return decoded
+
+    class QgsProviderRegistry(object):
+        @staticmethod
+        def instance():
+            return _Registry()
+
+    core.QgsProviderRegistry = QgsProviderRegistry
     # A smoke names a geometry type by its WKT word; QGIS answers the same question on its enum.
     core.QgsWkbTypes.isCurvedType = staticmethod(
         lambda wkb: str(wkb).startswith(("CircularString", "CompoundCurve", "CurvePolygon", "MultiCurve", "MultiSurface"))

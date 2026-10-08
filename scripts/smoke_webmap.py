@@ -89,7 +89,7 @@ def test_the_request_keeps_the_successful_items_in_order_with_what_the_map_needs
     check([e["assetId"] for e in plan.layers] == ["parcels", "cog-1", "roads"], plan.layers)
     check(plan.layers[0] == {"assetId": "parcels", "title": "Parcels", "visible": True, "geometryType": "Polygon", "style": style}, plan.layers[0])
     check(plan.layers[1] == {"assetId": "cog-1", "title": "Elevation", "visible": False}, "a raster references its display-ready copy, no geometry, no style")
-    check(plan.left_out == ["Broken", "Stored only"], plan.left_out)
+    check(plan.left_out == [("Broken", "its publication did not succeed"), ("Stored only", "its publication did not succeed")], plan.left_out)
 
 
 # -- the camera --------------------------------------------------------------------
@@ -159,7 +159,7 @@ def test_the_request_travels_and_the_answer_is_read():
 
 def test_the_sentence_says_what_is_on_the_map_and_what_is_not():
     done = types.SimpleNamespace(name="Site", org_name="Town GIS", placed=[{"assetId": "a"}, {"assetId": "b"}], skipped=[{"assetId": "x", "title": "Ortho", "reason": "not available to you"}], error_message=None)
-    text = webmap.describe_outcome(done, True, ["Broken"])
+    text = webmap.describe_outcome(done, True, [("Broken", "its publication did not succeed")])
     check(text == "Web map “Site” is ready in Town GIS with 2 layers. Not placed: Ortho (not available to you), Broken (its publication did not succeed).", text)
     one = types.SimpleNamespace(name="Site", org_name="Town GIS", placed=[{"assetId": "a"}], skipped=[], error_message=None)
     check(webmap.describe_outcome(one, True, []) == "Web map “Site” is ready in Town GIS with 1 layer.", "singular")

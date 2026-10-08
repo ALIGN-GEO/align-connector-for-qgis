@@ -19,48 +19,14 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import pathlib
 import sys
-import types
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "scripts"))
 
+import qgis_stubs  # noqa: E402
 
-def _install_qgis_stubs():
-    """Stand in for the QGIS classes the exporter imports at load time."""
-    core = types.ModuleType("qgis.core")
-    for name in (
-        "QgsCoordinateReferenceSystem",
-        "QgsCoordinateTransform",
-        "QgsFeature",
-        "QgsFields",
-        "QgsField",
-        "QgsProject",
-        "QgsRasterLayer",
-        "QgsVectorLayer",
-        "QgsWkbTypes",
-    ):
-        setattr(core, name, type(name, (object,), {}))
-
-    class QgsVectorFileWriter(object):
-        NoError = 0
-
-    core.QgsVectorFileWriter = QgsVectorFileWriter
-
-    qtcore = types.ModuleType("qgis.PyQt.QtCore")
-    qtcore.QVariant = type("QVariant", (object,), {"Map": 8, "List": 9, "StringList": 11, "Hash": 28})
-
-    qgis = types.ModuleType("qgis")
-    pyqt = types.ModuleType("qgis.PyQt")
-    qgis.core = core
-    qgis.PyQt = pyqt
-    pyqt.QtCore = qtcore
-
-    sys.modules.update(
-        {"qgis": qgis, "qgis.core": core, "qgis.PyQt": pyqt, "qgis.PyQt.QtCore": qtcore}
-    )
-
-
-_install_qgis_stubs()
+qgis_stubs.install()
 
 from align_connector.publish import exporter  # noqa: E402
 

@@ -37,7 +37,7 @@ from qgis.PyQt.QtWidgets import (
 
 from .. import api
 from ..i18n import tr
-from ..publish import briefing, support
+from ..publish import briefing, support, tiles
 from ..publish.wording import describe_capacity
 from ..qtcompat import qt_enum
 from . import batch
@@ -384,13 +384,16 @@ class PublishView(QWidget):
             # (its group counted), and its geometry.
             node = root.findLayer(item.layer_id)
             visible = node.isVisible() if node is not None else True
+            verdict = support.verdict(layer)
             requests.append(
                 batch.Request(
                     layer,
                     item,
                     briefing.brief(layer, item.selected_only),
                     visible=visible,
-                    geometry_type=support.geojson_geometry_type(layer),
+                    geometry_type=support.geojson_geometry_type(layer) if verdict.kind == "vector" else None,
+                    source_layers=tiles.source_layers_of(layer) if verdict.kind == "archive" else None,
+                    unplaceable=verdict.unplaceable,
                 )
             )
         if not requests:

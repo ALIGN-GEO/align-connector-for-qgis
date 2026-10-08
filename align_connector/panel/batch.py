@@ -50,12 +50,16 @@ class Request(object):
     """A plan, resolved: the layer itself, its briefing (style, metadata), and
     what the web map will need of it (visibility in QGIS, geometry)."""
 
-    def __init__(self, layer, plan, briefing, visible=True, geometry_type=None):
+    def __init__(self, layer, plan, briefing, visible=True, geometry_type=None, source_layers=None, unplaceable=None):
         self.layer = layer
         self.plan = plan
         self.briefing = briefing
         self.visible = visible
         self.geometry_type = geometry_type
+        #: Tile layers of an archive, for the web map (TCK-2206).
+        self.source_layers = list(source_layers or [])
+        #: Why a web map composed here cannot place the item, or None.
+        self.unplaceable = unplaceable
 
 
 class Batch(object):

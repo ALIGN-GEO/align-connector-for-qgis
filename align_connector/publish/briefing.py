@@ -21,7 +21,8 @@ from . import isometa
 from . import raster
 from . import support
 from . import symbology
-from .exporter import reprojection_notice
+from . import tiles
+from .exporter import passthrough_source_of, reprojection_notice
 from .wording import describe_style, readable_size
 
 
@@ -58,6 +59,10 @@ def brief(layer, selected_only=False):
         text = " ".join([_raster_text(layer)] + verdict.notes + [isometa.describe_metadata(reading)])
         return Briefing(kind, text, None, reading.iso, title)
 
+    if kind == "archive":
+        text = " ".join([_archive_text(layer)] + verdict.notes + [isometa.describe_metadata(reading)])
+        return Briefing(kind, text, None, reading.iso, title)
+
     if kind == "vector":
         text = _vector_text(layer, selected_only)
         crs = _call(layer, "crs", None)
@@ -78,16 +83,42 @@ def _vector_text(layer, selected_only):
     selected = _call(layer, "selectedFeatureCount", 0) or 0
     total = _call(layer, "featureCount", 0) or 0
     count = selected if selected_only and selected > 0 else total
+    ready = None
+    try:
+        ready = passthrough_source_of(layer, selected_only)
+    except Exception:  # noqa: BLE001 — a binding gap reads as "will be written", the export decides for real
+        ready = None
+    if ready is not None:
+        size = readable_size(_size_of(ready[0]))
+        return tr(
+            "{} features; the {} file will be sent as it is{}. Large files keep uploading in the "
+            "background: you can carry on working, and an interrupted transfer resumes."
+        ).format(count, ready[1].upper(), " ({})".format(size) if size else "")
     return tr(
         "{} features will be written and uploaded. Large layers keep uploading in the "
         "background: you can carry on working, and an interrupted transfer resumes."
     ).format(count)
 
 
+def _archive_text(layer):
+    plan = tiles.archive_of(layer)
+    size = readable_size(_size_of(plan.path)) if plan.path else None
+    layers = tiles.source_layers_of(layer)
+    text = tr("The {} archive will be sent as it is{}.").format(
+        (plan.kind or "tile").upper(), " ({})".format(size) if size else ""
+    )
+    if layers:
+        text += " " + tr("Tile layers for the web map: {}.").format(", ".join(layers))
+    return text
+
+
 def _raster_text(layer):
     """How much will travel, and that the file is normalised on arrival: both
     said now, not discovered in the Datastore afterwards."""
     source = raster.source_file_of(layer)
+    if source and raster.is_archive(source):
+        size = readable_size(_size_of(source))
+        return tr("The MBTiles archive will be sent as it is{}.").format(" ({})".format(size) if size else "")
     if source:
         size = readable_size(_size_of(source))
         return tr(

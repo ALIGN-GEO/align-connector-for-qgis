@@ -25,7 +25,7 @@ class WebMapPlan(object):
     def __init__(self, layers, left_out):
         #: Request entries, top of the map first.
         self.layers = layers
-        #: Titles of the layers whose publication did not succeed.
+        #: ``(title, reason)`` of the layers the map will not show.
         self.left_out = left_out
 
 
@@ -42,11 +42,18 @@ def plan(records):
         title = request.plan.title
         asset_id = getattr(task, "servable_asset_id", None) or getattr(task, "asset_id", None)
         if not succeeded or getattr(task, "derivation_error", None) or not asset_id:
-            left_out.append(title)
+            left_out.append((title, tr("its publication did not succeed")))
+            continue
+        unplaceable = getattr(request, "unplaceable", None)
+        if unplaceable:
+            left_out.append((title, unplaceable))
             continue
         entry = {"assetId": asset_id, "title": title, "visible": bool(request.visible)}
         if request.geometry_type:
             entry["geometryType"] = request.geometry_type
+        source_layers = getattr(request, "source_layers", None)
+        if source_layers:
+            entry["sourceLayers"] = list(source_layers)
         style = getattr(request.briefing, "style", None)
         if style:
             entry["style"] = style
@@ -85,8 +92,8 @@ def describe_outcome(task, succeeded, left_out):
     missing = []
     for entry in getattr(task, "skipped", []) or []:
         missing.append("{} ({})".format(entry.get("title") or entry.get("assetId"), entry.get("reason")))
-    for title in left_out:
-        missing.append("{} ({})".format(title, tr("its publication did not succeed")))
+    for title, reason in left_out:
+        missing.append("{} ({})".format(title, reason))
     if missing:
         text += " " + tr("Not placed: {}.").format(", ".join(missing))
     return text

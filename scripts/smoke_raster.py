@@ -23,61 +23,14 @@ import os
 import pathlib
 import sys
 import tempfile
-import types
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "scripts"))
 
+import qgis_stubs  # noqa: E402
 
-def _install_qgis_stubs():
-    """Stand in for the QGIS classes the modules import at load time.
-
-    None of them is exercised here: every scenario below stops before a writer
-    is ever constructed. The stubs exist so the decision code can be imported.
-    """
-    core = types.ModuleType("qgis.core")
-    for name in (
-        "QgsCoordinateReferenceSystem",
-        "QgsCoordinateTransform",
-        "QgsCoordinateTransformContext",
-        "QgsFeature",
-        "QgsFields",
-        "QgsField",
-        "QgsProject",
-        "QgsRasterLayer",
-        "QgsRasterPipe",
-        "QgsVectorLayer",
-        "QgsWkbTypes",
-    ):
-        setattr(core, name, type(name, (object,), {}))
-
-    class QgsVectorFileWriter(object):
-        NoError = 0
-
-    class QgsRasterFileWriter(object):
-        NoError = 0
-
-        def __init__(self, path):
-            self.path = path
-
-    core.QgsVectorFileWriter = QgsVectorFileWriter
-    core.QgsRasterFileWriter = QgsRasterFileWriter
-
-    qtcore = types.ModuleType("qgis.PyQt.QtCore")
-    qtcore.QVariant = type("QVariant", (object,), {"Map": 8, "List": 9, "StringList": 11, "Hash": 28})
-
-    qgis = types.ModuleType("qgis")
-    pyqt = types.ModuleType("qgis.PyQt")
-    qgis.core = core
-    qgis.PyQt = pyqt
-    pyqt.QtCore = qtcore
-
-    sys.modules.update(
-        {"qgis": qgis, "qgis.core": core, "qgis.PyQt": pyqt, "qgis.PyQt.QtCore": qtcore}
-    )
-
-
-_install_qgis_stubs()
+qgis_stubs.install()
 
 from align_connector.publish import raster  # noqa: E402
 from align_connector.publish.exporter import ExportFailed  # noqa: E402

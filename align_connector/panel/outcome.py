@@ -48,7 +48,10 @@ def outcome_of(task, succeeded):
             # beats letting someone discover it in the Datastore.
             text += " " + tr("Complex fields were stored as text: {}.").format(", ".join(flattened))
         servable = getattr(task, "servable_asset_id", None)
-        if servable:
+        if servable and getattr(task, "gis_format", None) == "pmtiles":
+            # The archive was derived; ALIGN keeps the PMTiles, not the MBTiles.
+            text += " " + tr("It was converted to PMTiles; the MBTiles archive itself is not kept.")
+        elif servable:
             # The reprojection kept the original and produced a second asset.
             # Two objects now count against the organization's storage, and
             # the one that opens is not the one just created.
