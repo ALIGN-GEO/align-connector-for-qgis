@@ -104,6 +104,11 @@ def _vector_text(layer, selected_only):
             "{} features; the {} file will be sent as it is{}. Large files keep uploading in the "
             "background: you can carry on working, and an interrupted transfer resumes."
         ).format(count, ready[1].upper(), " ({})".format(size) if size else "")
+    if count < 0:
+        return tr(
+            "The features will be written and uploaded (QGIS has not counted them yet). Large layers keep "
+            "uploading in the background: you can carry on working, and an interrupted transfer resumes."
+        )
     return tr(
         "{} features will be written and uploaded. Large layers keep uploading in the "
         "background: you can carry on working, and an interrupted transfer resumes."

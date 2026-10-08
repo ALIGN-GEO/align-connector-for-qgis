@@ -45,6 +45,7 @@ _QTWIDGETS = (
     "QLabel",
     "QLineEdit",
     "QPlainTextEdit",
+    "QSizePolicy",
     "QVBoxLayout",
 )
 

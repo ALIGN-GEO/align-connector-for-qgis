@@ -9,7 +9,10 @@ be. Pure given the decoded source; proven by ``scripts/smoke_services.py``.
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
+import re
+
 from ..i18n import tr
+from .uri import parse
 
 #: Providers whose features live on a remote service.
 VECTOR_SERVICE_PROVIDERS = ("wfs", "oapif", "arcgisfeatureserver")
@@ -24,6 +27,13 @@ POINT_CLOUD_PROVIDERS = ("pdal", "ept", "copc", "vpc")
 SCENE_PROVIDERS = ("cesiumtiles",)
 
 _HTTP = ("http://", "https://")
+
+#: The same heuristic as the server (`WEB_MERCATOR_TMS`): the Map builder draws Web Mercator matrix sets only.
+_WEB_MERCATOR = re.compile(r"3857|900913|googlemaps|webmercator|worldwebmercator", re.IGNORECASE)
+
+#: Query parameters that are a credential: a reference never carries one.
+_KEY_PARAMS = ("key", "api_key", "apikey", "access_token", "token")
+_SIGNATURE_PARAMS = ("x-goog-signature", "x-amz-signature", "sig")
 
 
 class ServicePlan(object):
@@ -53,6 +63,37 @@ def describe_service(provider, decoded, source="", source_layers=None):
 
     :param source_layers: the tile layers the QGIS style paints (vector tiles)
     """
+    plan = _describe(provider, decoded, source, source_layers)
+    if plan.publishable:
+        # The server judges the address the same way; saying it here spares
+        # a send that would be refused.
+        refusal = address_refusal(plan.body.get("url", ""))
+        if refusal:
+            return ServicePlan(reason=refusal)
+    return plan
+
+
+def address_refusal(url):
+    """Why the server would refuse this address, or None. Pure, same rules as ALIGN."""
+    lowered = (url or "").lower()
+    if not lowered.startswith(_HTTP):
+        return tr("The address must be an http(s) URL.")
+    if re.match(r"^https?://[^/?#]*@", lowered):
+        return tr("The address carries credentials; ALIGN never stores them. Use the plain address.")
+    keys = [part.split("=", 1)[0].strip() for part in lowered.split("?", 1)[1].split("&")] if "?" in lowered else []
+    if any(key in _SIGNATURE_PARAMS for key in keys):
+        return tr("The address carries a signature that will expire; use the stable address.")
+    for key in keys:
+        if key in _KEY_PARAMS:
+            return tr("The address carries a key ({}); a reference never stores a credential.").format(key)
+    if "{s}" in lowered:
+        return tr("Subdomain placeholders ({s}) are not supported; use one host.")
+    if "{-y}" in lowered:
+        return tr("Flipped-row templates ({-y}) are not supported by the Map builder.")
+    return None
+
+
+def _describe(provider, decoded, source, source_layers):
     name = (provider or "").lower()
     if name == "wms":
         return _wms(decoded)
@@ -108,6 +149,10 @@ def _wms(decoded):
     if matrix_set:
         if not layers:
             return ServicePlan(reason=tr("The WMTS layer name is missing from the layer source."))
+        if not _WEB_MERCATOR.search(matrix_set):
+            return ServicePlan(
+                reason=tr("The Map builder renders Web Mercator tile matrix sets only, not “{}”. Add the layer with its Web Mercator matrix set.").format(matrix_set)
+            )
         body = {"kind": "wmts", "url": url, "layer": layers[0], "tileMatrixSet": matrix_set, "imageFormat": image_format}
         if styles and styles[0]:
             body["style"] = styles[0]
@@ -193,6 +238,10 @@ def _vector_tiles(decoded, source_layers):
 
 def _by_url(kind, decoded, source, local_reason):
     url = _text(decoded.get("url")) or _text(decoded.get("path")) or (source or "").strip()
+    if url.lower().startswith("url=") or "&url=" in url.lower():
+        # QGIS hands the raw `url=https://…` URI back under `path` for a
+        # tiled scene; read it as the query string it is.
+        url = _text(parse(url).get("url"))
     if not url.lower().startswith(_HTTP):
         return ServicePlan(reason=local_reason)
     note = tr("Published as a live reference to the point cloud; nothing is copied.") if kind == "lidar" else tr("Published as a live reference to the 3D Tiles tileset; nothing is copied.")

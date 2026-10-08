@@ -282,6 +282,8 @@ def test_a_vector_is_told_its_features_reprojection_style_and_metadata():
 
     only_selected = briefing.brief(layer, selected_only=True)
     check(only_selected.text.startswith("3 features will be written"), only_selected.text)
+    uncounted = briefing.brief(Vector("v9", "Big PBF layer", total=-1))
+    check(uncounted.text.startswith("The features will be written and uploaded (QGIS has not counted them yet)."), uncounted.text)
 
     wgs84 = briefing.brief(Vector("v3", "Points", authid="EPSG:4326"))
     check("4326" not in wgs84.text.split("Style:")[0] or "already" in wgs84.text, "a layer already in WGS 84 is not told it will be converted: " + wgs84.text)

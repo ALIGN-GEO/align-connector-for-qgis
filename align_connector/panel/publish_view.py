@@ -24,11 +24,13 @@ from qgis.PyQt.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
+    QFrame,
     QHeaderView,
     QLabel,
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -46,13 +48,17 @@ from . import batch
 class PublishView(QWidget):
     """Collects what a batch needs, and hands it to the caller in one piece."""
 
-    def __init__(self, session, on_publish, parent=None):
+    def __init__(self, session, on_publish, on_rows=None, on_show_messages=None, parent=None):
         """
         :param on_publish: called with one :class:`batch.Batch` per click on Publish
+        :param on_rows: called with the rows each time the list is rebuilt (the Messages view listens)
+        :param on_show_messages: called when the user asks to see the refusals
         """
         super().__init__(parent)
         self.session = session
         self._on_publish = on_publish
+        self._on_rows = on_rows
+        self._on_show_messages = on_show_messages
         self._orgs = []
         self._capacity_line = None
         self._titles = {}
@@ -78,10 +84,11 @@ class PublishView(QWidget):
         self.tree.currentItemChanged.connect(self._on_current_changed)
         layout.addWidget(self.tree, 1)
 
-        # What cannot go, and why: read before the send, never after.
-        self.blocked = QLabel()
-        self.blocked.setWordWrap(True)
-        self.blocked.setTextFormat(qt_enum(Qt, "TextFormat", "PlainText"))
+        # What cannot go: one line here, the reasons in the Messages view (TCK-2210).
+        self.blocked = QPushButton()
+        self.blocked.setFlat(True)
+        self.blocked.setSizePolicy(qt_enum(QSizePolicy, "Policy", "Preferred"), qt_enum(QSizePolicy, "Policy", "Fixed"))
+        self.blocked.clicked.connect(lambda _checked=False: self._on_show_messages() if self._on_show_messages else None)
         self.blocked.setVisible(False)
         layout.addWidget(self.blocked)
 
@@ -94,9 +101,12 @@ class PublishView(QWidget):
         self.selection_box = QCheckBox(tr("Publish only the selected features"))
         self.selection_box.toggled.connect(self._on_selection_toggled)
         form.addRow("", self.selection_box)
-        self.briefing = QLabel()
-        self.briefing.setWordWrap(True)
-        self.briefing.setTextFormat(qt_enum(Qt, "TextFormat", "PlainText"))
+        # The briefing can run to several sentences: a bounded, scrollable
+        # box keeps the form below it in reach.
+        self.briefing = QPlainTextEdit()
+        self.briefing.setReadOnly(True)
+        self.briefing.setFixedHeight(88)
+        self.briefing.setFrameShape(qt_enum(QFrame, "Shape", "NoFrame"))
         form.addRow("", self.briefing)
         layout.addLayout(form)
 
@@ -134,12 +144,7 @@ class PublishView(QWidget):
         self.webmap_title.setPlaceholderText(tr("Web map title"))
         self.webmap_title.setEnabled(False)
         batch_form.addRow(tr("Web map"), self.webmap_title)
-        self.webmap_note = QLabel(
-            tr(
-                "The web map lists the layers in the Layers panel's order, with their visibility; "
-                "groups are flattened. It opens on what the canvas shows."
-            )
-        )
+        self.webmap_note = QLabel(tr("Layers panel order and visibility, groups flattened, opened on the canvas view."))
         self.webmap_note.setWordWrap(True)
         self.webmap_note.setTextFormat(qt_enum(Qt, "TextFormat", "PlainText"))
         self.webmap_note.setVisible(False)
@@ -234,9 +239,13 @@ class PublishView(QWidget):
                 item.setToolTip(1, row.reason)
             self.tree.addTopLevelItem(item)
         self.tree.blockSignals(False)
-        blocked = batch.describe_blocked(self._rows)
-        self.blocked.setText(blocked)
-        self.blocked.setVisible(bool(blocked))
+        count = sum(1 for row in self._rows if not row.publishable)
+        self.blocked.setText(
+            (tr("1 layer cannot be published. See Messages.") if count == 1 else tr("{} layers cannot be published. See Messages.").format(count))
+        )
+        self.blocked.setVisible(count > 0)
+        if self._on_rows:
+            self._on_rows(self._rows)
         if not self.webmap_title.text().strip():
             self.webmap_title.setText(_project_title())
         self._sync_all_box()
@@ -284,7 +293,7 @@ class PublishView(QWidget):
     def _on_current_changed(self, current, _previous):
         layer = QgsProject.instance().mapLayer(current.data(0, _USER_ROLE())) if current is not None else None
         if layer is None:
-            self.briefing.setText("")
+            self.briefing.setPlainText("")
             self.title_edit.setText("")
             self.selection_box.setVisible(False)
             return
@@ -307,7 +316,7 @@ class PublishView(QWidget):
             else tr("Publish only the selected features (none selected)")
         )
         self.selection_box.blockSignals(False)
-        self.briefing.setText(info.text)
+        self.briefing.setPlainText(info.text)
 
     def _on_title_edited(self, text):
         current = self.tree.currentItem()

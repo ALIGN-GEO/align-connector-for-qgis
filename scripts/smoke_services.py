@@ -71,6 +71,18 @@ def test_tile_services_become_tile_references():
     wmts = plan("wms", "format=image/jpeg&layers=ortho&styles=default&tileMatrixSet=GoogleMapsCompatible&url=https://wmts.example/service?SERVICE=WMTS%26REQUEST=GetCapabilities")
     check(wmts.body == {"kind": "wmts", "url": "https://wmts.example/service?SERVICE=WMTS&REQUEST=GetCapabilities", "layer": "ortho", "tileMatrixSet": "GoogleMapsCompatible", "imageFormat": "image/jpeg", "style": "default"}, wmts.body)
 
+    lambert = plan("wms", "format=image/png&layers=grb_bsk&styles=&tileMatrixSet=BPL72VL&url=https://geo.api.vlaanderen.be/GRB/wmts")
+    check(not lambert.publishable and "Web Mercator" in lambert.reason and "BPL72VL" in lambert.reason, lambert.reason)
+    flanders = plan("wms", "format=image/png&layers=grb_bsk&styles=&tileMatrixSet=GoogleMapsVL&url=https://geo.api.vlaanderen.be/GRB/wmts")
+    check(flanders.publishable and flanders.body["tileMatrixSet"] == "GoogleMapsVL", flanders.reason)
+    keyed = plan("wms", "type=xyz&url=https://tile.example/{z}/{x}/{y}.png?key=test&zmax=19")
+    check(not keyed.publishable and "carries a key (key)" in keyed.reason, keyed.reason)
+    signed = plan("gdal", "/vsicurl/https://bucket.example/dem.tif?X-Goog-Signature=abc")
+    check(not signed.publishable and "signature" in signed.reason, signed.reason)
+    check(services.address_refusal("https://{s}.tile.example/{z}/{x}/{y}.png").startswith("Subdomain"), "subdomain placeholder")
+    check(services.address_refusal("https://tile.example/{z}/{x}/{-y}.png").startswith("Flipped-row"), "flipped rows")
+    check(services.address_refusal("https://user:pw@host.example/x") .startswith("The address carries credentials"), "credentials")
+    check(services.address_refusal("https://tile.example/{z}/{x}/{y}.png?foo=1") is None, "a plain query is fine")
     wms = plan("wms", "crs=EPSG:3857&format=image/png&layers=roads&layers=rivers&styles=&styles=blue&url=https://wms.example/ows")
     check(wms.body == {"kind": "wms", "url": "https://wms.example/ows", "layers": ["roads", "rivers"], "imageFormat": "image/png", "styles": ["", "blue"]}, wms.body)
     one = plan("wms", "format=image/png&layers=roads&styles=&url=https://wms.example/ows")
@@ -111,6 +123,9 @@ def test_vector_tiles_point_clouds_scenes_and_remote_cogs():
     check("URL only" in plan("pdal", "C:/data/cloud.laz").reason, "a local point cloud has no path to ALIGN")
     scene = plan("cesiumtiles", "url=https://data.example/tileset.json")
     check(scene.body == {"kind": "3d-tiles", "url": "https://data.example/tileset.json"}, scene.body)
+    # QGIS hands the raw URI back under `path` for a tiled scene (seen on 3.44).
+    raw = services.describe_service("cesiumtiles", {"file-name": None, "path": "url=https://data.example/tileset.json"}, "url=https://data.example/tileset.json")
+    check(raw.body == {"kind": "3d-tiles", "url": "https://data.example/tileset.json"}, raw.body)
 
     cog = plan("gdal", "/vsicurl/https://data.example/dem.tif")
     check(cog.body == {"kind": "cog", "url": "https://data.example/dem.tif"}, cog.body)

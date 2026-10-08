@@ -6,8 +6,8 @@ the user's theme and fonts, the keyboard. The brand lives in the name, the
 icon and the tone of the texts, and in the link that takes everything QGIS
 should not redo back to the web.
 
-Two views today, Publish and Activity; the Datastore view waits for the
-read scope of the roadmap's v2.
+Three views today, Publish, Activity and Messages; the Datastore view waits
+for the read scope of the roadmap's v2.
 
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
@@ -19,6 +19,7 @@ from qgis.PyQt.QtWidgets import QHBoxLayout, QLabel, QPushButton, QTabWidget, QV
 from ..i18n import tr
 from ..qtcompat import qt_enum
 from .activity_view import ActivityView
+from .messages_view import MessagesView
 from .publish_view import PublishView
 
 #: What QGIS saves the panel's place under. Changing it loses that place.
@@ -49,10 +50,12 @@ class AlignDock(QgsDockWidget):
 
         # -- the views --------------------------------------------------------
         self.tabs = QTabWidget()
-        self.publish = PublishView(session, on_publish)
+        self.messages = MessagesView()
+        self.publish = PublishView(session, on_publish, on_rows=self.messages.set_rows, on_show_messages=self.show_messages)
         self.activity = ActivityView()
         self.tabs.addTab(self.publish, tr("Publish"))
         self.tabs.addTab(self.activity, tr("Activity"))
+        self.tabs.addTab(self.messages, tr("Messages"))
         layout.addWidget(self.tabs, 1)
 
         self.setWidget(body)
@@ -87,6 +90,9 @@ class AlignDock(QgsDockWidget):
 
     def show_activity(self):
         self.tabs.setCurrentWidget(self.activity)
+
+    def show_messages(self):
+        self.tabs.setCurrentWidget(self.messages)
 
     # -- session ------------------------------------------------------------
 
