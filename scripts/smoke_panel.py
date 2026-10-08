@@ -208,6 +208,7 @@ def test_every_layer_gets_a_verdict_in_words_to_act_on():
         Raster("xyz", "OpenStreetMap", source="type=xyz&url=https://tile.example/{z}/{x}/{y}.png&zmax=19", provider="wms"),
         Raster("wcs", "Coverage", source="url=https://wcs.example&identifier=dem", provider="wcs"),
         Raster("dem", "Elevation", source="C:/data/dem.tif"),
+        Raster("nc", "Temperature", source='NETCDF:"C:/data/t2m.nc":t2m'),
     ])
     reasons = {row.layer_id: row.reason for row in rows}
     kinds = {row.layer_id: row.kind for row in rows}
@@ -218,6 +219,10 @@ def test_every_layer_gets_a_verdict_in_words_to_act_on():
     check(reasons["xyz"] is None and kinds["xyz"] == "reference", "a tile service is a live reference")
     check(reasons["wcs"].startswith("A WCS connection"), reasons["wcs"])
     check(reasons["dem"] is None, "a GDAL file is published")
+    check(reasons["nc"] is None, "a NetCDF variable is published, degraded and said so")
+    store = support.verdict(Raster("nc", "Temperature", source='NETCDF:"C:/data/t2m.nc":t2m'))
+    check(any("time step as a band" in n for n in store.notes), store.notes)
+    check(briefing.brief(Raster("nc", "Temperature", source='NETCDF:"C:/data/t2m.nc":t2m')).text.startswith("A compressed GeoTIFF will be written"), "written, not sent as it is")
 
     summary = batch.describe_blocked(rows)
     check(summary.startswith("4 layers cannot be published:"), summary)

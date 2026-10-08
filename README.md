@@ -27,6 +27,23 @@ Your ALIGN role decides what you may do. The plugin never grants access: it carr
 | Any other raster GDAL can read | a compressed GeoTIFF written for the occasion | a Cloud-Optimized GeoTIFF |
 | A layer that is a service: XYZ, WMS, WMTS, WFS, OGC API Features, ArcGIS Feature or Map Service, vector tiles, a remote COG or PMTiles, a point cloud or 3D Tiles by URL | its address and what names the layer, no data | a live reference, read when the map opens, one per service |
 
+### By Map builder format
+
+What the Map builder's Add Data offers, and what becomes of it from QGIS:
+
+| Map builder format | From QGIS |
+|---|---|
+| Vector, Delimited text, CAD (DXF), GPX, OSM PBF | a QGIS vector layer: FlatGeobuf in WGS 84 (DWG is not read by QGIS; an OSM PBF is one layer per geometry family) |
+| Raster | a GeoTIFF as it is, or one written from the layer; Cloud-Optimized on arrival |
+| FlatGeobuf, GeoParquet | the file as it is when already in WGS 84, else FlatGeobuf in WGS 84 |
+| MBTiles | the archive as it is; converted to PMTiles on arrival (raster tiles are stored but not shown yet) |
+| PMTiles | a local archive as it is; a remote one as a live reference |
+| XYZ, WMS, WMTS, WFS, OGC Vector Tiles, ArcGIS | a live reference (WMTS: Web Mercator tile matrix sets; vector tiles: the layers QGIS styles) |
+| GeoRSS | a QGIS vector layer: a FlatGeobuf snapshot of the feed |
+| NetCDF / HDF, Zarr | one variable written as a GeoTIFF (every time step a band), Cloud-Optimized on arrival |
+| LiDAR, 3D Tiles | a live reference when the layer reads a URL; a local file cannot be published |
+| Video, Deck.gl, Splatting, 3D Model (glTF), DuckDB | no QGIS counterpart: added from the ALIGN web application |
+
 The list grows as each format is proven end to end rather than merely wired up.
 
 Two things are worth knowing before you send a raster. ALIGN prepares it for

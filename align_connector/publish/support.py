@@ -169,11 +169,33 @@ def _raster_verdict(layer):
             ],
             unplaceable=tr("raster tiles are not displayed by the Map builder yet"),
         )
+    if _is_multidimensional(source):
+        # ALIGN reads such stores by URL only; from a local file, what can
+        # travel is one variable, written as a GeoTIFF (every time step a
+        # band) and converted to COG on arrival.
+        return Verdict(
+            "raster",
+            None,
+            [
+                tr(
+                    "A NetCDF, HDF or Zarr store: the variable QGIS shows is written as a GeoTIFF, every "
+                    "time step as a band, then converted to COG; the Map builder shows the first band. "
+                    "Raster styling is not transmitted."
+                )
+            ],
+        )
     return Verdict(
         "raster",
         None,
         [tr("Raster styling is not transmitted: ALIGN renders the file with its default rendering.")],
     )
+
+
+def _is_multidimensional(source):
+    upper = (source or "").upper()
+    if upper.startswith(("NETCDF:", "HDF5:", "HDF4", "ZARR:")):
+        return True
+    return upper.split("?")[0].endswith((".NC", ".NC4", ".H5", ".HDF", ".HDF5", ".ZARR"))
 
 
 def _archive_verdict(layer):
