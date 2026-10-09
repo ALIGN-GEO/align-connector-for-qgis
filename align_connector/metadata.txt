@@ -14,7 +14,7 @@ homepage=https://aligngeo.com
 
 license=GPL-2.0-or-later
 category=Web
-icon=icon.svg
+icon=icon.png
 tags=align,publish,cloud,datastore,web,upload,vector,raster
 
 experimental=True

@@ -28,7 +28,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
-from . import config
+from . import config, i18n
 from .auth import AlignSession
 from .panel import webmap
 from .panel.camera import canvas_map_view
@@ -54,6 +54,9 @@ class AlignConnectorPlugin:
     def __init__(self, iface):
         self.iface = iface
         self.plugin_dir = os.path.dirname(__file__)
+        #: The plugin speaks the language QGIS runs in, from the first string
+        #: built below; English when no translation ships for it (TCK-2183).
+        self.language = i18n.install(self.plugin_dir)
         #: Every QAction we registered, so unload can undo exactly this much.
         self._actions = []
         #: The subset that also went to the toolbar. Tracked separately because
@@ -93,7 +96,7 @@ class AlignConnectorPlugin:
         self._add_action(
             self.tr("Publish to ALIGN…"),
             self.run,
-            icon="icon.svg",
+            icon="icon.png",
             status_tip=self.tr("Open the ALIGN panel: publish layers to your Datastore and follow them"),
             toolbar=True,
         )
@@ -119,7 +122,7 @@ class AlignConnectorPlugin:
         # with that layer checked, and nothing else.
         for kind in ("Vector", "Raster"):
             action = QAction(self.tr("Publish to ALIGN…"), self.iface.mainWindow())
-            action.setIcon(QIcon(os.path.join(self.plugin_dir, "icon.svg")))
+            action.setIcon(QIcon(os.path.join(self.plugin_dir, "icon.png")))
             action.triggered.connect(self._publish_current_layer)
             self.iface.addCustomActionForLayerType(action, None, _layer_type(kind), True)
             self._layer_actions.append(action)
@@ -148,6 +151,7 @@ class AlignConnectorPlugin:
             self.iface.removeDockWidget(self.dock)
             self.dock.deleteLater()
             self.dock = None
+        i18n.uninstall()
 
     def _add_action(self, text, callback, icon=None, status_tip=None, toolbar=False):
         action = QAction(text, self.iface.mainWindow())

@@ -76,7 +76,7 @@ def main() -> int:
     # Only the publish action carries the icon — it is the one on the toolbar.
     toolbar_action = iface.addToolBarIcon.call_args[0][0]
     if toolbar_action.icon().isNull():
-        print("FAIL: the toolbar action has no icon — icon.svg did not load")
+        print("FAIL: the toolbar action has no icon — icon.png did not load")
         return 1
     action = toolbar_action
 
