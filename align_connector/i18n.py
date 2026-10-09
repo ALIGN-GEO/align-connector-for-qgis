@@ -41,7 +41,11 @@ def language():
 
     locale = QgsApplication.locale() or ""
     code = locale.replace("-", "_").split("_")[0].strip().lower()
-    return code or "en"
+    # "C" / "POSIX" is the no-locale answer of a bare system (a CI container,
+    # a server): English, like any code that is not a language tag.
+    if len(code) != 2 or not code.isalpha():
+        return "en"
+    return code
 
 
 def translation_file(plugin_dir, code):
