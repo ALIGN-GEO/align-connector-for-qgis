@@ -76,9 +76,14 @@ def outcome_of(task, succeeded):
             # The organization enforces these sheet fields: the publish could
             # not set them, and saying so beats a sheet that quietly differs
             # from what QGIS holds (TCK-2202).
-            text += " " + tr(
-                "The {} on the item's sheet are set by your organization and were kept as is."
-            ).format(", ".join(locked))
+            if len(locked) == 1:
+                text += " " + tr(
+                    "The {} on the item's sheet is set by your organization and was kept as is."
+                ).format(locked[0])
+            else:
+                text += " " + tr(
+                    "The {} on the item's sheet are set by your organization and were kept as is."
+                ).format(", ".join(locked))
         return Outcome(SUCCESS, text, servable or getattr(task, "asset_id", None))
 
     if getattr(task, "was_cancelled", False):
