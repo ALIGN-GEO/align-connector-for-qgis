@@ -11,6 +11,8 @@ You work in QGIS. Your data belongs in ALIGN, where your team consumes it and yo
 1. **Sign in once** — the plugin opens your browser, you approve, and it comes back with a token. No password, no API key to copy, nothing to paste.
 2. **Open the ALIGN panel** — tick one layer, several, or the whole project, pick an organization, publish. Each layer becomes its own publication: the panel's Activity view shows every one of them progressing, then what ALIGN made of it, with a link to the item. A layer's context menu offers the same entry for just that layer. Tick “Also create a web map” and, once every layer has landed, ALIGN assembles a web map of them in the Layers panel's order, with their visibility, their style and the view your canvas showed, ready to open in the Map builder. A layer the Map builder cannot show (a mesh, a point cloud, a WMS or XYZ connection, a table without geometry, curved geometries) is listed greyed with the reason, never silently skipped.
 
+3. **Publish again, in place** — a layer you published remembers the item it became (in the project file, so it survives closing QGIS). Correct the layer, publish again: the panel offers to **replace** the item, same identifier, so every web map that shows it shows the new version; the previous version is kept on ALIGN, and the fields that were added, removed or retyped are named. Untick to publish a new item instead.
+
 Large layers keep uploading in the background: you carry on working, the progress is visible, and an interrupted transfer resumes where it stopped rather than starting over.
 
 Your ALIGN role decides what you may do. The plugin never grants access: it carries your identity, and shows you what the server answers. An organization viewer is refused, exactly as in the web app.
@@ -66,12 +68,12 @@ The plugin registers an **ALIGN** Processing provider with one algorithm, `align
 ```python
 import processing
 result = processing.run("align:publishlayer", {
-    "INPUT": "Countries", "ORGANIZATION": "Town GIS", "VISIBILITY": 1, "SELECTED_ONLY": False,
+    "INPUT": "Countries", "ORGANIZATION": "Town GIS", "VISIBILITY": 1, "SELECTED_ONLY": False, "REPLACE": True,
 })
 print(result["ASSET_ID"], result["ALIGN_URL"])
 ```
 
-The organization is given by name or id; a wrong one is refused with the list of yours. A service layer is refused with a pointer to the panel, which registers it as a reference.
+The organization is given by name or id; a wrong one is refused with the list of yours. A service layer is refused with a pointer to the panel, which registers it as a reference. `REPLACE` (on by default) replaces the item the layer was published as, when it lives in that organization; off, every run makes a new item.
 
 ## Requirements
 
