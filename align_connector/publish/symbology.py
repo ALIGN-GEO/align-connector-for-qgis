@@ -19,6 +19,8 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import re
 
+from ..i18n import tr
+
 #: Paint family per geometry, the MapLibre vocabulary ALIGN keys its style on.
 _FAMILY_BY_GEOMETRY = {0: "circle", 1: "line", 2: "fill", "point": "circle", "line": "line", "polygon": "fill"}
 
@@ -69,14 +71,14 @@ def convert(layer):
     report = []
     family = _family_of(layer)
     if family is None:
-        return Conversion(None, None, ["Unknown geometry type: the layer takes ALIGN's default style."])
+        return Conversion(None, None, [tr("Unknown geometry type: the layer takes ALIGN's default style.")])
 
     renderer = layer.renderer()
     if renderer is None:
-        return Conversion(None, None, ["No renderer: the layer takes ALIGN's default style."])
+        return Conversion(None, None, [tr("No renderer: the layer takes ALIGN's default style.")])
 
     if _labels_enabled(layer):
-        report.append("Labels are not transmitted yet; add them in the Map builder.")
+        report.append(tr("Labels are not transmitted yet; add them in the Map builder."))
 
     style, summary = _convert_renderer(renderer, family, report)
     return Conversion(style, summary, report)
@@ -90,8 +92,8 @@ def _convert_renderer(renderer, family, report):
     kind = _call(renderer, "type", "")
 
     if kind == "singleSymbol":
-        base, outline = _symbol_paint(_symbol_of(renderer), family, report, "the symbol")
-        return _style(family, base, outline, {"type": "simple"}), "single symbol"
+        base, outline = _symbol_paint(_symbol_of(renderer), family, report, tr("the symbol"))
+        return _style(family, base, outline, {"type": "simple"}), tr("single symbol")
 
     if kind == "categorizedSymbol":
         return _categorized(renderer, family, report)
@@ -103,27 +105,27 @@ def _convert_renderer(renderer, family, report):
         return _rule_based(renderer, family, report)
 
     if kind == "heatmapRenderer":
-        radius = _px(_call(renderer, "radius", 10.0), _call(renderer, "radiusUnit", "mm"), report, "the heatmap radius")
-        report.append("Heatmap: the web engine's own colour ramp applies.")
-        return {"renderType": "heatmap", "paint": {"heatmap-radius": radius}}, "heatmap"
+        radius = _px(_call(renderer, "radius", 10.0), _call(renderer, "radiusUnit", "mm"), report, tr("the heatmap radius"))
+        report.append(tr("Heatmap: the web engine's own colour ramp applies."))
+        return {"renderType": "heatmap", "paint": {"heatmap-radius": radius}}, tr("heatmap")
 
     if kind == "pointCluster":
         inner_style, summary = _convert_renderer(_call(renderer, "embeddedRenderer"), family, report)
         if inner_style is None:
             return None, summary
-        tolerance = _px(_call(renderer, "tolerance", 3.0), _call(renderer, "toleranceUnit", "mm"), report, "the cluster distance")
+        tolerance = _px(_call(renderer, "tolerance", 3.0), _call(renderer, "toleranceUnit", "mm"), report, tr("the cluster distance"))
         inner_style["cluster"] = {"enabled": True, "radius": max(1.0, tolerance)}
-        return inner_style, "{} (clustered)".format(summary)
+        return inner_style, tr("{} (clustered)").format(summary)
 
     if kind == "pointDisplacement":
-        report.append("Point displacement is rendered as plain points.")
+        report.append(tr("Point displacement is rendered as plain points."))
         return _convert_renderer(_call(renderer, "embeddedRenderer"), family, report)
 
     if kind == "nullSymbol":
-        report.append("No symbol in QGIS (the layer is invisible there): it takes ALIGN's default style.")
+        report.append(tr("No symbol in QGIS (the layer is invisible there): it takes ALIGN's default style."))
         return None, None
 
-    report.append("Renderer '{}' has no web equivalent: the layer takes ALIGN's default style.".format(kind or "unknown"))
+    report.append(tr("Renderer '{}' has no web equivalent: the layer takes ALIGN's default style.").format(kind or tr("unknown")))
     return None, None
 
 
@@ -134,9 +136,9 @@ def _categorized(renderer, family, report):
     fallback = None
     for category in _call(renderer, "categories", []) or []:
         if not _call(category, "renderState", True):
-            report.append("Hidden category '{}' is not transmitted.".format(_call(category, "label", "")))
+            report.append(tr("Hidden category '{}' is not transmitted.").format(_call(category, "label", "")))
             continue
-        base, outline = _symbol_paint(_symbol_of(category), family, report, "category '{}'".format(_call(category, "label", "")))
+        base, outline = _symbol_paint(_symbol_of(category), family, report, tr("category '{}'").format(_call(category, "label", "")))
         value = _call(category, "value", None)
         if value is None or value == "":
             # QGIS's "all other values" row: the colour everything else takes.
@@ -149,15 +151,15 @@ def _categorized(renderer, family, report):
                 rule["label"] = label
             rules.append(rule)
     if not attribute or not rules:
-        report.append("Categorized renderer without usable categories: the first symbol applies to everything.")
+        report.append(tr("Categorized renderer without usable categories: the first symbol applies to everything."))
         first = _first_symbol(renderer)
-        base, outline = _symbol_paint(first, family, report, "the symbol")
-        return _style(family, base, outline, {"type": "simple"}), "single symbol"
+        base, outline = _symbol_paint(first, family, report, tr("the symbol"))
+        return _style(family, base, outline, {"type": "simple"}), tr("single symbol")
     if fallback is None:
-        fallback = _symbol_paint(_first_symbol(renderer), family, report, "the first category")
+        fallback = _symbol_paint(_first_symbol(renderer), family, report, tr("the first category"))
     base, outline = fallback
     symbology = {"type": "categorized", "attribute": attribute, "rules": rules}
-    return _style(family, base, outline, symbology), "categorized on {}, {} classes".format(attribute, len(rules))
+    return _style(family, base, outline, symbology), tr("categorized on {}, {} classes").format(attribute, len(rules))
 
 
 def _graduated(renderer, family, report):
@@ -167,7 +169,7 @@ def _graduated(renderer, family, report):
     for rng in _call(renderer, "ranges", []) or []:
         if not _call(rng, "renderState", True):
             continue
-        base, outline = _symbol_paint(_symbol_of(rng), family, report, "class '{}'".format(_call(rng, "label", "")))
+        base, outline = _symbol_paint(_symbol_of(rng), family, report, tr("class '{}'").format(_call(rng, "label", "")))
         lower, upper = _call(rng, "lowerValue", None), _call(rng, "upperValue", None)
         if not isinstance(lower, (int, float)) or not isinstance(upper, (int, float)) or upper <= lower:
             continue
@@ -177,19 +179,19 @@ def _graduated(renderer, family, report):
             rule["label"] = label
         rules.append(rule)
     if not attribute or not rules:
-        report.append("Graduated renderer without usable classes: the first symbol applies to everything.")
-        base, outline = _symbol_paint(_first_symbol(renderer), family, report, "the symbol")
-        return _style(family, base, outline, {"type": "simple"}), "single symbol"
+        report.append(tr("Graduated renderer without usable classes: the first symbol applies to everything."))
+        base, outline = _symbol_paint(_first_symbol(renderer), family, report, tr("the symbol"))
+        return _style(family, base, outline, {"type": "simple"}), tr("single symbol")
     if _is_size_method(_call(renderer, "graduatedMethod", None)):
-        report.append("Graduated by size: the classes keep their colours, the sizes do not vary on the web.")
+        report.append(tr("Graduated by size: the classes keep their colours, the sizes do not vary on the web."))
     rules.sort(key=lambda r: r["range"][0])
     ranges = _call(renderer, "ranges", []) or []
-    base, outline = _symbol_paint(_symbol_of(ranges[0]) if ranges else None, family, report, "the first class")
+    base, outline = _symbol_paint(_symbol_of(ranges[0]) if ranges else None, family, report, tr("the first class"))
     symbology = {"type": "graduated", "attribute": attribute, "interpolation": "step", "classCount": len(rules), "rules": rules}
     method = _call(_call(renderer, "classificationMethod", None), "id", None)
     if method in _SCHEMES:
         symbology["classificationScheme"] = _SCHEMES[method]
-    return _style(family, base, outline, symbology), "graduated on {}, {} classes".format(attribute, len(rules))
+    return _style(family, base, outline, symbology), tr("graduated on {}, {} classes").format(attribute, len(rules))
 
 
 def _rule_based(renderer, family, report):
@@ -210,7 +212,7 @@ def _rule_based(renderer, family, report):
         if symbol is None:
             convertible = False
             break
-        base, outline = _symbol_paint(symbol, family, report, "rule '{}'".format(_call(rule, "label", "")))
+        base, outline = _symbol_paint(symbol, family, report, tr("rule '{}'").format(_call(rule, "label", "")))
         if _call(rule, "isElse", False):
             fallback = (base, outline)
             continue
@@ -232,17 +234,17 @@ def _rule_based(renderer, family, report):
         rules.append(entry)
     if convertible and field and rules:
         if fallback is None:
-            fallback = _symbol_paint(_symbol_of(children[0]), family, report, "the first rule")
+            fallback = _symbol_paint(_symbol_of(children[0]), family, report, tr("the first rule"))
         base, outline = fallback
-        report.append("Rule-based renderer transmitted as categories on '{}'.".format(field))
+        report.append(tr("Rule-based renderer transmitted as categories on '{}'.").format(field))
         return _style(family, base, outline, {"type": "categorized", "attribute": field, "rules": rules}), \
-            "categorized on {}, {} classes".format(field, len(rules))
-    report.append("Rule-based renderer with expressions ALIGN cannot read: the first rule's symbol applies to everything.")
+            tr("categorized on {}, {} classes").format(field, len(rules))
+    report.append(tr("Rule-based renderer with expressions ALIGN cannot read: the first rule's symbol applies to everything."))
     first = _first_symbol(renderer)
     if first is None:
         return None, None
-    base, outline = _symbol_paint(first, family, report, "the first rule")
-    return _style(family, base, outline, {"type": "simple"}), "single symbol"
+    base, outline = _symbol_paint(first, family, report, tr("the first rule"))
+    return _style(family, base, outline, {"type": "simple"}), tr("single symbol")
 
 
 # ---------------------------------------------------------------------------
@@ -260,14 +262,14 @@ def _symbol_paint(symbol, family, report, what):
     layers = list(_call(symbol, "symbolLayers", []) or [])
     layer = _pick_layer(layers)
     if len(layers) > 1:
-        report.append("{}: {} symbol layers, only the {} one is kept.".format(
-            _cap(what), len(layers), "simple" if layer is not layers[0] else "bottom"))
+        report.append(tr("{}: {} symbol layers, only the {} one is kept.").format(
+            _cap(what), len(layers), tr("simple") if layer is not layers[0] else tr("bottom")))
     layer_type = _call(layer, "layerType", "") if layer is not None else ""
     if layer is not None and layer_type not in _FAITHFUL_LAYER_TYPES:
-        report.append("{}: '{}' has no web equivalent, rendered as a flat {}.".format(
-            _cap(what), layer_type or "unknown symbol layer", {"fill": "fill", "line": "line", "circle": "circle"}[family]))
+        report.append(tr("{}: '{}' has no web equivalent, rendered as a flat {}.").format(
+            _cap(what), layer_type or tr("unknown symbol layer"), {"fill": tr("fill"), "line": tr("line"), "circle": tr("circle")}[family]))
     if layer is not None and _data_defined(layer):
-        report.append("{}: properties driven by expressions are ignored.".format(_cap(what)))
+        report.append(tr("{}: properties driven by expressions are ignored.").format(_cap(what)))
 
     color = _color_of(layer, symbol, family, report, what)
     symbol_opacity = _call(symbol, "opacity", 1.0)
@@ -278,22 +280,22 @@ def _symbol_paint(symbol, family, report, what):
     if family == "fill":
         if layer is not None and layer_type == "SimpleFill" and _call(layer, "brushStyle", 1) == 0:
             base[opacity_key] = 0.0
-            report.append("{}: no brush, the polygon is transparent.".format(_cap(what)))
+            report.append(tr("{}: no brush, the polygon is transparent.").format(_cap(what)))
         outline = _outline_of(layer, report, what)
     elif family == "line":
-        width = _px(_call(layer, "width", 0.26), _call(layer, "widthUnit", "mm"), report, "{} width".format(what))
+        width = _px(_call(layer, "width", 0.26), _call(layer, "widthUnit", "mm"), report, tr("{} width").format(what))
         base["line-width"] = round(max(width, 0.5), 2)
         if layer is not None and _call(layer, "penStyle", 1) not in (1, None):
-            report.append("{}: dash pattern not transmitted, solid line.".format(_cap(what)))
+            report.append(tr("{}: dash pattern not transmitted, solid line.").format(_cap(what)))
     else:
-        size = _px(_call(layer, "size", 2.0), _call(layer, "sizeUnit", "mm"), report, "{} size".format(what))
+        size = _px(_call(layer, "size", 2.0), _call(layer, "sizeUnit", "mm"), report, tr("{} size").format(what))
         base["circle-radius"] = round(max(size / 2.0, 1.0), 2)
         if layer_type == "SimpleMarker" and not _is_circle(_call(layer, "shape", None)):
-            report.append("{}: marker shape rendered as a circle.".format(_cap(what)))
+            report.append(tr("{}: marker shape rendered as a circle.").format(_cap(what)))
         stroke = _hex(_call(layer, "strokeColor", None))
         if stroke:
             base["circle-stroke-color"] = stroke[0]
-            base["circle-stroke-width"] = round(_px(_call(layer, "strokeWidth", 0.0), _call(layer, "strokeWidthUnit", "mm"), report, "{} stroke".format(what)), 2)
+            base["circle-stroke-width"] = round(_px(_call(layer, "strokeWidth", 0.0), _call(layer, "strokeWidthUnit", "mm"), report, tr("{} stroke").format(what)), 2)
     return base, outline
 
 
@@ -301,11 +303,11 @@ def _outline_of(layer, report, what):
     if layer is None or _call(layer, "strokeStyle", 1) == 0:
         return None
     stroke = _hex(_call(layer, "strokeColor", None))
-    width = _px(_call(layer, "strokeWidth", 0.26), _call(layer, "strokeWidthUnit", "mm"), report, "{} outline".format(what))
+    width = _px(_call(layer, "strokeWidth", 0.26), _call(layer, "strokeWidthUnit", "mm"), report, tr("{} outline").format(what))
     if width <= 0:
         return None
     if width > _OUTLINE_MAX_WIDTH:
-        report.append("{}: outline width reduced to {} px (ALIGN's maximum).".format(_cap(what), int(_OUTLINE_MAX_WIDTH)))
+        report.append(tr("{}: outline width reduced to {} px (ALIGN's maximum).").format(_cap(what), int(_OUTLINE_MAX_WIDTH)))
         width = _OUTLINE_MAX_WIDTH
     outline = {"enabled": True, "width": round(width, 2)}
     if stroke:
@@ -328,7 +330,7 @@ def _color_of(layer, symbol, family, report, what):
         parsed = _hex(candidate)
         if parsed:
             return parsed
-    report.append("{}: no readable colour, ALIGN's default blue applies.".format(_cap(what)))
+    report.append(tr("{}: no readable colour, ALIGN's default blue applies.").format(_cap(what)))
     return "#3b82f6", 1.0
 
 
@@ -463,7 +465,7 @@ def _px(value, unit, report, what):
         amount = 0.0
     factor = _PX_PER_UNIT.get(_unit_name(unit))
     if factor is None:
-        report.append("{}: map-unit size has no screen equivalent, rendered at 1 mm.".format(_cap(what)))
+        report.append(tr("{}: map-unit size has no screen equivalent, rendered at 1 mm.").format(_cap(what)))
         factor = _PX_PER_UNIT["mm"]
         amount = min(amount, 1.0) if amount > 0 else 1.0
     return round(amount * factor, 2)

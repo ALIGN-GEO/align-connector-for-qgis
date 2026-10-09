@@ -210,7 +210,7 @@ class PublishView(QWidget):
         except api.ApiError as exc:
             self.capacity.setText(exc.message)
         for org in self._orgs:
-            label = org["name"] if not org.get("role") else "{}  ({})".format(org["name"], org["role"])
+            label = org["name"] if not org.get("role") else "{}  ({})".format(org["name"], _role_label(org["role"]))
             self.org_box.addItem(label, org["id"])
         self.org_box.blockSignals(False)
         if not self._orgs and not self.capacity.text():
@@ -226,7 +226,7 @@ class PublishView(QWidget):
         self.tree.blockSignals(True)
         self.tree.clear()
         for row in self._rows:
-            item = QTreeWidgetItem([row.name, row.kind or "—"])
+            item = QTreeWidgetItem([row.name, _kind_label(row.kind)])
             item.setData(0, _USER_ROLE(), row.layer_id)
             if row.publishable:
                 item.setFlags(item.flags() | qt_enum(Qt, "ItemFlag", "ItemIsUserCheckable"))
@@ -352,7 +352,7 @@ class PublishView(QWidget):
             info = api.capacity(self.session, org["id"])
         except api.ApiError as exc:
             QgsMessageLog.logMessage(
-                "Could not read the capacity of {}: {}".format(org["name"], exc.message),
+                tr("Could not read the capacity of {}: {}").format(org["name"], exc.message),
                 "ALIGN Connector",
                 Qgis.Warning,
             )
@@ -438,6 +438,18 @@ class PublishView(QWidget):
     def _current_layer_id(self):
         current = self.tree.currentItem()
         return current.data(0, _USER_ROLE()) if current is not None else None
+
+
+def _kind_label(kind):
+    """The Type column, in the user's language; a dash when the verdict has no kind."""
+    labels = {"vector": tr("vector"), "raster": tr("raster"), "archive": tr("archive"), "reference": tr("reference")}
+    return labels.get(kind, "—")
+
+
+def _role_label(role):
+    """An organization role as ALIGN names it (a member is an editor), translated."""
+    labels = {"owner": tr("owner"), "admin": tr("admin"), "member": tr("editor"), "viewer": tr("viewer")}
+    return labels.get(role, role)
 
 
 def _project_layers():

@@ -18,6 +18,8 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 from qgis.core import QgsApplication
 
+from ..i18n import tr
+
 _PREFIX = "align-connector/"
 
 _REFRESH_TOKEN = _PREFIX + "refresh_token"
@@ -51,7 +53,7 @@ def ensure_unlocked():
     # cancels or gets it wrong.
     if not manager.setMasterPassword(True):
         raise MasterPasswordRequired(
-            "QGIS' password manager must be unlocked to store your ALIGN session securely."
+            tr("QGIS' password manager must be unlocked to store your ALIGN session securely.")
         )
 
 

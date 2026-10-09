@@ -28,6 +28,7 @@ from qgis.PyQt.QtWidgets import (
 
 from . import config
 from . import net
+from .i18n import tr
 from .metadata import plugin_version
 
 
@@ -37,13 +38,13 @@ class SettingsDialog(QDialog):
     def __init__(self, session, parent=None):
         super().__init__(parent)
         self.session = session
-        self.setWindowTitle("ALIGN Connector — Settings")
+        self.setWindowTitle(tr("ALIGN Connector — Settings"))
         self.setMinimumWidth(520)
 
         layout = QVBoxLayout(self)
 
         # -- who am I ------------------------------------------------------
-        account_box = QGroupBox("Your ALIGN account")
+        account_box = QGroupBox(tr("Your ALIGN account"))
         account_layout = QHBoxLayout(account_box)
         self.account_label = QLabel()
         self.account_label.setWordWrap(True)
@@ -54,27 +55,27 @@ class SettingsDialog(QDialog):
         layout.addWidget(account_box)
 
         # -- which ALIGN ---------------------------------------------------
-        server_box = QGroupBox("ALIGN server")
+        server_box = QGroupBox(tr("ALIGN server"))
         server_layout = QFormLayout(server_box)
 
         self.app_edit = QLineEdit(config.app_url())
         self.app_edit.setPlaceholderText(config.DEFAULT_APP_URL)
-        server_layout.addRow("Application", self.app_edit)
+        server_layout.addRow(tr("Application"), self.app_edit)
 
         self.api_edit = QLineEdit(config.api_url())
         self.api_edit.setPlaceholderText(config.DEFAULT_API_URL)
-        server_layout.addRow("API", self.api_edit)
+        server_layout.addRow(tr("API"), self.api_edit)
 
         hint = QLabel(
-            "Leave a field empty to return to the default. Change these only to reach "
-            "another ALIGN deployment."
+            tr("Leave a field empty to return to the default. Change these only to reach "
+               "another ALIGN deployment.")
         )
         hint.setWordWrap(True)
         hint.setEnabled(False)
         server_layout.addRow("", hint)
 
         test_row = QHBoxLayout()
-        self.test_button = QPushButton("Test connection")
+        self.test_button = QPushButton(tr("Test connection"))
         self.test_button.clicked.connect(self._test_connection)
         test_row.addWidget(self.test_button, 0)
         self.test_label = QLabel()
@@ -102,15 +103,15 @@ class SettingsDialog(QDialog):
         if self.session.is_signed_in():
             account = self.session.account()
             self.account_label.setText(
-                "Connected{}".format(" as {}".format(account) if account else "")
+                tr("Connected{}").format(tr(" as {}").format(account) if account else "")
             )
-            self.account_button.setText("Sign out")
+            self.account_button.setText(tr("Sign out"))
         else:
             self.account_label.setText(
-                "Not connected. Signing in opens your browser, where you approve the "
-                "connection in ALIGN."
+                tr("Not connected. Signing in opens your browser, where you approve the "
+                   "connection in ALIGN.")
             )
-            self.account_button.setText("Sign in…")
+            self.account_button.setText(tr("Sign in…"))
 
     def _toggle_account(self):
         # Saving first: signing in against the URLs shown, not the ones stored
@@ -140,28 +141,28 @@ class SettingsDialog(QDialog):
         """
         self._apply_endpoints()
         self.test_button.setEnabled(False)
-        self.test_label.setText("Contacting ALIGN…")
+        self.test_label.setText(tr("Contacting ALIGN…"))
         try:
             result = net.get_json(config.client_endpoint())
             if result.ok:
                 name = result.body.get("name") if isinstance(result.body, dict) else None
                 self.test_label.setText(
-                    "Reached ALIGN — it recognises this plugin{}.".format(
-                        " as “{}”".format(name) if name else ""
+                    tr("Reached ALIGN — it recognises this plugin{}.").format(
+                        tr(" as “{}”").format(name) if name else ""
                     )
                 )
             elif result.status == net.NO_RESPONSE:
                 self.test_label.setText(
-                    "No answer from that address. Check the API URL, and that you are online."
+                    tr("No answer from that address. Check the API URL, and that you are online.")
                 )
             elif result.status == 404:
                 self.test_label.setText(
-                    "That address answered, but does not know this plugin. It may be an "
-                    "older ALIGN, or the wrong server."
+                    tr("That address answered, but does not know this plugin. It may be an "
+                       "older ALIGN, or the wrong server.")
                 )
             else:
                 self.test_label.setText(
-                    "ALIGN answered {} — {}".format(result.status, result.message("unexpected error"))
+                    tr("ALIGN answered {} — {}").format(result.status, result.message(tr("unexpected error")))
                 )
         finally:
             self.test_button.setEnabled(True)

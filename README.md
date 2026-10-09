@@ -66,6 +66,12 @@ would not fit is refused in seconds, not after an hour of uploading.
 
 No third-party Python packages. Nothing to `pip install`.
 
+## Languages
+
+The plugin speaks the language QGIS runs in (*Settings → Options → General*): **English** (the source) and **French**. A language without a translation reads as English. The refusals ALIGN sends back are composed by the plugin from the server's structured answer, so a « budget insuffisant » reads in your language with its numbers.
+
+Adding a language is a translation file, no code: `python scripts/translations.py extract` refreshes `align_connector/i18n/align_connector_<lang>.ts` (open it in Qt Linguist or any editor), `python scripts/translations.py compile` writes the `.qm` the plugin loads, and `python scripts/translations.py check` is what CI runs: every sentence present and translated, the `.qm` up to date. Dutch and German come next, by the same files.
+
 ## Installation
 
 Not yet published to the QGIS plugin repository. Until then, clone this repository and copy (or symlink) the `align_connector/` folder into your QGIS profile:

@@ -40,6 +40,7 @@ from qgis.core import (
 )
 
 from .exporter import ExportFailed, ExportResult, safe_basename
+from ..i18n import tr
 
 #: The one content type that makes ALIGN recognise a raster upload. Sending
 #: `application/octet-stream` would upload fine and never derive anything: the
@@ -128,19 +129,21 @@ def export_raster(layer, target_dir=None):
     :raises ExportFailed: when the layer is not a dataset, or cannot be written
     """
     if layer is None or not layer.isValid():
-        raise ExportFailed("That layer is not valid — QGIS cannot read it.")
+        raise ExportFailed(tr("That layer is not valid: QGIS cannot read it."))
 
     provider = layer.dataProvider()
     if provider is None:
-        raise ExportFailed("QGIS cannot read this raster's data.")
+        raise ExportFailed(tr("QGIS cannot read this raster's data."))
 
     # A remote service has no bytes to publish. Say so plainly rather than
     # uploading an empty file and letting the Datastore explain it later.
     name = provider.name()
     if name != "gdal":
         raise ExportFailed(
-            "“{}” is a {} connection, not a dataset — there is no file to publish. "
-            "Remote services are added to ALIGN from the web application.".format(layer.name(), name.upper())
+            tr(
+                "“{}” is a {} connection, not a dataset: there is no file to publish. "
+                "Remote services are added to ALIGN from the web application."
+            ).format(layer.name(), name.upper())
         )
 
     existing = source_file_of(layer)
@@ -156,7 +159,7 @@ def export_raster(layer, target_dir=None):
         )
 
     if provider.xSize() <= 0 or provider.ySize() <= 0:
-        raise ExportFailed("This raster has no pixels to write.")
+        raise ExportFailed(tr("This raster has no pixels to write."))
 
     directory = target_dir or tempfile.mkdtemp(prefix="align-publish-")
     filename = safe_basename(layer.name(), "tif")
@@ -164,7 +167,7 @@ def export_raster(layer, target_dir=None):
 
     pipe = QgsRasterPipe()
     if not pipe.set(provider.clone()):
-        raise ExportFailed("QGIS could not open this raster's data to write it out.")
+        raise ExportFailed(tr("QGIS could not open this raster's data to write it out."))
 
     writer = QgsRasterFileWriter(path)
     writer.setOutputFormat("GTiff")
@@ -172,9 +175,9 @@ def export_raster(layer, target_dir=None):
 
     error = _write(writer, pipe, provider)
     if error != QgsRasterFileWriter.NoError:
-        raise ExportFailed("Could not write this raster to a publishable file (GDAL error {}).".format(error))
+        raise ExportFailed(tr("Could not write this raster to a publishable file (GDAL error {}).").format(error))
     if not os.path.exists(path) or os.path.getsize(path) == 0:
-        raise ExportFailed("Could not write this raster to a publishable file (the writer produced nothing).")
+        raise ExportFailed(tr("Could not write this raster to a publishable file (the writer produced nothing)."))
 
     return ExportResult(
         path=path,

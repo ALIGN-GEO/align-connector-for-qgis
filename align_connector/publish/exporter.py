@@ -49,6 +49,8 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QVariant
 
+from ..i18n import tr
+
 #: Formats we can write, best first. `(driver, extension, content type)`.
 _FORMATS = (
     ("FlatGeobuf", "fgb", "application/x-flatgeobuf"),
@@ -164,16 +166,16 @@ def reprojection_notice(authid, valid=True):
     """The sentence a publisher reads before sending, or ``None`` when there is nothing to say."""
     plan = crs_plan(authid, valid)
     if plan == REFUSE:
-        return (
+        return tr(
             "This layer has no coordinate reference system. Set one (Layer Properties, "
             "Source) before publishing."
         )
     if plan == TRANSFORM:
-        origin = (authid or "").strip() or "its custom coordinate system"
-        return (
+        origin = (authid or "").strip() or tr("its custom coordinate system")
+        return tr(
             "Coordinates will be converted from {} to WGS 84 (EPSG:4326) on export; "
-            "the layer itself is not changed.".format(origin)
-        )
+            "the layer itself is not changed."
+        ).format(origin)
     return None
 
 
@@ -290,9 +292,9 @@ def export_layer(layer, selected_only=False, target_dir=None):
     feature_count = layer.selectedFeatureCount() if selected_only else layer.featureCount()
     if feature_count == 0:
         raise ExportFailed(
-            "There is nothing to publish: the selection is empty."
+            tr("There is nothing to publish: the selection is empty.")
             if selected_only
-            else "That layer has no features."
+            else tr("That layer has no features.")
         )
 
     # A file the viewer reads as it is leaves as it is (TCK-2206): nothing is
@@ -335,7 +337,7 @@ def export_layer(layer, selected_only=False, target_dir=None):
         error, message = _write(source, path, options)
         if error == QgsVectorFileWriter.NoError:
             if not os.path.exists(path) or os.path.getsize(path) == 0:
-                last_error = "the writer produced an empty file"
+                last_error = tr("the writer produced an empty file")
                 continue
             return ExportResult(
                 path=path,
@@ -347,9 +349,9 @@ def export_layer(layer, selected_only=False, target_dir=None):
                 reprojected=plan == TRANSFORM,
             )
 
-        last_error = message or "the writer refused the layer"
+        last_error = message or tr("the writer refused the layer")
 
-    raise ExportFailed("Could not write this layer to a publishable file ({}).".format(last_error))
+    raise ExportFailed(tr("Could not write this layer to a publishable file ({}).").format(last_error))
 
 
 def _write(layer, path, options):
@@ -422,7 +424,7 @@ def export_for_publish(layer, selected_only=False):
 
         return export_archive(layer)
     raise ExportFailed(
-        "ALIGN can publish vector and raster layers. “{}” is neither.".format(
-            layer.name() if layer is not None else "This layer"
+        tr("ALIGN can publish vector and raster layers. “{}” is neither.").format(
+            layer.name() if layer is not None else tr("This layer")
         )
     )

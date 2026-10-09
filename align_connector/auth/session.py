@@ -26,6 +26,7 @@ from qgis.PyQt.QtGui import QDesktopServices
 
 from .. import config
 from .. import net
+from ..i18n import tr
 from . import pkce
 from .loopback import LoopbackReceiver
 from . import token_store
@@ -53,13 +54,13 @@ class _SignInWorker(QObject):
             self._receiver.close()
 
         if result is None:
-            self.finished.emit(False, "Timed out waiting for the browser. Nothing was granted.")
+            self.finished.emit(False, tr("Timed out waiting for the browser. Nothing was granted."))
             return
         if "error" in result:
             if result["error"] == "access_denied":
-                self.finished.emit(False, "Authorization was refused in the browser.")
+                self.finished.emit(False, tr("Authorization was refused in the browser."))
             else:
-                self.finished.emit(False, "Authorization failed ({}).".format(result["error"]))
+                self.finished.emit(False, tr("Authorization failed ({}).").format(result["error"]))
             return
 
         response = net.post_json(
@@ -73,7 +74,7 @@ class _SignInWorker(QObject):
             },
         )
         if not response.ok:
-            self.finished.emit(False, response.message("Could not complete sign-in"))
+            self.finished.emit(False, response.message(tr("Could not complete sign-in")))
             return
 
         body = response.body
@@ -119,7 +120,7 @@ class AlignSession(QObject):
     def sign_in(self):
         """Start the loopback flow. Returns immediately; watch the signals."""
         if self._thread is not None:
-            self.failed.emit("A sign-in is already in progress.")
+            self.failed.emit(tr("A sign-in is already in progress."))
             return
 
         try:
@@ -146,7 +147,7 @@ class AlignSession(QObject):
         opened = QDesktopServices.openUrl(QUrl("{}?{}".format(config.authorize_url(), query)))
         if not opened:
             receiver.close()
-            self.failed.emit("Could not open your browser to sign in to ALIGN.")
+            self.failed.emit(tr("Could not open your browser to sign in to ALIGN."))
             return
 
         self._worker = _SignInWorker(receiver, verifier, receiver.redirect_uri)
@@ -238,7 +239,7 @@ class AlignSession(QObject):
             if result.ok:
                 confirmed = True
                 break
-            reason = result.message("ALIGN did not confirm the disconnection")
+            reason = result.message(tr("ALIGN did not confirm the disconnection"))
 
         if not refresh and not access:
             # Nothing to revoke: the local store was already empty.
@@ -248,9 +249,9 @@ class AlignSession(QObject):
         self.signed_out.emit()
         if not confirmed:
             self.failed.emit(
-                "Signed out on this computer, but ALIGN did not confirm it: {} "
-                "Revoke the device from Settings → Integrations to be sure.".format(
-                    reason or "no answer from the server."
-                )
+                tr(
+                    "Signed out on this computer, but ALIGN did not confirm it: {} "
+                    "Revoke the device from Settings → Integrations to be sure."
+                ).format(reason or tr("no answer from the server."))
             )
         return confirmed, reason

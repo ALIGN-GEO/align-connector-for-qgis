@@ -18,6 +18,8 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 
 #: ALIGN's ISO sheet keeps this many keywords at most.
+from ..i18n import tr
+
 MAX_KEYWORDS = 32
 
 #: ALIGN's text fields keep this many characters at most.
@@ -97,39 +99,39 @@ def read(layer):
 
     abstract = _text(_call(record, "abstract", "")) or _text(_call(layer, "abstract", ""))
     if abstract:
-        iso["abstract"] = _bounded(abstract, "abstract", report)
-        parts.append("abstract")
+        iso["abstract"] = _bounded(abstract, tr("abstract"), report)
+        parts.append(tr("abstract"))
 
     keywords, theme = _keywords_and_theme(_call(record, "keywords", {}) or {}, report)
     if theme:
         iso["inspireTheme"] = theme
-        parts.append("INSPIRE theme")
+        parts.append(tr("INSPIRE theme"))
     if keywords:
         iso["keywords"] = keywords
-        parts.append("{} keyword{}".format(len(keywords), "" if len(keywords) == 1 else "s"))
+        parts.append(tr("1 keyword") if len(keywords) == 1 else tr("{} keywords").format(len(keywords)))
 
     licence = _joined(_call(record, "licenses", []) or []) or _joined(_call(record, "rights", []) or [])
     if licence:
-        iso["useLimitation"] = _bounded(licence, "licence", report)
-        parts.append("licence")
+        iso["useLimitation"] = _bounded(licence, tr("licence"), report)
+        parts.append(tr("licence"))
 
     access = _joined(
         _get(c, "constraint") for c in (_call(record, "constraints", []) or [])
         if _text(_get(c, "type")).lower() in _ACCESS_TYPES
     )
     if access:
-        iso["accessConstraints"] = _bounded(access, "access constraints", report)
-        parts.append("access constraints")
+        iso["accessConstraints"] = _bounded(access, tr("access constraints"), report)
+        parts.append(tr("access constraints"))
 
     contact = _contact(_call(record, "contacts", []) or [], report)
     if contact:
         iso["contact"] = contact
-        parts.append("contact")
+        parts.append(tr("contact"))
 
     history = _joined(_call(record, "history", []) or [], separator="\n")
     if history:
-        iso["lineageStatement"] = _bounded(history, "lineage", report)
-        parts.append("lineage")
+        iso["lineageStatement"] = _bounded(history, tr("lineage"), report)
+        parts.append(tr("lineage"))
 
     title = _text(_call(record, "title", "")) or None
     if not iso:
@@ -140,9 +142,9 @@ def read(layer):
 def describe_metadata(reading):
     """What the publisher reads about the metadata before sending (TCK-2202)."""
     if reading.iso is None:
-        head = "Metadata: none in QGIS; fill the item's sheet on ALIGN."
+        head = tr("Metadata: none in QGIS; fill the item's sheet on ALIGN.")
     else:
-        head = "Metadata: {}.".format(reading.summary)
+        head = tr("Metadata: {}.").format(reading.summary)
     if reading.report:
         head += " " + " ".join(reading.report)
     return head
@@ -168,13 +170,13 @@ def _keywords_and_theme(vocabularies, report):
                 theme = INSPIRE_THEMES[word.lower()]
                 continue
             if is_inspire and word.lower() not in INSPIRE_THEMES:
-                report.append("INSPIRE keyword '{}' is not a registry theme; kept as a keyword.".format(word))
+                report.append(tr("INSPIRE keyword '{}' is not a registry theme; kept as a keyword.").format(word))
             if word.lower() in seen:
                 continue
             seen.add(word.lower())
             keywords.append(word[:MAX_TEXT])
     if len(keywords) > MAX_KEYWORDS:
-        report.append("Only the first {} keywords are kept ({} in QGIS).".format(MAX_KEYWORDS, len(keywords)))
+        report.append(tr("Only the first {} keywords are kept ({} in QGIS).").format(MAX_KEYWORDS, len(keywords)))
         keywords = keywords[:MAX_KEYWORDS]
     return keywords, theme
 
@@ -192,7 +194,7 @@ def _contact(contacts, report):
     # QGIS keeps an empty contact row by default: nothing was written, so
     # there is nothing to report as cut (seen on the first E2E, TCK-2204).
     if filled:
-        report.append("Contact without an organisation and an email: not transmitted.")
+        report.append(tr("Contact without an organisation and an email: not transmitted."))
     return None
 
 
@@ -207,7 +209,7 @@ def _joined(values, separator="; "):
 
 def _bounded(text, what, report):
     if len(text) > MAX_TEXT:
-        report.append("The {} is cut to {} characters.".format(what, MAX_TEXT))
+        report.append(tr("The {} is cut to {} characters.").format(what, MAX_TEXT))
         return text[:MAX_TEXT]
     return text
 

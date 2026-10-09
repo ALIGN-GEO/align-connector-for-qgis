@@ -12,6 +12,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 from . import config
 from . import net
+from .i18n import tr
 
 
 class ApiError(Exception):
@@ -31,35 +32,67 @@ class ApiError(Exception):
         self.status = status
 
 
-# What each refusal means to someone publishing a layer. The API's own message
-# is used when it is specific enough; these cover the cases where it is not.
-_REFUSALS = {
-    401: ("Your ALIGN session has expired. Sign in again to publish.", True),
-    # TCK-2178 — the conversion this file needs (GeoTIFF → COG, MBTiles →
-    # PMTiles) would cost more credits than the organization has. Refused
-    # before the first byte; the server's sentence carries the two numbers.
-    402: ("Your organization does not have enough credits to convert this file. "
-          "Add credits in Plans & Capacity, then publish again.", False),
-    403: ("Your role in this organization does not allow publishing.", False),
-    404: ("That organization could not be found, or you are no longer a member of it.", False),
-    413: ("There is not enough space left in this organization's Datastore.", False),
-    415: ("ALIGN does not accept this file type.", False),
-    429: ("ALIGN is rate-limiting this client. Wait a moment and try again.", False),
-}
+def _refusal(status):
+    """What a refusal means to someone publishing a layer, in their language.
+
+    A function, not a table: the sentences are translated when they are
+    shown, after the translator is installed, never at import time
+    (TCK-2183). ``None`` for a status the plugin has no words for.
+    """
+    known = {
+        401: (tr("Your ALIGN session has expired. Sign in again to publish."), True),
+        # TCK-2178 — the conversion this file needs (GeoTIFF → COG, MBTiles →
+        # PMTiles) would cost more credits than the organization has. Refused
+        # before the first byte; the numbers come from the body (see below).
+        402: (tr("Your organization does not have enough credits to convert this file. "
+                 "Add credits in Plans & Capacity, then publish again."), False),
+        403: (tr("Your role in this organization does not allow publishing."), False),
+        404: (tr("That organization could not be found, or you are no longer a member of it."), False),
+        413: (tr("There is not enough space left in this organization's Datastore."), False),
+        415: (tr("ALIGN does not accept this file type."), False),
+        429: (tr("ALIGN is rate-limiting this client. Wait a moment and try again."), False),
+    }
+    return known.get(status)
+
+
+def _credits_refusal(result):
+    """The 402 composed from its structured fields, so the two numbers read
+    in the user's language rather than in the server's English sentence."""
+    details = result.body.get("details") if isinstance(result.body, dict) else None
+    if not isinstance(details, dict):
+        return None
+    needed, available = details.get("estimatedCredits"), details.get("availableCredits")
+    if not isinstance(needed, (int, float)) or not isinstance(available, (int, float)):
+        return None
+    return tr(
+        "Converting this file needs {} credits; this organization has {}. "
+        "Add credits in Plans & Capacity, then publish again."
+    ).format(_whole(needed), _whole(available))
+
+
+def _whole(number):
+    return int(number) if float(number).is_integer() else number
 
 
 def _raise_for(result, fallback):
-    """Turn a failed response into an :class:`ApiError` a user can act on."""
-    known = _REFUSALS.get(result.status)
+    """Turn a failed response into an :class:`ApiError` a user can act on.
+
+    A status the plugin knows gets the plugin's own sentence, in the user's
+    language; the server's English text is only shown for a status the plugin
+    has no words for (TCK-2183).
+    """
+    known = _refusal(result.status)
     if known:
         message, needs_sign_in = known
-        # A specific server message beats our generic one — except for 401,
-        # where "invalid token" tells the user nothing they can do.
-        if result.status != 401:
+        if result.status == 402:
+            message = _credits_refusal(result) or message
+        elif result.status in (403, 415):
+            # The server says which role, or which type: worth more than our
+            # generic line, when it says anything at all.
             message = result.message(message)
         raise ApiError(message, needs_sign_in=needs_sign_in, status=result.status)
     if result.status == net.NO_RESPONSE:
-        raise ApiError("ALIGN could not be reached. Check your connection and try again.")
+        raise ApiError(tr("ALIGN could not be reached. Check your connection and try again."))
     raise ApiError(result.message(fallback), status=result.status)
 
 
@@ -71,15 +104,15 @@ def list_organizations(session):
     """
     token = session.access_token()
     if not token:
-        raise ApiError("You are not signed in to ALIGN.", needs_sign_in=True)
+        raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
 
     result = net.get_json(config.orgs_endpoint(), bearer=token)
     if not result.ok:
-        _raise_for(result, "Could not read your organizations")
+        _raise_for(result, tr("Could not read your organizations"))
 
     items = result.body.get("items") if isinstance(result.body, dict) else None
     if not isinstance(items, list):
-        raise ApiError("ALIGN returned an unexpected answer while listing organizations.")
+        raise ApiError(tr("ALIGN returned an unexpected answer while listing organizations."))
 
     return [
         {"id": item.get("id"), "name": item.get("name"), "role": item.get("role")}
@@ -100,17 +133,17 @@ def capacity(session, org_id):
     """
     token = session.access_token()
     if not token:
-        raise ApiError("You are not signed in to ALIGN.", needs_sign_in=True)
+        raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
 
     result = net.get_json(config.capacity_endpoint(org_id), bearer=token)
     if not result.ok:
-        _raise_for(result, "Could not read what this organization can still spend")
+        _raise_for(result, tr("Could not read what this organization can still spend"))
 
     body = result.body if isinstance(result.body, dict) else None
     storage = body.get("storage") if body else None
     credits = body.get("credits") if body else None
     if not isinstance(storage, dict) or not isinstance(credits, dict):
-        raise ApiError("ALIGN returned an unexpected answer while reading the organization's capacity.")
+        raise ApiError(tr("ALIGN returned an unexpected answer while reading the organization's capacity."))
     return {
         "storage": {
             "usedBytes": _count(storage.get("usedBytes")),
@@ -152,7 +185,7 @@ def open_upload_session(session, org_id, filename, content_type, size_bytes, alr
     """
     token = session.access_token()
     if not token:
-        raise ApiError("You are not signed in to ALIGN.", needs_sign_in=True)
+        raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
 
     payload = {"filename": filename, "contentType": content_type, "sizeBytes": size_bytes}
     if already_servable:
@@ -169,13 +202,13 @@ def open_upload_session(session, org_id, filename, content_type, size_bytes, alr
         # them by code, and so must the message — buying more storage fixes the
         # first and changes nothing to the second.
         if result.code() == "DATASTORE_DERIVATION_TOO_LARGE":
-            raise ApiError(result.message("This file is too large for ALIGN to prepare for display."))
-        _raise_for(result, "ALIGN refused the upload")
+            raise ApiError(result.message(tr("This file is too large for ALIGN to prepare for display.")))
+        _raise_for(result, tr("ALIGN refused the upload"))
 
     body = result.body
     for key in ("assetId", "sessionUrl", "chunkSizeBytes"):
         if not body.get(key):
-            raise ApiError("ALIGN returned an incomplete upload session.")
+            raise ApiError(tr("ALIGN returned an incomplete upload session."))
     return body
 
 
@@ -198,7 +231,7 @@ def finalize(session, org_id, asset_id, filename, name, provenance=None, descrip
     """
     token = session.access_token()
     if not token:
-        raise ApiError("Your ALIGN session expired while the file was uploading.", needs_sign_in=True)
+        raise ApiError(tr("Your ALIGN session expired while the file was uploading."), needs_sign_in=True)
 
     payload = {"filename": filename, "name": name}
     if already_servable:
@@ -218,7 +251,7 @@ def finalize(session, org_id, asset_id, filename, name, provenance=None, descrip
 
     result = net.post_json(config.finalize_endpoint(org_id, asset_id), payload, bearer=token)
     if not result.ok:
-        _raise_for(result, "ALIGN could not catalogue the uploaded file")
+        _raise_for(result, tr("ALIGN could not catalogue the uploaded file"))
     return result.body
 
 
@@ -233,7 +266,7 @@ def create_web_map(session, org_id, name, layers, map_view=None, description=Non
     """
     token = session.access_token()
     if not token:
-        raise ApiError("You are not signed in to ALIGN.", needs_sign_in=True)
+        raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
 
     payload = {"name": name, "layers": list(layers)}
     if map_view:
@@ -245,11 +278,11 @@ def create_web_map(session, org_id, name, layers, map_view=None, description=Non
 
     result = net.post_json(config.web_map_endpoint(org_id), payload, bearer=token)
     if not result.ok:
-        _raise_for(result, "Could not create the web map")
+        _raise_for(result, tr("Could not create the web map"))
 
     body = result.body if isinstance(result.body, dict) else None
     if not body or not body.get("assetId"):
-        raise ApiError("ALIGN returned an unexpected answer while creating the web map.")
+        raise ApiError(tr("ALIGN returned an unexpected answer while creating the web map."))
     return {
         "assetId": body["assetId"],
         "name": body.get("name") or name,
@@ -267,7 +300,7 @@ def create_reference(session, org_id, name, body, provenance=None, description=N
     """
     token = session.access_token()
     if not token:
-        raise ApiError("You are not signed in to ALIGN.", needs_sign_in=True)
+        raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
 
     payload = dict(body)
     payload["name"] = name
@@ -280,11 +313,11 @@ def create_reference(session, org_id, name, body, provenance=None, description=N
 
     result = net.post_json(config.references_endpoint(org_id), payload, bearer=token)
     if not result.ok:
-        _raise_for(result, "Could not register the reference")
+        _raise_for(result, tr("Could not register the reference"))
 
     answer = result.body if isinstance(result.body, dict) else None
     if not answer or not answer.get("assetId"):
-        raise ApiError("ALIGN returned an unexpected answer while registering the reference.")
+        raise ApiError(tr("ALIGN returned an unexpected answer while registering the reference."))
     return {
         "assetId": answer["assetId"],
         "created": bool(answer.get("created", True)),

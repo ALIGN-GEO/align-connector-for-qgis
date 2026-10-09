@@ -22,6 +22,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
 
+from ..i18n import tr
+
 #: How long we wait for the human to approve before giving up (seconds).
 DEFAULT_TIMEOUT_SEC = 300
 
@@ -53,8 +55,8 @@ class _Handler(BaseHTTPRequestHandler):
         if self.expected_state is not None and state != self.expected_state:
             # Not our redirect. Answer politely, record nothing, keep waiting.
             self._respond(
-                "Unexpected request",
-                "This page was not opened by QGIS. You can close it.",
+                tr("Unexpected request"),
+                tr("This page was not opened by QGIS. You can close it."),
                 status=400,
             )
             return
@@ -65,20 +67,20 @@ class _Handler(BaseHTTPRequestHandler):
         if error:
             self.server.result = {"error": error}
             self._respond(
-                "Authorization refused",
-                "Nothing was granted. You can close this tab and return to QGIS.",
+                tr("Authorization refused"),
+                tr("Nothing was granted. You can close this tab and return to QGIS."),
             )
         elif code:
             self.server.result = {"code": code}
             self._respond(
-                "You are signed in",
-                "ALIGN Connector is connected. You can close this tab and return to QGIS.",
+                tr("You are signed in"),
+                tr("ALIGN Connector is connected. You can close this tab and return to QGIS."),
             )
         else:
             self.server.result = {"error": "invalid_response"}
             self._respond(
-                "Something went wrong",
-                "The response carried neither an authorization code nor an error.",
+                tr("Something went wrong"),
+                tr("The response carried neither an authorization code nor an error."),
                 status=400,
             )
 

@@ -104,6 +104,13 @@ jobs:
       - name: Services become live references
         run: python scripts/smoke_services.py
 
+      # Every sentence of the source is in the .ts, translated, and the
+      # shipped .qm is the compilation of that .ts (TCK-2183). The Qt
+      # round trip (scripts/smoke_i18n.py) needs a QGIS and runs on the
+      # QGIS images (TCK-2180).
+      - name: Translations complete and compiled
+        run: python scripts/translations.py check
+
   metadata:
     runs-on: ubuntu-latest
     steps:

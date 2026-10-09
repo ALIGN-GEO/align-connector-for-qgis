@@ -15,11 +15,12 @@ def readable_size(size_bytes):
     """A size a person reads at a glance, or None when it is unknown."""
     if not size_bytes:
         return None
-    units = ("bytes", "KB", "MB", "GB", "TB")
+    # Translated one by one: French writes Mo and Go, not MB and GB.
+    units = (tr("bytes"), tr("KB"), tr("MB"), tr("GB"), tr("TB"))
     value = float(size_bytes)
-    for unit in units:
-        if value < 1024 or unit == units[-1]:
-            return "{:.0f} {}".format(value, unit) if unit == "bytes" else "{:.1f} {}".format(value, unit)
+    for index, unit in enumerate(units):
+        if value < 1024 or index == len(units) - 1:
+            return "{:.0f} {}".format(value, unit) if index == 0 else "{:.1f} {}".format(value, unit)
         value /= 1024.0
     return None
 
