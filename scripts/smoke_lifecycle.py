@@ -85,8 +85,8 @@ def main() -> int:
     if toolbar_action.icon().isNull():
         print("FAIL: the toolbar action has no icon — icon.png did not load")
         return 1
-    if button.menu() is None or len([a for a in button.menu().actions() if not a.isSeparator()]) != 3:
-        print("FAIL: the toolbar button's menu does not hold the three other actions")
+    if button.menu() is None or len([a for a in button.menu().actions() if not a.isSeparator()]) != 4:
+        print("FAIL: the toolbar button's menu does not hold the four actions, publish included")
         return 1
     action = toolbar_action
 

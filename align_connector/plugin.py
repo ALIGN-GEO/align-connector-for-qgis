@@ -135,6 +135,11 @@ class AlignConnectorPlugin:
         button = QToolButton(self.iface.mainWindow())
         button.setDefaultAction(publish)
         menu = QMenu(button)
+        # Publish is in the menu too (Benjamin, 2026-10-09): a menu that lists
+        # everything but what the button does reads as if the panel were
+        # somewhere else.
+        menu.addAction(publish)
+        menu.addSeparator()
         menu.addAction(self._sign_in_action)
         menu.addAction(open_align)
         menu.addSeparator()
