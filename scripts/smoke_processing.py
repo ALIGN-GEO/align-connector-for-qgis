@@ -57,7 +57,7 @@ check("the provider registers", registry.addProvider(provider) and registry.prov
 algorithm = registry.algorithmById("align:publishlayer")
 check("align:publishlayer is in the registry", algorithm is not None)
 names = [p.name() for p in algorithm.parameterDefinitions()]
-check("the parameters are the panel's choices", names == ["INPUT", "ORGANIZATION", "TITLE", "DESCRIPTION", "VISIBILITY", "SELECTED_ONLY"], names)
+check("the parameters are the panel's choices", names == ["INPUT", "ORGANIZATION", "TITLE", "DESCRIPTION", "VISIBILITY", "SELECTED_ONLY", "REPLACE"], names)
 outputs = [o.name() for o in algorithm.outputDefinitions()]
 check("the outputs name the item", outputs == ["ASSET_ID", "ALIGN_URL", "SERVABLE_ASSET_ID"], outputs)
 check("the provider carries the ALIGN icon", not provider.icon().isNull())

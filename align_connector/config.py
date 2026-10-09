@@ -118,6 +118,16 @@ def finalize_endpoint(org_id, asset_id):
     return "{}/api/v1/orgs/{}/datastore/{}/finalize".format(api_url(), org_id, asset_id)
 
 
+def replace_session_endpoint(org_id, asset_id):
+    """Replace a published item's bytes in place, step 1 of 2 (TCK-2218)."""
+    return "{}/api/v1/orgs/{}/datastore/{}/replace-session".format(api_url(), org_id, asset_id)
+
+
+def replace_finalize_endpoint(org_id, asset_id):
+    """Replace a published item's bytes in place, step 2 of 2 (TCK-2218)."""
+    return "{}/api/v1/orgs/{}/datastore/{}/replace-finalize".format(api_url(), org_id, asset_id)
+
+
 def scope_string():
     """Scopes as the wire format expects them — space-delimited (RFC 6749 §3.3)."""
     return " ".join(SCOPES)

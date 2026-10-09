@@ -30,8 +30,8 @@ from qgis.core import (
 from .. import api, config
 from ..i18n import tr
 from ..panel.outcome import outcome_of
-from ..publish import briefing, support
-from ..publish.task import PublishLayerTask
+from ..publish import briefing, memory, support
+from ..publish.task import PublishLayerTask, utc_now
 from ..qtcompat import qt_enum
 
 INPUT = "INPUT"
@@ -40,6 +40,7 @@ TITLE = "TITLE"
 DESCRIPTION = "DESCRIPTION"
 VISIBILITY = "VISIBILITY"
 SELECTED_ONLY = "SELECTED_ONLY"
+REPLACE = "REPLACE"
 ASSET_ID = "ASSET_ID"
 ALIGN_URL = "ALIGN_URL"
 SERVABLE_ASSET_ID = "SERVABLE_ASSET_ID"
@@ -54,6 +55,7 @@ class PublishLayerAlgorithm(QgsProcessingAlgorithm):
         self._session = session
         self._task = None
         self._org = None
+        self._layer = None
 
     # -- identity -----------------------------------------------------------
 
@@ -109,6 +111,13 @@ class PublishLayerAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(QgsProcessingParameterBoolean(SELECTED_ONLY, tr("Publish only the selected features"), defaultValue=False))
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                REPLACE,
+                tr("Replace the item this layer was already published as (same organization), instead of a new one"),
+                defaultValue=True,
+            )
+        )
         self.addOutput(QgsProcessingOutputString(ASSET_ID, tr("Asset id")))
         self.addOutput(QgsProcessingOutputString(ALIGN_URL, tr("Item page on ALIGN")))
         self.addOutput(QgsProcessingOutputString(SERVABLE_ASSET_ID, tr("Display-ready copy (raster), when one was made")))
@@ -150,8 +159,36 @@ class PublishLayerAlgorithm(QgsProcessingAlgorithm):
             visibility=visibility,
             style=brief.style,
             iso=brief.iso,
+            # The item the layer remembers, replaced in place when it lives
+            # in this organization and the caller did not say otherwise
+            # (TCK-2218); elsewhere, or unticked, a new item.
+            replace=self._replacement_of(layer, parameters, context),
         )
+        self._layer = layer
         return True
+
+    def _replacement_of(self, layer, parameters, context):
+        if not self.parameterAsBool(parameters, REPLACE, context):
+            return None
+        link = memory.read(layer)
+        if link is None or link.org_id != self._org["id"]:
+            return None
+        return link
+
+    def postProcessAlgorithm(self, context, feedback):  # noqa: N802 — name imposed by the QGIS API
+        """Back on the interface thread: the layer remembers the item it became
+        (TCK-2218), as the panel does after its own publish."""
+        task = self._task
+        if task is not None and task.asset_id and getattr(self, "_layer", None) is not None:
+            memory.remember(
+                self._layer,
+                task.asset_id,
+                self._org["id"],
+                org_name=self._org["name"],
+                title=task.asset_name,
+                published_at=utc_now(),
+            )
+        return {}
 
     # -- worker thread ------------------------------------------------------
 

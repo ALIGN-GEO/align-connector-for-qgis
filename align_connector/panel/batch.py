@@ -15,7 +15,7 @@ Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
 from ..i18n import tr
-from ..publish import isometa, support
+from ..publish import isometa, memory, support
 
 
 class Row(object):
@@ -23,14 +23,16 @@ class Row(object):
 
     :param reason: why it cannot be published, or ``None`` when it can
     :param title: the title to propose: the record's own, else the layer name
+    :param link: the item the layer was already published as (TCK-2218), or None
     """
 
-    def __init__(self, layer_id, name, kind, reason=None, title=None):
+    def __init__(self, layer_id, name, kind, reason=None, title=None, link=None):
         self.layer_id = layer_id
         self.name = name
         self.kind = kind
         self.reason = reason
         self.title = title or name
+        self.link = link
 
     @property
     def publishable(self):
@@ -38,12 +40,14 @@ class Row(object):
 
 
 class Plan(object):
-    """One publication of the batch: a layer, under a title."""
+    """One publication of the batch: a layer, under a title — replacing the
+    item it was published as (`replace`, a :class:`memory.Link`), or new."""
 
-    def __init__(self, layer_id, title, selected_only=False):
+    def __init__(self, layer_id, title, selected_only=False, replace=None):
         self.layer_id = layer_id
         self.title = title
         self.selected_only = selected_only
+        self.replace = replace
 
 
 class Request(object):
@@ -84,9 +88,11 @@ def rows_of(layers):
         name = _call(layer, "name", "") or layer_id or tr("Layer")
         verdict = support.verdict(layer)
         # The record's own title is a better proposal than the layer name,
-        # when someone took the time to write one (TCK-2202).
-        title = isometa.read(layer).title if verdict.publishable else None
-        rows.append(Row(layer_id, name, verdict.kind, verdict.reason, title))
+        # when someone took the time to write one (TCK-2202); the title the
+        # item already has on ALIGN beats both (TCK-2218).
+        link = memory.read(layer) if verdict.publishable else None
+        title = (link.title if link is not None else None) or (isometa.read(layer).title if verdict.publishable else None)
+        rows.append(Row(layer_id, name, verdict.kind, verdict.reason, title, link))
     return rows
 
 
@@ -101,29 +107,51 @@ def describe_blocked(rows):
     return head + " " + "; ".join("{} ({})".format(row.name, row.reason) for row in blocked)
 
 
-def plan(rows, checked_ids, titles=None, selected_only_ids=()):
+def plan(rows, checked_ids, titles=None, selected_only_ids=(), org_id=None, publish_as_new=()):
     """The publications one click sends: the checked, publishable rows, in
-    panel order, each under its own title (the proposed one unless renamed)."""
+    panel order, each under its own title (the proposed one unless renamed).
+
+    A row that remembers an item in the organization the batch goes to is
+    replaced in place (TCK-2218), unless the publisher asked for a new item
+    (`publish_as_new`); an item remembered in another organization is not
+    this organization's to replace, so the layer goes there as new.
+    """
     titles = titles or {}
     checked = set(checked_ids)
     selected = set(selected_only_ids)
+    as_new = set(publish_as_new)
     plans = []
     for row in rows:
         if row.layer_id not in checked or not row.publishable:
             continue
         title = (titles.get(row.layer_id) or "").strip() or row.title
-        plans.append(Plan(row.layer_id, title, row.layer_id in selected and row.kind == "vector"))
+        replace = replaceable(row, org_id) if row.layer_id not in as_new else None
+        plans.append(Plan(row.layer_id, title, row.layer_id in selected and row.kind == "vector", replace))
     return plans
 
 
+def replaceable(row, org_id):
+    """The item a row would replace in this organization, or None."""
+    link = getattr(row, "link", None)
+    if link is None or org_id is None or link.org_id != org_id:
+        return None
+    return link
+
+
 def describe_plan(plans):
-    """What the Publish button says: how many layers one click will send."""
+    """What the Publish button says: how many layers one click will send,
+    and how many of them replace an item already on ALIGN."""
     count = len(plans)
+    replaced = sum(1 for p in plans if getattr(p, "replace", None) is not None)
     if count == 0:
         return tr("Nothing selected")
     if count == 1:
-        return tr("Publish 1 layer")
-    return tr("Publish {} layers").format(count)
+        return tr("Replace 1 layer") if replaced == 1 else tr("Publish 1 layer")
+    if replaced == 0:
+        return tr("Publish {} layers").format(count)
+    if replaced == count:
+        return tr("Replace {} layers").format(count)
+    return tr("Publish {} layers ({} replaced)").format(count, replaced)
 
 
 def _call(target, name, default=None):

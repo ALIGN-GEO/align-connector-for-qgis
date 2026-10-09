@@ -83,6 +83,12 @@ jobs:
       - name: Panel decisions and outcomes
         run: python scripts/smoke_panel.py
 
+      # A layer remembers the item it became; the next publish replaces it
+      # in place, in its organization only, unless asked for a new item; a
+      # replacement names what changed in the fields (TCK-2218).
+      - name: Publication memory and replacement
+        run: python scripts/smoke_memory.py
+
       # A finished lot becomes one request for the web map that shows it:
       # the successful items only, in the panel's order, with visibility,
       # geometry and style, and the camera the canvas showed. The follower

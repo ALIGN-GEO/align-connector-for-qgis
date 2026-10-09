@@ -49,7 +49,21 @@ def outcome_of(task, succeeded):
                 tr("“{}” was already in {} on ALIGN; the existing reference is reused.").format(name, org),
                 getattr(task, "asset_id", None),
             )
-        text = tr("“{}” is now in {} on ALIGN.").format(name, org)
+        if getattr(task, "replaced", False):
+            # Same item, new bytes: every map that showed it shows this version
+            # (TCK-2218). What the publisher cannot see from QGIS — a field a
+            # pop-up or a style read that is no longer there — is named.
+            text = tr("“{}” was replaced in {} on ALIGN; the web maps that show it now show this version.").format(
+                name, org
+            )
+            text += " " + _schema_sentence(getattr(task, "schema_changes", None))
+            text += " " + tr("The previous version is kept on ALIGN.")
+        elif getattr(task, "replaced_missing", False):
+            text = tr(
+                "The item “{}” was published as no longer existed on ALIGN, so it was published as a new item in {}."
+            ).format(name, org)
+        else:
+            text = tr("“{}” is now in {} on ALIGN.").format(name, org)
         if getattr(task, "created", None) is True:
             text += " " + tr("It is a live reference: ALIGN reads the service when the map opens.")
         flattened = getattr(task, "flattened_fields", None)
@@ -89,3 +103,23 @@ def outcome_of(task, succeeded):
     if getattr(task, "was_cancelled", False):
         return Outcome(INFO, tr("Publishing cancelled. Nothing was catalogued."))
     return Outcome(WARNING, getattr(task, "error_message", None) or tr("Publishing failed."))
+
+
+def _schema_sentence(changes):
+    """What changed in the attribute fields, as ALIGN compared the two files;
+    one sentence when nothing did, or when the format carries no schema."""
+    if not isinstance(changes, dict):
+        return tr("The attribute fields were not compared for this format.")
+    parts = []
+    added = [str(x) for x in changes.get("added") or []]
+    removed = [str(x) for x in changes.get("removed") or []]
+    retyped = [str(x) for x in changes.get("retyped") or []]
+    if added:
+        parts.append(tr("added {}").format(", ".join(added)))
+    if removed:
+        parts.append(tr("removed {}").format(", ".join(removed)))
+    if retyped:
+        parts.append(tr("retyped {}").format("; ".join(retyped)))
+    if not parts:
+        return tr("The attribute fields are unchanged.")
+    return tr("Attribute fields changed: {}. A map that reads a removed field will need attention.").format("; ".join(parts))

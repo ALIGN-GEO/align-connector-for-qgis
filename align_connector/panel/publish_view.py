@@ -39,7 +39,7 @@ from qgis.PyQt.QtWidgets import (
 
 from .. import api
 from ..i18n import tr
-from ..publish import briefing, support, tiles
+from ..publish import briefing, memory, support, tiles
 from ..publish.wording import describe_capacity
 from ..qtcompat import qt_enum
 from . import batch
@@ -63,6 +63,8 @@ class PublishView(QWidget):
         self._capacity_line = None
         self._titles = {}
         self._selection_only = set()
+        #: Layers the publisher wants as NEW items although they remember one (TCK-2218).
+        self._publish_as_new = set()
         self._rows = []
         self._attached = False
 
@@ -101,6 +103,12 @@ class PublishView(QWidget):
         self.selection_box = QCheckBox(tr("Publish only the selected features"))
         self.selection_box.toggled.connect(self._on_selection_toggled)
         form.addRow("", self.selection_box)
+        # A layer that remembers its item offers to replace it (TCK-2218);
+        # unticked, it goes as a new item. Hidden for a layer never published.
+        self.replace_box = QCheckBox(tr("Replace the item already on ALIGN"))
+        self.replace_box.toggled.connect(self._on_replace_toggled)
+        self.replace_box.setVisible(False)
+        form.addRow("", self.replace_box)
         # The briefing can run to several sentences: a bounded, scrollable
         # box keeps the form below it in reach.
         self.briefing = QPlainTextEdit()
@@ -263,6 +271,10 @@ class PublishView(QWidget):
     def checked_ids(self):
         return [item.data(0, _USER_ROLE()) for item in self._items() if item.checkState(0) == _state(True)]
 
+    def selected_org_id(self):
+        org = self.selected_org()
+        return org["id"] if org is not None else None
+
     def selected_org(self):
         org_id = self.org_box.currentData()
         return next((o for o in self._orgs if o["id"] == org_id), None)
@@ -296,10 +308,19 @@ class PublishView(QWidget):
             self.briefing.setPlainText("")
             self.title_edit.setText("")
             self.selection_box.setVisible(False)
+            self.replace_box.setVisible(False)
             return
         layer_id = layer.id()
         row = next((r for r in self._rows if r.layer_id == layer_id), None)
         info = briefing.brief(layer, layer_id in self._selection_only)
+
+        # Already on ALIGN (TCK-2218): say where, and offer to replace it when
+        # the batch goes to that organization; elsewhere it goes as new.
+        link = batch.replaceable(row, self.selected_org_id()) if row is not None else None
+        self.replace_box.blockSignals(True)
+        self.replace_box.setVisible(link is not None)
+        self.replace_box.setChecked(link is not None and layer_id not in self._publish_as_new)
+        self.replace_box.blockSignals(False)
 
         self.title_edit.blockSignals(True)
         self.title_edit.setText(self._titles.get(layer_id) or (row.title if row else info.title) or "")
@@ -316,12 +337,26 @@ class PublishView(QWidget):
             else tr("Publish only the selected features (none selected)")
         )
         self.selection_box.blockSignals(False)
-        self.briefing.setPlainText(info.text)
+        text = info.text
+        if row is not None and row.link is not None:
+            text = memory.describe(row.link) + ("\n" + text if text else "")
+        self.briefing.setPlainText(text)
 
     def _on_title_edited(self, text):
         current = self.tree.currentItem()
         if current is not None:
             self._titles[current.data(0, _USER_ROLE())] = text
+
+    def _on_replace_toggled(self, checked):
+        current = self.tree.currentItem()
+        if current is None:
+            return
+        layer_id = current.data(0, _USER_ROLE())
+        if checked:
+            self._publish_as_new.discard(layer_id)
+        else:
+            self._publish_as_new.add(layer_id)
+        self._update_button()
 
     def _on_selection_toggled(self, checked):
         current = self.tree.currentItem()
@@ -344,6 +379,9 @@ class PublishView(QWidget):
         self._capacity_line = None
         org = self.selected_org()
         self._update_button()
+        # Whether the highlighted layer replaces its item depends on the
+        # organization now selected (TCK-2218): the form follows the switch.
+        self._on_current_changed(self.tree.currentItem(), None)
         if org is None:
             return
         self.capacity.setText("")
@@ -374,7 +412,14 @@ class PublishView(QWidget):
         self.publish_button.setEnabled(bool(plans) and self.selected_org() is not None)
 
     def _plans(self):
-        return batch.plan(self._rows, self.checked_ids(), self._titles, self._selection_only)
+        return batch.plan(
+            self._rows,
+            self.checked_ids(),
+            self._titles,
+            self._selection_only,
+            org_id=self.selected_org_id(),
+            publish_as_new=self._publish_as_new,
+        )
 
     def _publish(self):
         org = self.selected_org()

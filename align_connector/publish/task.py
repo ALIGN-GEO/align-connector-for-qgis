@@ -76,8 +76,17 @@ class PublishLayerTask(QgsTask):
         capacity_line=None,
         style=None,
         iso=None,
+        replace=None,
     ):
-        super().__init__("Publishing “{}” to ALIGN".format(asset_name), qt_enum(QgsTask, "Flag", "CanCancel"))
+        """
+        :param replace: the :class:`memory.Link` of the item this layer was
+            published as, to replace in place (TCK-2218); ``None`` publishes a
+            new item.
+        """
+        super().__init__(
+            ("Replacing “{}” on ALIGN" if replace is not None else "Publishing “{}” to ALIGN").format(asset_name),
+            qt_enum(QgsTask, "Flag", "CanCancel"),
+        )
         self.session = session
         self.layer = layer
         self.org_id = org_id
@@ -118,6 +127,15 @@ class PublishLayerTask(QgsTask):
         #: The layer's own coordinate system, recorded in the provenance so the
         #: origin of a reprojected file is never lost (TCK-2199).
         self.source_crs = None
+        #: The item to replace in place, or None (TCK-2218).
+        self.replace = replace
+        #: Set on completion: the item was replaced (same id), or the item the
+        #: layer remembered was gone and a new one was published instead.
+        self.replaced = False
+        self.replaced_missing = False
+        #: What changed in the attribute schema, as ALIGN read it off the two
+        #: files: ``{"added", "removed", "retyped"}`` lists, or None.
+        self.schema_changes = None
 
         self._workdir = None
 
@@ -138,39 +156,11 @@ class PublishLayerTask(QgsTask):
             # The declared size is what ALIGN checks the organization's
             # remaining space against — before a single byte is signed for.
             # A publish that will not fit is refused here, not after an hour.
-            session_info = api.open_upload_session(
-                self.session,
-                self.org_id,
-                export.filename,
-                export.content_type,
-                size_bytes,
-                already_servable=export.already_servable,
-            )
-            self.asset_id = session_info["assetId"]
-
-            uploader = ResumableUploader(
-                export.path,
-                session_info["sessionUrl"],
-                session_info["chunkSizeBytes"],
-            )
-            uploader.upload(
-                on_progress=self._on_upload_progress,
-                is_cancelled=self.isCanceled,
-            )
-
-            catalogued = api.finalize(
-                self.session,
-                self.org_id,
-                self.asset_id,
-                export.filename,
-                self.asset_name,
-                provenance=self._provenance(),
-                description=self.description,
-                visibility=self.visibility,
-                already_servable=export.already_servable,
-                style=self.style,
-                iso=self.iso,
-            )
+            replace_session = self._open_replacement(export, size_bytes) if self.replace is not None else None
+            if replace_session is not None:
+                catalogued = self._replace(export, replace_session)
+            else:
+                catalogued = self._publish_new(export, size_bytes)
             self._read_derivation(catalogued)
             self.locked_fields = locked_fields_of(self.iso, catalogued)
             self.setProgress(100)
@@ -198,6 +188,88 @@ class PublishLayerTask(QgsTask):
         return
 
     # -- internals ----------------------------------------------------------
+
+    def _publish_new(self, export, size_bytes):
+        """A new item: session, transfer, catalogue."""
+        session_info = api.open_upload_session(
+            self.session,
+            self.org_id,
+            export.filename,
+            export.content_type,
+            size_bytes,
+            already_servable=export.already_servable,
+        )
+        self.asset_id = session_info["assetId"]
+        self._send(export, session_info)
+        return api.finalize(
+            self.session,
+            self.org_id,
+            self.asset_id,
+            export.filename,
+            self.asset_name,
+            provenance=self._provenance(),
+            description=self.description,
+            visibility=self.visibility,
+            already_servable=export.already_servable,
+            style=self.style,
+            iso=self.iso,
+        )
+
+    def _open_replacement(self, export, size_bytes):
+        """Ask ALIGN to replace the remembered item, or ``None`` when that item
+        is gone (TCK-2218): the layer is then published as a new item, and the
+        outcome says so. Any other refusal — not the creator, another format,
+        a kind ALIGN converts — stops the publish with ALIGN's reason, so the
+        publisher chooses knowingly between retrying and publishing as new."""
+        try:
+            return api.open_replace_session(
+                self.session,
+                self.replace.org_id,
+                self.replace.asset_id,
+                export.filename,
+                export.content_type,
+                size_bytes,
+            )
+        except api.ApiError as exc:
+            if exc.status == 404 and exc.code == "DATASTORE_ASSET_NOT_FOUND":
+                self.replaced_missing = True
+                return None
+            raise
+
+    def _replace(self, export, session_info):
+        """The remembered item, rewritten in place: transfer to the transit
+        object, then the swap under the generation ALIGN read at open."""
+        self.asset_id = self.replace.asset_id
+        self._send(export, session_info)
+        catalogued = api.finalize_replace(
+            self.session,
+            self.replace.org_id,
+            self.replace.asset_id,
+            session_info["transitFilename"],
+            session_info["baseGeneration"],
+            name=self.asset_name,
+            style=self.style,
+            iso=self.iso,
+        )
+        self.replaced = True
+        if isinstance(catalogued, dict):
+            changes = catalogued.get("schemaChanges")
+            # A dict, even of empty lists, means ALIGN compared the two files;
+            # its absence means the format carries no schema it could read.
+            if isinstance(changes, dict):
+                self.schema_changes = changes
+        return catalogued
+
+    def _send(self, export, session_info):
+        uploader = ResumableUploader(
+            export.path,
+            session_info["sessionUrl"],
+            session_info["chunkSizeBytes"],
+        )
+        uploader.upload(
+            on_progress=self._on_upload_progress,
+            is_cancelled=self.isCanceled,
+        )
 
     def _read_derivation(self, catalogued):
         """What ALIGN made of the bytes, as the catalogue answer reports it."""

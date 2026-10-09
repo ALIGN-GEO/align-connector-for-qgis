@@ -23,7 +23,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import os
 
-from qgis.core import Qgis, QgsApplication, QgsMapLayer
+from qgis.core import Qgis, QgsApplication, QgsMapLayer, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication, QUrl
 from qgis.PyQt.QtGui import QDesktopServices, QIcon
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton
@@ -36,8 +36,9 @@ from .panel.dock import AlignDock, dock_area
 from .panel.follow import LotFollower
 from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of
 from .processing.provider import AlignProcessingProvider
+from .publish import memory
 from .publish.reference_task import RegisterReferenceTask
-from .publish.task import PublishLayerTask
+from .publish.task import PublishLayerTask, utc_now
 from .publish.webmap_task import ComposeWebMapTask
 from .qtcompat import qt_enum, run_exec
 from .settings_dialog import SettingsDialog
@@ -318,6 +319,7 @@ class AlignConnectorPlugin:
                     capacity_line=batch.capacity_line,
                     style=request.briefing.style,
                     iso=request.briefing.iso,
+                    replace=request.plan.replace,
                 )
             task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
             task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
@@ -382,6 +384,28 @@ class AlignConnectorPlugin:
             self._refresh_state()
         self._message(text, _LEVELS.get(outcome.level, qt_enum(Qgis, "MessageLevel", "Warning")))
 
+    def _remember_publication(self, task, succeeded):
+        """Write on the layer the item it became (TCK-2218), on the interface
+        thread, once the publish or the replacement landed: a project saved
+        afterwards knows it, and the next publish offers to replace. A layer
+        whose remembered item was gone is re-linked to the new one; a layer
+        removed from the project meanwhile has nothing to write on."""
+        asset_id = getattr(task, "asset_id", None)
+        layer_id = getattr(task, "layer_id", None)
+        if not succeeded or not asset_id or not layer_id or isinstance(task, RegisterReferenceTask):
+            return
+        layer = QgsProject.instance().mapLayer(layer_id)
+        if layer is None:
+            return
+        memory.remember(
+            layer,
+            asset_id,
+            task.org_id,
+            org_name=task.org_name,
+            title=task.asset_name,
+            published_at=utc_now(),
+        )
+
     def _on_publish_finished(self, task, succeeded):
         """Report the outcome, in the words of whoever refused it."""
         if task in self._tasks:
@@ -390,6 +414,7 @@ class AlignConnectorPlugin:
         outcome = outcome_of(task, succeeded)
         if self.dock is not None:
             self.dock.settle(task, outcome)
+        self._remember_publication(task, succeeded)
         follower = self._followers.pop(id(task), None)
         if follower is not None:
             follower.finished(task, succeeded)

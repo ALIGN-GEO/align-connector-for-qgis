@@ -19,12 +19,12 @@
         <translation>1 mot-clé</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="244"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="252"/>
         <source>1 layer cannot be published. See Messages.</source>
         <translation>1 couche ne peut pas être publiée. Voir Messages.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/batch.py" line="100"/>
+        <location filename="../../align_connector/panel/batch.py" line="106"/>
         <source>1 layer cannot be published:</source>
         <translation>1 couche ne peut pas être publiée :</translation>
     </message>
@@ -109,14 +109,19 @@
         <translation>ALIGN publie des couches vecteur et raster. « {} » n'est ni l'une ni l'autre.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="101"/>
+        <location filename="../../align_connector/api.py" line="104"/>
         <source>ALIGN could not be reached. Check your connection and try again.</source>
         <translation>ALIGN est injoignable. Vérifiez votre connexion et réessayez.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="260"/>
+        <location filename="../../align_connector/api.py" line="263"/>
         <source>ALIGN could not catalogue the uploaded file</source>
         <translation>ALIGN n'a pas pu cataloguer le fichier envoyé</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/api.py" line="350"/>
+        <source>ALIGN could not replace the item</source>
+        <translation>ALIGN n'a pas pu remplacer l'item</translation>
     </message>
     <message>
         <location filename="../../align_connector/auth/session.py" line="242"/>
@@ -124,12 +129,12 @@
         <translation>ALIGN n'a pas confirmé la déconnexion</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="52"/>
+        <location filename="../../align_connector/api.py" line="55"/>
         <source>ALIGN does not accept this file type.</source>
         <translation>ALIGN n'accepte pas ce type de fichier.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="53"/>
+        <location filename="../../align_connector/api.py" line="56"/>
         <source>ALIGN is rate-limiting this client. Wait a moment and try again.</source>
         <translation>ALIGN limite le débit de ce client. Patientez un instant et réessayez.</translation>
     </message>
@@ -144,32 +149,38 @@
         <translation>ALIGN publie des couches vecteur et raster. Cette couche n'est ni l'une ni l'autre.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="212"/>
+        <location filename="../../align_connector/api.py" line="320"/>
+        <source>ALIGN refused the replacement</source>
+        <translation>ALIGN a refusé le remplacement</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/api.py" line="215"/>
         <source>ALIGN refused the upload</source>
         <translation>ALIGN a refusé l'envoi</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="217"/>
+        <location filename="../../align_connector/api.py" line="220"/>
+        <location filename="../../align_connector/api.py" line="325"/>
         <source>ALIGN returned an incomplete upload session.</source>
         <translation>ALIGN a renvoyé une session d'envoi incomplète.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="291"/>
+        <location filename="../../align_connector/api.py" line="381"/>
         <source>ALIGN returned an unexpected answer while creating the web map.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en créant la web map.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="121"/>
+        <location filename="../../align_connector/api.py" line="124"/>
         <source>ALIGN returned an unexpected answer while listing organizations.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en listant les organisations.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="152"/>
+        <location filename="../../align_connector/api.py" line="155"/>
         <source>ALIGN returned an unexpected answer while reading the organization's capacity.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en lisant la capacité de l'organisation.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="326"/>
+        <location filename="../../align_connector/api.py" line="416"/>
         <source>ALIGN returned an unexpected answer while registering the reference.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en enregistrant la référence.</translation>
     </message>
@@ -204,7 +215,17 @@
         <translation>Avancé</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="140"/>
+        <location filename="../../align_connector/publish/memory.py" line="98"/>
+        <source>Already on ALIGN: published in {} on {}.</source>
+        <translation>Déjà sur ALIGN : publiée dans {} le {}.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/memory.py" line="99"/>
+        <source>Already on ALIGN: published in {}.</source>
+        <translation>Déjà sur ALIGN : publiée dans {}.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/publish_view.py" line="148"/>
         <source>Also create a web map with these layers</source>
         <translation>Créer aussi une web map avec ces couches</translation>
     </message>
@@ -214,14 +235,24 @@
         <translation>Un paquet de tuiles vectorielles ArcGIS n'est pas un format que lit le Map builder ; exportez-le d'abord en MBTiles.</translation>
     </message>
     <message>
+        <location filename="../../align_connector/api.py" line="284"/>
+        <source>An item ALIGN converted for display (GeoTIFF, MBTiles) cannot be replaced in place yet. Publish it as a new layer instead.</source>
+        <translation>Un item qu'ALIGN a converti pour l'affichage (GeoTIFF, MBTiles) ne peut pas encore être remplacé en place. Publiez-le comme nouvelle couche.</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/settings_dialog.py" line="80"/>
         <source>Application</source>
         <translation>Application</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="112"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="121"/>
         <source>Asset id</source>
         <translation>Identifiant de l'item</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/outcome.py" line="125"/>
+        <source>Attribute fields changed: {}. A map that reads a removed field will need attention.</source>
+        <translation>Champs attributaires modifiés : {}. Une carte qui lit un champ retiré demandera attention.</translation>
     </message>
     <message>
         <location filename="../../align_connector/auth/session.py" line="63"/>
@@ -254,12 +285,12 @@
         <translation>Effacer les terminées</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/outcome.py" line="59"/>
+        <location filename="../../align_connector/panel/outcome.py" line="73"/>
         <source>Complex fields were stored as text: {}.</source>
         <translation>Des champs complexes ont été stockés en texte : {}.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="118"/>
+        <location filename="../../align_connector/plugin.py" line="119"/>
         <source>Connect QGIS to your ALIGN account</source>
         <translation>Connecter QGIS à votre compte ALIGN</translation>
     </message>
@@ -274,7 +305,7 @@
         <translation>Connecté à ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="253"/>
+        <location filename="../../align_connector/plugin.py" line="259"/>
         <source>Connected to ALIGN.</source>
         <translation>Connecté à ALIGN.</translation>
     </message>
@@ -294,7 +325,7 @@
         <translation>Contact d'ALIGN…</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="67"/>
+        <location filename="../../align_connector/api.py" line="70"/>
         <source>Converting this file needs {} credits; this organization has {}. Add credits in Plans &amp; Capacity, then publish again.</source>
         <translation>Convertir ce fichier demande {} crédits ; cette organisation en a {}. Ajoutez des crédits dans Plans &amp; Capacity, puis publiez à nouveau.</translation>
     </message>
@@ -309,7 +340,7 @@
         <translation>La connexion n'a pas pu aboutir</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="287"/>
+        <location filename="../../align_connector/api.py" line="377"/>
         <source>Could not create the web map</source>
         <translation>La web map n'a pas pu être créée</translation>
     </message>
@@ -324,22 +355,22 @@
         <translation>Impossible de lire l'emprise du canevas pour la caméra de la web map : {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="355"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="393"/>
         <source>Could not read the capacity of {}: {}</source>
         <translation>Impossible de lire la capacité de {} : {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="146"/>
+        <location filename="../../align_connector/api.py" line="149"/>
         <source>Could not read what this organization can still spend</source>
         <translation>Impossible de lire ce que cette organisation peut encore dépenser</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="117"/>
+        <location filename="../../align_connector/api.py" line="120"/>
         <source>Could not read your organizations</source>
         <translation>Impossible de lire vos organisations</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="322"/>
+        <location filename="../../align_connector/api.py" line="412"/>
         <source>Could not register the reference</source>
         <translation>La référence n'a pas pu être enregistrée</translation>
     </message>
@@ -364,18 +395,18 @@
         <translation>Les géométries courbes (arcs) ne s'écrivent pas en FlatGeobuf. Segmentez d'abord la couche (Traitement : Segmentiser par distance maximale).</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="70"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="72"/>
         <source>Datastore</source>
         <translation>Datastore</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="137"/>
-        <location filename="../../align_connector/processing/publish_layer.py" line="101"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="145"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="103"/>
         <source>Description</source>
         <translation>Description</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="114"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="123"/>
         <source>Display-ready copy (raster), when one was made</source>
         <translation>Copie prête à l'affichage (raster), quand il y en a une</translation>
     </message>
@@ -385,7 +416,7 @@
         <translation>Toutes les couches du projet peuvent être publiées.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="247"/>
+        <location filename="../../align_connector/plugin.py" line="253"/>
         <source>Finish signing in from your browser, then come back to QGIS.</source>
         <translation>Terminez la connexion dans votre navigateur, puis revenez dans QGIS.</translation>
     </message>
@@ -400,7 +431,7 @@
         <translation>Go</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="184"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="221"/>
         <source>Give the organization to publish into, by name or by id.</source>
         <translation>Indiquez l'organisation où publier, par son nom ou son identifiant.</translation>
     </message>
@@ -435,27 +466,27 @@
         <translation>thème INSPIRE</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/outcome.py" line="68"/>
+        <location filename="../../align_connector/panel/outcome.py" line="82"/>
         <source>It had to be reprojected, so your original was kept and a second, display-ready copy was added; both use storage.</source>
         <translation>Il a dû être reprojeté : votre original a été conservé et une seconde copie prête à l'affichage ajoutée ; les deux occupent du stockage.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/outcome.py" line="54"/>
+        <location filename="../../align_connector/panel/outcome.py" line="68"/>
         <source>It is a live reference: ALIGN reads the service when the map opens.</source>
         <translation>C'est une référence vive : ALIGN lit le service à l'ouverture de la carte.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/outcome.py" line="63"/>
+        <location filename="../../align_connector/panel/outcome.py" line="77"/>
         <source>It was converted to PMTiles; the MBTiles archive itself is not kept.</source>
         <translation>Il a été converti en PMTiles ; l'archive MBTiles elle-même n'est pas conservée.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/outcome.py" line="73"/>
+        <location filename="../../align_connector/panel/outcome.py" line="87"/>
         <source>It was converted to a Cloud-Optimized GeoTIFF.</source>
         <translation>Il a été converti en Cloud-Optimized GeoTIFF.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="113"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="122"/>
         <source>Item page on ALIGN</source>
         <translation>Page de l'item sur ALIGN</translation>
     </message>
@@ -465,7 +496,7 @@
         <translation>Ko</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="78"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="80"/>
         <source>Kind</source>
         <translation>Type</translation>
     </message>
@@ -475,17 +506,17 @@
         <translation>Les étiquettes ne sont pas encore transmises ; ajoutez-les dans le Map builder.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/batch.py" line="84"/>
+        <location filename="../../align_connector/panel/batch.py" line="88"/>
         <location filename="../../align_connector/panel/messages_view.py" line="32"/>
         <location filename="../../align_connector/panel/outcome.py" line="28"/>
-        <location filename="../../align_connector/panel/publish_view.py" line="78"/>
-        <location filename="../../align_connector/processing/publish_layer.py" line="91"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="80"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="93"/>
         <location filename="../../align_connector/publish/briefing.py" line="55"/>
         <source>Layer</source>
         <translation>Couche</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="147"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="155"/>
         <source>Layers panel order and visibility, groups flattened, opened on the canvas view.</source>
         <translation>Ordre et visibilité du panneau Couches, groupes aplatis, ouverte sur la vue du canevas.</translation>
     </message>
@@ -520,17 +551,17 @@
         <translation>Aucune entité : il n'y a rien à publier.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="123"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="132"/>
         <source>No layer given.</source>
         <translation>Aucune couche donnée.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="345"/>
+        <location filename="../../align_connector/plugin.py" line="352"/>
         <source>No layer of the lot was published, so the web map “{}” was not created.</source>
         <translation>Aucune couche du lot n'a été publiée, la web map « {} » n'a donc pas été créée.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="195"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="232"/>
         <source>No organization “{}” among yours: {}</source>
         <translation>Aucune organisation « {} » parmi les vôtres : {}</translation>
     </message>
@@ -580,7 +611,7 @@
         <translation>Non placées : {}.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/batch.py" line="123"/>
+        <location filename="../../align_connector/panel/batch.py" line="147"/>
         <source>Nothing selected</source>
         <translation>Aucune sélection</translation>
     </message>
@@ -600,7 +631,12 @@
         <translation>Seuls les {} premiers mots-clés sont gardés ({} dans QGIS).</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="121"/>
+        <location filename="../../align_connector/api.py" line="272"/>
+        <source>Only the item's creator or an organization admin can replace it. Publish it as a new layer instead.</source>
+        <translation>Seuls le créateur de l'item ou un administrateur de l'organisation peuvent le remplacer. Publiez-le comme nouvelle couche.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/plugin.py" line="122"/>
         <source>Open ALIGN in the browser</source>
         <translation>Ouvrir ALIGN dans le navigateur</translation>
     </message>
@@ -610,23 +646,23 @@
         <translation>Ouvrir dans ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="113"/>
+        <location filename="../../align_connector/plugin.py" line="114"/>
         <source>Open the ALIGN panel: publish layers to your Datastore and follow them</source>
         <translation>Ouvrir le panneau ALIGN : publier des couches dans votre Datastore et les suivre</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="117"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="125"/>
         <source>Organization</source>
         <translation>Organisation</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="98"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="100"/>
         <source>Organization (name or id)</source>
         <translation>Organisation (nom ou identifiant)</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="127"/>
-        <location filename="../../align_connector/processing/publish_layer.py" line="107"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="135"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="109"/>
         <source>Organization: everyone in this organization</source>
         <translation>Organisation : tous les membres de cette organisation</translation>
     </message>
@@ -641,8 +677,8 @@
         <translation>Préparation…</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="126"/>
-        <location filename="../../align_connector/processing/publish_layer.py" line="107"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="134"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="109"/>
         <source>Private: only you</source>
         <translation>Privé : vous seul</translation>
     </message>
@@ -652,41 +688,46 @@
         <translation>Publier</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/batch.py" line="125"/>
+        <location filename="../../align_connector/panel/batch.py" line="149"/>
         <source>Publish 1 layer</source>
         <translation>Publier 1 couche</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="67"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="69"/>
         <source>Publish layer to ALIGN</source>
         <translation>Publier une couche sur ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="101"/>
-        <location filename="../../align_connector/processing/publish_layer.py" line="111"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="103"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="113"/>
         <source>Publish only the selected features</source>
         <translation>Publier seulement les entités sélectionnées</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="316"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="337"/>
         <source>Publish only the selected features (none selected)</source>
         <translation>Publier seulement les entités sélectionnées (aucune sélection)</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="314"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="335"/>
         <source>Publish only the {} selected features</source>
         <translation>Publier seulement les {} entités sélectionnées</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="110"/>
-        <location filename="../../align_connector/plugin.py" line="156"/>
+        <location filename="../../align_connector/plugin.py" line="111"/>
+        <location filename="../../align_connector/plugin.py" line="162"/>
         <source>Publish to ALIGN…</source>
         <translation>Publier sur ALIGN…</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/batch.py" line="126"/>
+        <location filename="../../align_connector/panel/batch.py" line="151"/>
         <source>Publish {} layers</source>
         <translation>Publier {} couches</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/batch.py" line="154"/>
+        <source>Publish {} layers ({} replaced)</source>
+        <translation>Publier {} couches ({} remplacées)</translation>
     </message>
     <message>
         <location filename="../../align_connector/publish/services.py" line="247"/>
@@ -754,29 +795,29 @@
         <translation>Publié comme référence vive vers le service de tuiles vectorielles, en dessinant les couches de tuiles que QGIS style ; aucune tuile n'est copiée.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="76"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="78"/>
         <source>Publishes one vector or raster layer to an organization's Datastore on ALIGN, with its style and its metadata, exactly as the ALIGN panel does. Sign in to ALIGN first (Web menu, or the ALIGN toolbar button): the algorithm never opens a browser. The organization is given by its name or its id. A service layer (WMS, WFS, XYZ…) is not a file: register it as a reference from the ALIGN panel instead.</source>
         <translation>Publie une couche vecteur ou raster dans le Datastore d'une organisation sur ALIGN, avec son style et ses métadonnées, exactement comme le panneau ALIGN. Connectez-vous d'abord à ALIGN (menu Web, ou le bouton ALIGN de la barre d'outils) : l'algorithme n'ouvre jamais de navigateur. L'organisation se donne par son nom ou son identifiant. Une couche de service (WMS, WFS, XYZ…) n'est pas un fichier : enregistrez-la plutôt comme référence depuis le panneau ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/outcome.py" line="90"/>
-        <location filename="../../align_connector/processing/publish_layer.py" line="164"/>
+        <location filename="../../align_connector/panel/outcome.py" line="104"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="201"/>
         <source>Publishing cancelled. Nothing was catalogued.</source>
         <translation>Publication annulée. Rien n'a été catalogué.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/outcome.py" line="91"/>
-        <location filename="../../align_connector/processing/publish_layer.py" line="166"/>
+        <location filename="../../align_connector/panel/outcome.py" line="105"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="203"/>
         <source>Publishing failed.</source>
         <translation>La publication a échoué.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="333"/>
+        <location filename="../../align_connector/plugin.py" line="340"/>
         <source>Publishing {} layers to {} — follow them in the ALIGN panel.</source>
         <translation>Publication de {} couches vers {}, suivez-les dans le panneau ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="329"/>
+        <location filename="../../align_connector/plugin.py" line="336"/>
         <source>Publishing “{}” to {} — follow it in the ALIGN panel.</source>
         <translation>Publication de « {} » vers {}, suivez-la dans le panneau ALIGN.</translation>
     </message>
@@ -816,6 +857,26 @@
         <translation>Le rendu « {} » n'a pas d'équivalent web : la couche prend le style par défaut d'ALIGN.</translation>
     </message>
     <message>
+        <location filename="../../align_connector/panel/batch.py" line="149"/>
+        <source>Replace 1 layer</source>
+        <translation>Remplacer 1 couche</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/publish_view.py" line="108"/>
+        <source>Replace the item already on ALIGN</source>
+        <translation>Remplacer l'item déjà sur ALIGN</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/processing/publish_layer.py" line="117"/>
+        <source>Replace the item this layer was already published as (same organization), instead of a new one</source>
+        <translation>Remplacer l'item sous lequel cette couche a déjà été publiée (même organisation), plutôt qu'en créer un nouveau</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/batch.py" line="153"/>
+        <source>Replace {} layers</source>
+        <translation>Remplacer {} couches</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/publish/symbology.py" line="239"/>
         <source>Rule-based renderer transmitted as categories on '{}'.</source>
         <translation>Rendu par règles transmis en catégories sur « {} ».</translation>
@@ -826,12 +887,12 @@
         <translation>Rendu par règles avec des expressions qu'ALIGN ne sait pas lire : le symbole de la première règle s'applique à tout.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="126"/>
+        <location filename="../../align_connector/plugin.py" line="127"/>
         <source>Settings…</source>
         <translation>Réglages…</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="194"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="231"/>
         <source>Several organizations are named “{}”; give the id. Yours: {}</source>
         <translation>Plusieurs organisations s'appellent « {} » ; donnez l'identifiant. Les vôtres : {}</translation>
     </message>
@@ -841,13 +902,13 @@
         <translation>Se connecter</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="120"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="129"/>
         <source>Sign in to ALIGN first (Web menu › ALIGN › Sign in to ALIGN…).</source>
         <translation>Connectez-vous d'abord à ALIGN (menu Web › ALIGN › Se connecter à ALIGN…).</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="116"/>
-        <location filename="../../align_connector/plugin.py" line="223"/>
+        <location filename="../../align_connector/plugin.py" line="117"/>
+        <location filename="../../align_connector/plugin.py" line="229"/>
         <source>Sign in to ALIGN…</source>
         <translation>Se connecter à ALIGN…</translation>
     </message>
@@ -863,17 +924,17 @@
         <translation>Se déconnecter</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="220"/>
+        <location filename="../../align_connector/plugin.py" line="226"/>
         <source>Sign out of ALIGN</source>
         <translation>Se déconnecter d'ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="218"/>
+        <location filename="../../align_connector/plugin.py" line="224"/>
         <source>Sign out of ALIGN ({})</source>
         <translation>Se déconnecter d'ALIGN ({})</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="257"/>
+        <location filename="../../align_connector/plugin.py" line="263"/>
         <source>Signed out of ALIGN.</source>
         <translation>Déconnecté d'ALIGN.</translation>
     </message>
@@ -943,7 +1004,7 @@
         <translation>Cette couche n'est pas valide : QGIS ne sait pas la lire.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="50"/>
+        <location filename="../../align_connector/api.py" line="53"/>
         <source>That organization could not be found, or you are no longer a member of it.</source>
         <translation>Cette organisation est introuvable, ou vous n'en êtes plus membre.</translation>
     </message>
@@ -1018,9 +1079,49 @@
         <translation>L'archive n'a pas de chemin de fichier que QGIS puisse donner.</translation>
     </message>
     <message>
+        <location filename="../../align_connector/panel/outcome.py" line="124"/>
+        <source>The attribute fields are unchanged.</source>
+        <translation>Les champs attributaires sont inchangés.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/outcome.py" line="112"/>
+        <source>The attribute fields were not compared for this format.</source>
+        <translation>Les champs attributaires n'ont pas été comparés pour ce format.</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/publish/briefing.py" line="108"/>
         <source>The features will be written and uploaded (QGIS has not counted them yet). Large layers keep uploading in the background: you can carry on working, and an interrupted transfer resumes.</source>
         <translation>Les entités seront écrites et envoyées (QGIS ne les a pas encore comptées). Les grandes couches continuent de s'envoyer en arrière-plan : vous pouvez continuer à travailler, et un transfert interrompu reprend.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/api.py" line="275"/>
+        <source>The item changed on ALIGN since this layer was last read. Nothing was replaced: reopen it from ALIGN, or publish as a new layer.</source>
+        <translation>L'item a changé sur ALIGN depuis la dernière lecture de cette couche. Rien n'a été remplacé : rouvrez-le depuis ALIGN, ou publiez comme nouvelle couche.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/api.py" line="280"/>
+        <source>The item on ALIGN is stored in another format than this export; a replacement must keep the format. Publish it as a new layer instead.</source>
+        <translation>L'item sur ALIGN est stocké dans un autre format que cet export ; un remplacement doit garder le format. Publiez-le comme nouvelle couche.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/api.py" line="288"/>
+        <source>The item this layer was published as is a reference, not a file: it has nothing to replace.</source>
+        <translation>L'item sous lequel cette couche a été publiée est une référence, pas un fichier : il n'y a rien à remplacer.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/api.py" line="271"/>
+        <source>The item this layer was published as no longer exists on ALIGN.</source>
+        <translation>L'item sous lequel cette couche a été publiée n'existe plus sur ALIGN.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/outcome.py" line="62"/>
+        <source>The item “{}” was published as no longer existed on ALIGN, so it was published as a new item in {}.</source>
+        <translation>L'item sous lequel « {} » avait été publiée n'existait plus sur ALIGN : elle a été publiée comme nouvel item dans {}.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/outcome.py" line="60"/>
+        <source>The previous version is kept on ALIGN.</source>
+        <translation>La version précédente est conservée sur ALIGN.</translation>
     </message>
     <message>
         <location filename="../../align_connector/auth/loopback.py" line="83"/>
@@ -1033,6 +1134,11 @@
         <translation>L'adresse du service manque dans la source de la couche.</translation>
     </message>
     <message>
+        <location filename="../../align_connector/api.py" line="279"/>
+        <source>The transfer did not complete on ALIGN's side. Try again.</source>
+        <translation>Le transfert n'est pas arrivé au bout côté ALIGN. Réessayez.</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/publish/services.py" line="225"/>
         <source>The vector tile service address is missing from the layer source.</source>
         <translation>L'adresse du service de tuiles vectorielles manque dans la source de la couche.</translation>
@@ -1043,7 +1149,7 @@
         <translation>La web map n'a pas pu être créée.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="335"/>
+        <location filename="../../align_connector/plugin.py" line="342"/>
         <source>The web map “{}” will be created once they have all landed.</source>
         <translation>La web map « {} » sera créée quand elles seront toutes arrivées.</translation>
     </message>
@@ -1058,17 +1164,17 @@
         <translation>Le champ {} est coupé à {} caractères.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/outcome.py" line="84"/>
+        <location filename="../../align_connector/panel/outcome.py" line="98"/>
         <source>The {} on the item's sheet are set by your organization and were kept as is.</source>
         <translation>Sur la fiche de l'item, {} sont fixés par votre organisation et ont été conservés tels quels.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/outcome.py" line="80"/>
+        <location filename="../../align_connector/panel/outcome.py" line="94"/>
         <source>The {} on the item's sheet is set by your organization and was kept as is.</source>
         <translation>Sur la fiche de l'item, {} est fixé par votre organisation et a été conservé tel quel.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="51"/>
+        <location filename="../../align_connector/api.py" line="54"/>
         <source>There is not enough space left in this organization's Datastore.</source>
         <translation>Il ne reste pas assez d'espace dans le Datastore de cette organisation.</translation>
     </message>
@@ -1093,7 +1199,7 @@
         <translation>Cette archive PMTiles est envoyée telle quelle.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="211"/>
+        <location filename="../../align_connector/api.py" line="214"/>
         <source>This file is too large for ALIGN to prepare for display.</source>
         <translation>Ce fichier est trop volumineux pour qu'ALIGN le prépare à l'affichage.</translation>
     </message>
@@ -1113,7 +1219,7 @@
         <translation>Le GeoTIFF de cette couche sera envoyé tel quel{}. ALIGN le convertit en Cloud-Optimized GeoTIFF à l'arrivée ; si cette conversion doit reprojeter les données, votre original est conservé à côté et les deux comptent dans votre stockage.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="92"/>
+        <location filename="../../align_connector/api.py" line="95"/>
         <source>This organization has not enabled the QGIS plugin for its members. An owner or admin can turn it on in Settings → Integrations.</source>
         <translation>Cette organisation n'a pas activé le plugin QGIS pour ses membres. Un owner ou un admin peut l'activer dans Settings › Integrations.</translation>
     </message>
@@ -1138,17 +1244,17 @@
         <translation>Délai dépassé en attendant le navigateur. Rien n'a été accordé.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="100"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="102"/>
         <source>Title</source>
         <translation>Titre</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="98"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="100"/>
         <source>Title on ALIGN</source>
         <translation>Titre sur ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="99"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="101"/>
         <source>Title on ALIGN (empty: the layer's)</source>
         <translation>Titre sur ALIGN (vide : celui de la couche)</translation>
     </message>
@@ -1163,7 +1269,7 @@
         <translation>Type de géométrie inconnu : la couche prend le style par défaut d'ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="473"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="518"/>
         <source>Untitled map</source>
         <translation>Carte sans titre</translation>
     </message>
@@ -1173,8 +1279,8 @@
         <translation>Envoi…</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="128"/>
-        <location filename="../../align_connector/processing/publish_layer.py" line="106"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="136"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="108"/>
         <source>Visibility</source>
         <translation>Visibilité</translation>
     </message>
@@ -1184,18 +1290,18 @@
         <translation>En attente d'ALIGN…</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="146"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="154"/>
         <location filename="../../align_connector/panel/webmap.py" line="86"/>
         <source>Web map</source>
         <translation>Web map</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="144"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="152"/>
         <source>Web map title</source>
         <translation>Titre de la web map</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="364"/>
+        <location filename="../../align_connector/plugin.py" line="371"/>
         <source>Web map “{}”</source>
         <translation>Web map « {} »</translation>
     </message>
@@ -1210,17 +1316,17 @@
         <translation>La web map « {} » est prête dans {} avec {} couches.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="131"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="139"/>
         <source>What these layers hold, where they come from, when they were collected: what a colleague would need to know before using them.</source>
         <translation>Ce que ces couches contiennent, d'où elles viennent, quand elles ont été collectées : ce qu'un collègue devrait savoir avant de les utiliser.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="128"/>
+        <location filename="../../align_connector/plugin.py" line="129"/>
         <source>Which ALIGN this plugin talks to, and who you are on it</source>
         <translation>À quel ALIGN cette extension parle, et qui vous y êtes</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="73"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="75"/>
         <source>Whole project</source>
         <translation>Tout le projet</translation>
     </message>
@@ -1230,11 +1336,12 @@
         <translation>Pourquoi elle ne peut pas être publiée</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="113"/>
-        <location filename="../../align_connector/api.py" line="142"/>
-        <location filename="../../align_connector/api.py" line="194"/>
-        <location filename="../../align_connector/api.py" line="275"/>
-        <location filename="../../align_connector/api.py" line="309"/>
+        <location filename="../../align_connector/api.py" line="116"/>
+        <location filename="../../align_connector/api.py" line="145"/>
+        <location filename="../../align_connector/api.py" line="197"/>
+        <location filename="../../align_connector/api.py" line="315"/>
+        <location filename="../../align_connector/api.py" line="365"/>
+        <location filename="../../align_connector/api.py" line="399"/>
         <source>You are not signed in to ALIGN.</source>
         <translation>Vous n'êtes pas connecté à ALIGN.</translation>
     </message>
@@ -1244,7 +1351,7 @@
         <translation>Vous êtes connecté</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="217"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="225"/>
         <source>You do not belong to any ALIGN organization yet.</source>
         <translation>Vous n'appartenez encore à aucune organisation ALIGN.</translation>
     </message>
@@ -1254,27 +1361,28 @@
         <translation>Votre compte ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="240"/>
+        <location filename="../../align_connector/api.py" line="243"/>
+        <location filename="../../align_connector/api.py" line="338"/>
         <source>Your ALIGN session expired while the file was uploading.</source>
         <translation>Votre session ALIGN a expiré pendant l'envoi du fichier.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="43"/>
+        <location filename="../../align_connector/api.py" line="46"/>
         <source>Your ALIGN session has expired. Sign in again to publish.</source>
         <translation>Votre session ALIGN a expiré. Reconnectez-vous pour publier.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="123"/>
+        <location filename="../../align_connector/plugin.py" line="124"/>
         <source>Your Datastore and your maps, in the web application</source>
         <translation>Votre Datastore et vos cartes, dans l'application web</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="47"/>
+        <location filename="../../align_connector/api.py" line="50"/>
         <source>Your organization does not have enough credits to convert this file. Add credits in Plans &amp; Capacity, then publish again.</source>
         <translation>Votre organisation n'a pas assez de crédits pour convertir ce fichier. Ajoutez des crédits dans Plans &amp; Capacity, puis publiez à nouveau.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="49"/>
+        <location filename="../../align_connector/api.py" line="52"/>
         <source>Your role in this organization does not allow publishing.</source>
         <translation>Votre rôle dans cette organisation ne permet pas de publier.</translation>
     </message>
@@ -1291,12 +1399,17 @@
         <translation>contrainte d'accès</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="451"/>
+        <location filename="../../align_connector/panel/outcome.py" line="118"/>
+        <source>added {}</source>
+        <translation>ajouté {}</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/publish_view.py" line="496"/>
         <source>admin</source>
         <translation>admin</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="445"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="490"/>
         <source>archive</source>
         <translation>archive</translation>
     </message>
@@ -1337,7 +1450,7 @@
         <translation>contact</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="451"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="496"/>
         <source>editor</source>
         <translation>éditeur</translation>
     </message>
@@ -1394,17 +1507,17 @@
         <translation>aucune couche de tuiles n'est stylée dans QGIS, la web map ne peut donc pas dire quoi dessiner</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="192"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="229"/>
         <source>none</source>
         <translation>aucune</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="451"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="496"/>
         <source>owner</source>
         <translation>propriétaire</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="445"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="490"/>
         <source>raster</source>
         <translation>raster</translation>
     </message>
@@ -1414,9 +1527,19 @@
         <translation>les tuiles raster ne sont pas encore affichées par le Map builder</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="445"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="490"/>
         <source>reference</source>
         <translation>référence</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/outcome.py" line="120"/>
+        <source>removed {}</source>
+        <translation>retiré {}</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/outcome.py" line="122"/>
+        <source>retyped {}</source>
+        <translation>retypé {}</translation>
     </message>
     <message>
         <location filename="../../align_connector/publish/symbology.py" line="215"/>
@@ -1500,12 +1623,12 @@
         <translation>couche de symbole inconnue</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="445"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="490"/>
         <source>vector</source>
         <translation>vecteur</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="451"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="496"/>
         <source>viewer</source>
         <translation>lecteur</translation>
     </message>
@@ -1540,12 +1663,12 @@
         <translation>{} mots-clés</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/publish_view.py" line="244"/>
+        <location filename="../../align_connector/panel/publish_view.py" line="252"/>
         <source>{} layers cannot be published. See Messages.</source>
         <translation>{} couches ne peuvent pas être publiées. Voir Messages.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/batch.py" line="100"/>
+        <location filename="../../align_connector/panel/batch.py" line="106"/>
         <source>{} layers cannot be published:</source>
         <translation>{} couches ne peuvent pas être publiées :</translation>
     </message>
@@ -1615,7 +1738,7 @@
         <translation>{} : {} couches de symbole, seule celle {} est gardée.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="128"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="137"/>
         <source>“{}” is a service layer: register it as a reference from the ALIGN panel.</source>
         <translation>« {} » est une couche de service : enregistrez-la comme référence depuis le panneau ALIGN.</translation>
     </message>
@@ -1625,7 +1748,7 @@
         <translation>« {} » est une connexion {}, pas un jeu de données : il n'y a pas de fichier à publier. Les services distants s'ajoutent à ALIGN depuis l'application web.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/outcome.py" line="52"/>
+        <location filename="../../align_connector/panel/outcome.py" line="66"/>
         <source>“{}” is now in {} on ALIGN.</source>
         <translation>« {} » est maintenant dans {} sur ALIGN.</translation>
     </message>
@@ -1633,6 +1756,11 @@
         <location filename="../../align_connector/panel/outcome.py" line="49"/>
         <source>“{}” was already in {} on ALIGN; the existing reference is reused.</source>
         <translation>« {} » était déjà dans {} sur ALIGN ; la référence existante est réutilisée.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/panel/outcome.py" line="56"/>
+        <source>“{}” was replaced in {} on ALIGN; the web maps that show it now show this version.</source>
+        <translation>« {} » a été remplacée dans {} sur ALIGN ; les web maps qui la montrent affichent désormais cette version.</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/outcome.py" line="38"/>

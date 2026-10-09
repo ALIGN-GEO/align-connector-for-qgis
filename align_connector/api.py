@@ -25,9 +25,12 @@ class ApiError(Exception):
         413 storage) without parsing the sentence (TCK-2179).
     """
 
-    def __init__(self, message, needs_sign_in=False, status=None):
+    def __init__(self, message, needs_sign_in=False, status=None, code=None):
         super().__init__(message)
         self.message = message
+        #: The server's own refusal code, when it sent one (TCK-2218): lets a
+        #: caller tell "the item is gone" from "you may not", both 4xx.
+        self.code = code
         self.needs_sign_in = needs_sign_in
         self.status = status
 
@@ -258,6 +261,93 @@ def finalize(session, org_id, asset_id, filename, name, provenance=None, descrip
     result = net.post_json(config.finalize_endpoint(org_id, asset_id), payload, bearer=token)
     if not result.ok:
         _raise_for(result, tr("ALIGN could not catalogue the uploaded file"))
+    return result.body
+
+
+#: The refusals a replacement can meet, by the server's code (TCK-2218): the
+#: plugin's own sentence for each, with the remedy, which is always the same —
+#: publish as a new layer.
+_REPLACE_REFUSALS = {
+    "DATASTORE_ASSET_NOT_FOUND": lambda: tr("The item this layer was published as no longer exists on ALIGN."),
+    "DATASTORE_ACCESS_DENIED": lambda: tr(
+        "Only the item's creator or an organization admin can replace it. Publish it as a new layer instead."
+    ),
+    "DATASTORE_REPLACE_CONFLICT": lambda: tr(
+        "The item changed on ALIGN since this layer was last read. Nothing was replaced: "
+        "reopen it from ALIGN, or publish as a new layer."
+    ),
+    "DATASTORE_UPLOAD_NOT_FOUND": lambda: tr("The transfer did not complete on ALIGN's side. Try again."),
+    "DATASTORE_REPLACE_FORMAT_MISMATCH": lambda: tr(
+        "The item on ALIGN is stored in another format than this export; a replacement must keep "
+        "the format. Publish it as a new layer instead."
+    ),
+    "DATASTORE_REPLACE_NEEDS_DERIVATION": lambda: tr(
+        "An item ALIGN converted for display (GeoTIFF, MBTiles) cannot be replaced in place yet. "
+        "Publish it as a new layer instead."
+    ),
+    "DATASTORE_NOT_FILE_ASSET": lambda: tr(
+        "The item this layer was published as is a reference, not a file: it has nothing to replace."
+    ),
+}
+
+
+def _raise_for_replace(result, fallback):
+    """A replacement's refusal, by code first, by status otherwise."""
+    sentence = _REPLACE_REFUSALS.get(result.code() or "")
+    if sentence is not None:
+        raise ApiError(sentence(), status=result.status, code=result.code())
+    _raise_for(result, fallback)
+
+
+def open_replace_session(session, org_id, asset_id, filename, content_type, size_bytes):
+    """Open the resumable session that replaces a published item's bytes (TCK-2218).
+
+    ALIGN decides here, before any byte travels: the right to write this item,
+    the format, the room. The answer carries the transit object to send to and
+    the item's current generation, which the finalize cites so that a change
+    made meanwhile by someone else is never overwritten.
+
+    :returns: ``{"assetId", "transitFilename", "protocol", "sessionUrl", "expiresAt",
+        "chunkSizeBytes", "baseGeneration"}``
+    """
+    token = session.access_token()
+    if not token:
+        raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
+
+    payload = {"filename": filename, "contentType": content_type, "sizeBytes": size_bytes}
+    result = net.post_json(config.replace_session_endpoint(org_id, asset_id), payload, bearer=token)
+    if not result.ok:
+        _raise_for_replace(result, tr("ALIGN refused the replacement"))
+
+    body = result.body
+    for key in ("transitFilename", "sessionUrl", "chunkSizeBytes", "baseGeneration"):
+        if not body.get(key):
+            raise ApiError(tr("ALIGN returned an incomplete upload session."))
+    return body
+
+
+def finalize_replace(session, org_id, asset_id, transit_filename, base_generation, name=None, style=None, iso=None):
+    """Swap the transferred bytes in, under the generation read at open (TCK-2218).
+
+    The previous version is kept on ALIGN; the style and the metadata sheet
+    are replayed as at a first publish; the answer names what changed in the
+    attribute schema when the format describes it.
+    """
+    token = session.access_token()
+    if not token:
+        raise ApiError(tr("Your ALIGN session expired while the file was uploading."), needs_sign_in=True)
+
+    payload = {"transitFilename": transit_filename, "baseGeneration": base_generation}
+    if name:
+        payload["name"] = name
+    if style:
+        payload["style"] = style
+    if iso:
+        payload["iso"] = iso
+
+    result = net.post_json(config.replace_finalize_endpoint(org_id, asset_id), payload, bearer=token)
+    if not result.ok:
+        _raise_for_replace(result, tr("ALIGN could not replace the item"))
     return result.body
 
 
