@@ -20,4 +20,4 @@ tags=align,publish,cloud,datastore,web,upload,vector,raster
 experimental=True
 deprecated=False
 server=False
-hasProcessingProvider=False
+hasProcessingProvider=yes

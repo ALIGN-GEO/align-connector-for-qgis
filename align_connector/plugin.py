@@ -35,6 +35,7 @@ from .panel.camera import canvas_map_view
 from .panel.dock import AlignDock, dock_area
 from .panel.follow import LotFollower
 from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of
+from .processing.provider import AlignProcessingProvider
 from .publish.reference_task import RegisterReferenceTask
 from .publish.task import PublishLayerTask
 from .publish.webmap_task import ComposeWebMapTask
@@ -70,6 +71,8 @@ class AlignConnectorPlugin:
         self._layer_actions = []
         self._sign_in_action = None
         self.dock = None
+        #: The Processing provider, registered by :meth:`initProcessing`.
+        self.provider = None
         self.session = AlignSession()
         #: Running publishes. QGIS' task manager does not own the Python
         #: object, so dropping our reference would collect a task mid-upload.
@@ -90,6 +93,16 @@ class AlignConnectorPlugin:
         return QCoreApplication.translate("AlignConnector", message)
 
     # -- lifecycle ----------------------------------------------------------
+
+    def initProcessing(self):  # noqa: N802 — name imposed by the QGIS plugin API
+        """Register the « ALIGN » Processing provider (TCK-2181).
+
+        QGIS calls this before :meth:`initGui`, and only when ``metadata.txt``
+        says ``hasProcessingProvider=yes``. The provider carries the session,
+        so an algorithm run signs as the user the panel signed in.
+        """
+        self.provider = AlignProcessingProvider(self.session, self.plugin_dir)
+        QgsApplication.processingRegistry().addProvider(self.provider)
 
     def initGui(self):  # noqa: N802 — name imposed by the QGIS plugin API
         """Add the plugin's entry points to the QGIS interface."""
@@ -170,6 +183,9 @@ class AlignConnectorPlugin:
             self.iface.removeDockWidget(self.dock)
             self.dock.deleteLater()
             self.dock = None
+        if self.provider is not None:
+            QgsApplication.processingRegistry().removeProvider(self.provider)
+            self.provider = None
         i18n.uninstall()
 
     def _add_action(self, text, callback, icon=None, status_tip=None):

@@ -59,6 +59,20 @@ There is no size limit in the plugin. Your organization's remaining storage is
 the limit, and it is checked **before the transfer starts** — a publish that
 would not fit is refused in seconds, not after an hour of uploading.
 
+## Automate
+
+The plugin registers an **ALIGN** Processing provider with one algorithm, `align:publishlayer` (*Publish layer to ALIGN*): the same publication as the panel, with the layer's style and metadata, driven by parameters. Use it from the Modeler, the batch runner, the Python console, or any MCP bridge that lets an agent run Processing algorithms (QGIS MCP's `execute_processing`, for instance). Sign in from the panel first: the algorithm never opens a browser.
+
+```python
+import processing
+result = processing.run("align:publishlayer", {
+    "INPUT": "Countries", "ORGANIZATION": "Town GIS", "VISIBILITY": 1, "SELECTED_ONLY": False,
+})
+print(result["ASSET_ID"], result["ALIGN_URL"])
+```
+
+The organization is given by name or id; a wrong one is refused with the list of yours. A service layer is refused with a pointer to the panel, which registers it as a reference.
+
 ## Requirements
 
 - QGIS **3.22 LTR or newer**, QGIS 4.x included: one source for Qt5 and Qt6 through the `qgis.PyQt` shim and `qtcompat.qt_enum`. Developed against 3.44 LTR (Qt5, Python 3.12); CI loads the plugin on the `qgis/qgis:ltr` and `qgis/qgis:4.2` images.

@@ -141,6 +141,9 @@ jobs:
       - name: The shipped translation loads in a real QTranslator
         run: python3 scripts/smoke_i18n.py
 
+      - name: The Processing provider registers and refuses what it must
+        run: python3 scripts/smoke_processing.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:
