@@ -24,9 +24,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
 import os
 
 from qgis.core import Qgis, QgsApplication, QgsMapLayer
-from qgis.PyQt.QtCore import QCoreApplication
-from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtCore import QCoreApplication, QUrl
+from qgis.PyQt.QtGui import QDesktopServices, QIcon
+from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton
 
 from . import config, i18n
 from .auth import AlignSession
@@ -93,23 +93,42 @@ class AlignConnectorPlugin:
 
     def initGui(self):  # noqa: N802 — name imposed by the QGIS plugin API
         """Add the plugin's entry points to the QGIS interface."""
-        self._add_action(
+        publish = self._add_action(
             self.tr("Publish to ALIGN…"),
             self.run,
             icon="icon.png",
             status_tip=self.tr("Open the ALIGN panel: publish layers to your Datastore and follow them"),
-            toolbar=True,
         )
         self._sign_in_action = self._add_action(
             self.tr("Sign in to ALIGN…"),
             self._toggle_sign_in,
             status_tip=self.tr("Connect QGIS to your ALIGN account"),
         )
-        self._add_action(
+        open_align = self._add_action(
+            self.tr("Open ALIGN in the browser"),
+            self._open_align,
+            status_tip=self.tr("Your Datastore and your maps, in the web application"),
+        )
+        settings = self._add_action(
             self.tr("Settings…"),
             self._open_settings,
             status_tip=self.tr("Which ALIGN this plugin talks to, and who you are on it"),
         )
+
+        # One button on the toolbar (TCK-2216): the click opens the panel, the
+        # arrow drops the rest, so nothing has to be looked for under the Web
+        # menu. The actions are the same objects the menu carries, so a
+        # changed label (sign in / sign out) changes in both places at once.
+        button = QToolButton(self.iface.mainWindow())
+        button.setDefaultAction(publish)
+        menu = QMenu(button)
+        menu.addAction(self._sign_in_action)
+        menu.addAction(open_align)
+        menu.addSeparator()
+        menu.addAction(settings)
+        button.setMenu(menu)
+        button.setPopupMode(qt_enum(QToolButton, "ToolButtonPopupMode", "MenuButtonPopup"))
+        self._toolbar_actions.append(self.iface.addToolBarWidget(button))
 
         # The panel exists from the start, hidden: QGIS can only give a dock
         # back its saved place if the dock is there when the window is laid
@@ -153,7 +172,8 @@ class AlignConnectorPlugin:
             self.dock = None
         i18n.uninstall()
 
-    def _add_action(self, text, callback, icon=None, status_tip=None, toolbar=False):
+    def _add_action(self, text, callback, icon=None, status_tip=None):
+        """An action under Web › ALIGN; the toolbar button reuses the same objects."""
         action = QAction(text, self.iface.mainWindow())
         if icon:
             action.setIcon(QIcon(os.path.join(self.plugin_dir, icon)))
@@ -161,9 +181,6 @@ class AlignConnectorPlugin:
             action.setStatusTip(status_tip)
         action.triggered.connect(callback)
         self.iface.addPluginToWebMenu(MENU_TITLE, action)
-        if toolbar:
-            self.iface.addToolBarIcon(action)
-            self._toolbar_actions.append(action)
         self._actions.append(action)
         return action
 
@@ -205,6 +222,9 @@ class AlignConnectorPlugin:
         run_exec(dialog)
         # The dialog can sign in or out; the menu must not keep saying otherwise.
         self._refresh_state()
+
+    def _open_align(self):
+        QDesktopServices.openUrl(QUrl(config.app_url()))
 
     def _on_waiting(self):
         self._message(

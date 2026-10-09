@@ -23,6 +23,7 @@ from qgis.PyQt.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QToolButton,
     QVBoxLayout,
 )
 
@@ -56,20 +57,35 @@ class SettingsDialog(QDialog):
         layout.addWidget(account_box)
 
         # -- which ALIGN ---------------------------------------------------
+        # Under "Advanced", folded (TCK-2216): a user talks to aligngeo.com and
+        # has no address to type. The fields show a value only when one was
+        # set, so a workstation on the production service shows none at all;
+        # a custom address keeps the section open, so it is never a surprise.
+        custom_app = config.app_url() if config.app_url() != config.DEFAULT_APP_URL else ""
+        custom_api = config.api_url() if config.api_url() != config.DEFAULT_API_URL else ""
+        self.advanced_toggle = QToolButton()
+        self.advanced_toggle.setText(tr("Advanced"))
+        self.advanced_toggle.setCheckable(True)
+        self.advanced_toggle.setAutoRaise(True)
+        self.advanced_toggle.setToolButtonStyle(qt_enum(Qt, "ToolButtonStyle", "ToolButtonTextBesideIcon"))
+        self.advanced_toggle.setArrowType(qt_enum(Qt, "ArrowType", "RightArrow"))
+        self.advanced_toggle.toggled.connect(self._toggle_advanced)
+        layout.addWidget(self.advanced_toggle)
+
         server_box = QGroupBox(tr("ALIGN server"))
         server_layout = QFormLayout(server_box)
 
-        self.app_edit = QLineEdit(config.app_url())
+        self.app_edit = QLineEdit(custom_app)
         self.app_edit.setPlaceholderText(config.DEFAULT_APP_URL)
         server_layout.addRow(tr("Application"), self.app_edit)
 
-        self.api_edit = QLineEdit(config.api_url())
+        self.api_edit = QLineEdit(custom_api)
         self.api_edit.setPlaceholderText(config.DEFAULT_API_URL)
         server_layout.addRow(tr("API"), self.api_edit)
 
         hint = QLabel(
-            tr("Leave a field empty to return to the default. Change these only to reach "
-               "another ALIGN deployment.")
+            tr("Only for another ALIGN deployment (staging, self-hosted). Leave both empty "
+               "to use aligngeo.com.")
         )
         hint.setWordWrap(True)
         hint.setEnabled(False)
@@ -86,6 +102,9 @@ class SettingsDialog(QDialog):
         server_layout.addRow("", test_row)
 
         layout.addWidget(server_box)
+        self.server_box = server_box
+        self.advanced_toggle.setChecked(bool(custom_app or custom_api))
+        self._toggle_advanced(self.advanced_toggle.isChecked())
 
         version = QLabel("ALIGN Connector {}".format(plugin_version()))
         version.setEnabled(False)
@@ -129,6 +148,11 @@ class SettingsDialog(QDialog):
         self._refresh_account()
 
     # -- server -------------------------------------------------------------
+
+    def _toggle_advanced(self, shown):
+        self.server_box.setVisible(shown)
+        self.advanced_toggle.setArrowType(qt_enum(Qt, "ArrowType", "DownArrow" if shown else "RightArrow"))
+        self.adjustSize()
 
     def _apply_endpoints(self):
         config.set_endpoints(

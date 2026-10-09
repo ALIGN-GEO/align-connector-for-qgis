@@ -4,12 +4,12 @@
 <context>
     <name>AlignConnector</name>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="110"/>
+        <location filename="../../align_connector/settings_dialog.py" line="129"/>
         <source> as {}</source>
         <translation> en tant que {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="155"/>
+        <location filename="../../align_connector/settings_dialog.py" line="179"/>
         <source> as “{}”</source>
         <translation> sous le nom « {} »</translation>
     </message>
@@ -94,12 +94,12 @@
         <translation>ALIGN Connector est connecté. Vous pouvez fermer cet onglet et revenir dans QGIS.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="42"/>
+        <location filename="../../align_connector/settings_dialog.py" line="43"/>
         <source>ALIGN Connector — Settings</source>
         <translation>ALIGN Connector, réglages</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="169"/>
+        <location filename="../../align_connector/settings_dialog.py" line="193"/>
         <source>ALIGN answered {} — {}</source>
         <translation>ALIGN a répondu {}, {}</translation>
     </message>
@@ -174,7 +174,7 @@
         <translation>ALIGN a renvoyé une réponse inattendue en enregistrant la référence.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="59"/>
+        <location filename="../../align_connector/settings_dialog.py" line="75"/>
         <source>ALIGN server</source>
         <translation>Serveur ALIGN</translation>
     </message>
@@ -189,7 +189,7 @@
         <translation>ALIGN ne prend un nuage de points que par URL (COPC, EPT) ; un fichier local ne peut pas être publié.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="68"/>
+        <location filename="../../align_connector/settings_dialog.py" line="84"/>
         <source>API</source>
         <translation>API</translation>
     </message>
@@ -197,6 +197,11 @@
         <location filename="../../align_connector/panel/dock.py" line="57"/>
         <source>Activity</source>
         <translation>Activité</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/settings_dialog.py" line="67"/>
+        <source>Advanced</source>
+        <translation>Avancé</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/publish_view.py" line="140"/>
@@ -209,7 +214,7 @@
         <translation>Un paquet de tuiles vectorielles ArcGIS n'est pas un format que lit le Map builder ; exportez-le d'abord en MBTiles.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="64"/>
+        <location filename="../../align_connector/settings_dialog.py" line="80"/>
         <source>Application</source>
         <translation>Application</translation>
     </message>
@@ -249,7 +254,7 @@
         <translation>Des champs complexes ont été stockés en texte : {}.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="106"/>
+        <location filename="../../align_connector/plugin.py" line="105"/>
         <source>Connect QGIS to your ALIGN account</source>
         <translation>Connecter QGIS à votre compte ALIGN</translation>
     </message>
@@ -264,12 +269,12 @@
         <translation>Connecté à ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="217"/>
+        <location filename="../../align_connector/plugin.py" line="237"/>
         <source>Connected to ALIGN.</source>
         <translation>Connecté à ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="110"/>
+        <location filename="../../align_connector/settings_dialog.py" line="129"/>
         <source>Connected{}</source>
         <translation>Connecté{}</translation>
     </message>
@@ -279,7 +284,7 @@
         <translation>Contact sans organisation ni e-mail : non transmis.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="148"/>
+        <location filename="../../align_connector/settings_dialog.py" line="172"/>
         <source>Contacting ALIGN…</source>
         <translation>Contact d'ALIGN…</translation>
     </message>
@@ -364,7 +369,7 @@
         <translation>Toutes les couches du projet peuvent être publiées.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="211"/>
+        <location filename="../../align_connector/plugin.py" line="231"/>
         <source>Finish signing in from your browser, then come back to QGIS.</source>
         <translation>Terminez la connexion dans votre navigateur, puis revenez dans QGIS.</translation>
     </message>
@@ -458,11 +463,6 @@
         <translation>Ordre et visibilité du panneau Couches, groupes aplatis, ouverte sur la vue du canevas.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="71"/>
-        <source>Leave a field empty to return to the default. Change these only to reach another ALIGN deployment.</source>
-        <translation>Laissez un champ vide pour revenir à la valeur par défaut. Ne changez ces adresses que pour atteindre un autre déploiement d'ALIGN.</translation>
-    </message>
-    <message>
         <location filename="../../align_connector/publish/wording.py" line="19"/>
         <source>MB</source>
         <translation>Mo</translation>
@@ -483,7 +483,7 @@
         <translation>Métadonnées : {}.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="160"/>
+        <location filename="../../align_connector/settings_dialog.py" line="184"/>
         <source>No answer from that address. Check the API URL, and that you are online.</source>
         <translation>Aucune réponse à cette adresse. Vérifiez l'URL de l'API, et que vous êtes en ligne.</translation>
     </message>
@@ -493,7 +493,7 @@
         <translation>Aucune entité : il n'y a rien à publier.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="309"/>
+        <location filename="../../align_connector/plugin.py" line="329"/>
         <source>No layer of the lot was published, so the web map “{}” was not created.</source>
         <translation>Aucune couche du lot n'a été publiée, la web map « {} » n'a donc pas été créée.</translation>
     </message>
@@ -533,7 +533,7 @@
         <translation>Non connecté à ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="115"/>
+        <location filename="../../align_connector/settings_dialog.py" line="134"/>
         <source>Not connected. Signing in opens your browser, where you approve the connection in ALIGN.</source>
         <translation>Non connecté. Se connecter ouvre votre navigateur, où vous approuvez la connexion dans ALIGN.</translation>
     </message>
@@ -553,9 +553,19 @@
         <translation>Rien n'a été accordé. Vous pouvez fermer cet onglet et revenir dans QGIS.</translation>
     </message>
     <message>
+        <location filename="../../align_connector/settings_dialog.py" line="87"/>
+        <source>Only for another ALIGN deployment (staging, self-hosted). Leave both empty to use aligngeo.com.</source>
+        <translation>Seulement pour un autre déploiement d'ALIGN (staging, auto-hébergé). Laissez les deux vides pour utiliser aligngeo.com.</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/publish/isometa.py" line="179"/>
         <source>Only the first {} keywords are kept ({} in QGIS).</source>
         <translation>Seuls les {} premiers mots-clés sont gardés ({} dans QGIS).</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/plugin.py" line="108"/>
+        <source>Open ALIGN in the browser</source>
+        <translation>Ouvrir ALIGN dans le navigateur</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/activity_view.py" line="57"/>
@@ -619,7 +629,7 @@
     </message>
     <message>
         <location filename="../../align_connector/plugin.py" line="97"/>
-        <location filename="../../align_connector/plugin.py" line="124"/>
+        <location filename="../../align_connector/plugin.py" line="143"/>
         <source>Publish to ALIGN…</source>
         <translation>Publier sur ALIGN…</translation>
     </message>
@@ -704,12 +714,12 @@
         <translation>La publication a échoué.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="297"/>
+        <location filename="../../align_connector/plugin.py" line="317"/>
         <source>Publishing {} layers to {} — follow them in the ALIGN panel.</source>
         <translation>Publication de {} couches vers {}, suivez-les dans le panneau ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="293"/>
+        <location filename="../../align_connector/plugin.py" line="313"/>
         <source>Publishing “{}” to {} — follow it in the ALIGN panel.</source>
         <translation>Publication de « {} » vers {}, suivez-la dans le panneau ALIGN.</translation>
     </message>
@@ -739,7 +749,7 @@
         <translation>Le style raster n'est pas transmis : ALIGN affiche le fichier avec son rendu par défaut.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="154"/>
+        <location filename="../../align_connector/settings_dialog.py" line="178"/>
         <source>Reached ALIGN — it recognises this plugin{}.</source>
         <translation>ALIGN est joignable et reconnaît cette extension{}.</translation>
     </message>
@@ -759,7 +769,7 @@
         <translation>Rendu par règles avec des expressions qu'ALIGN ne sait pas lire : le symbole de la première règle s'applique à tout.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="109"/>
+        <location filename="../../align_connector/plugin.py" line="113"/>
         <source>Settings…</source>
         <translation>Réglages…</translation>
     </message>
@@ -769,34 +779,34 @@
         <translation>Se connecter</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="104"/>
-        <location filename="../../align_connector/plugin.py" line="190"/>
+        <location filename="../../align_connector/plugin.py" line="103"/>
+        <location filename="../../align_connector/plugin.py" line="207"/>
         <source>Sign in to ALIGN…</source>
         <translation>Se connecter à ALIGN…</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="118"/>
+        <location filename="../../align_connector/settings_dialog.py" line="137"/>
         <source>Sign in…</source>
         <translation>Se connecter…</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/dock.py" line="109"/>
-        <location filename="../../align_connector/settings_dialog.py" line="112"/>
+        <location filename="../../align_connector/settings_dialog.py" line="131"/>
         <source>Sign out</source>
         <translation>Se déconnecter</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="187"/>
+        <location filename="../../align_connector/plugin.py" line="204"/>
         <source>Sign out of ALIGN</source>
         <translation>Se déconnecter d'ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="185"/>
+        <location filename="../../align_connector/plugin.py" line="202"/>
         <source>Sign out of ALIGN ({})</source>
         <translation>Se déconnecter d'ALIGN ({})</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="221"/>
+        <location filename="../../align_connector/plugin.py" line="241"/>
         <source>Signed out of ALIGN.</source>
         <translation>Déconnecté d'ALIGN.</translation>
     </message>
@@ -846,12 +856,12 @@
         <translation>To</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="79"/>
+        <location filename="../../align_connector/settings_dialog.py" line="95"/>
         <source>Test connection</source>
         <translation>Tester la connexion</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="164"/>
+        <location filename="../../align_connector/settings_dialog.py" line="188"/>
         <source>That address answered, but does not know this plugin. It may be an older ALIGN, or the wrong server.</source>
         <translation>Cette adresse a répondu, mais ne connaît pas cette extension. C'est peut-être un ALIGN plus ancien, ou le mauvais serveur.</translation>
     </message>
@@ -966,7 +976,7 @@
         <translation>La web map n'a pas pu être créée.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="299"/>
+        <location filename="../../align_connector/plugin.py" line="319"/>
         <source>The web map “{}” will be created once they have all landed.</source>
         <translation>La web map « {} » sera créée quand elles seront toutes arrivées.</translation>
     </message>
@@ -1112,7 +1122,7 @@
         <translation>Titre de la web map</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="328"/>
+        <location filename="../../align_connector/plugin.py" line="348"/>
         <source>Web map “{}”</source>
         <translation>Web map « {} »</translation>
     </message>
@@ -1132,7 +1142,7 @@
         <translation>Ce que ces couches contiennent, d'où elles viennent, quand elles ont été collectées : ce qu'un collègue devrait savoir avant de les utiliser.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/plugin.py" line="111"/>
+        <location filename="../../align_connector/plugin.py" line="115"/>
         <source>Which ALIGN this plugin talks to, and who you are on it</source>
         <translation>À quel ALIGN cette extension parle, et qui vous y êtes</translation>
     </message>
@@ -1166,7 +1176,7 @@
         <translation>Vous n'appartenez encore à aucune organisation ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="48"/>
+        <location filename="../../align_connector/settings_dialog.py" line="49"/>
         <source>Your ALIGN account</source>
         <translation>Votre compte ALIGN</translation>
     </message>
@@ -1179,6 +1189,11 @@
         <location filename="../../align_connector/api.py" line="43"/>
         <source>Your ALIGN session has expired. Sign in again to publish.</source>
         <translation>Votre session ALIGN a expiré. Reconnectez-vous pour publier.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/plugin.py" line="110"/>
+        <source>Your Datastore and your maps, in the web application</source>
+        <translation>Votre Datastore et vos cartes, dans l'application web</translation>
     </message>
     <message>
         <location filename="../../align_connector/api.py" line="47"/>
@@ -1392,7 +1407,7 @@
         <translation>transmis</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="169"/>
+        <location filename="../../align_connector/settings_dialog.py" line="193"/>
         <source>unexpected error</source>
         <translation>erreur inattendue</translation>
     </message>

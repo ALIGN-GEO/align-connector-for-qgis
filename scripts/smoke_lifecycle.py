@@ -63,8 +63,8 @@ def main() -> int:
     if not iface.addPluginToWebMenu.called:
         print("FAIL: initGui did not add a menu entry")
         return 1
-    if not iface.addToolBarIcon.called:
-        print("FAIL: initGui did not add a toolbar icon")
+    if not iface.addToolBarWidget.called:
+        print("FAIL: initGui did not add the toolbar button")
         return 1
 
     menu_title = iface.addPluginToWebMenu.call_args[0][0]
@@ -73,10 +73,20 @@ def main() -> int:
         print("FAIL: a registered action has no label")
         return 1
 
-    # Only the publish action carries the icon — it is the one on the toolbar.
-    toolbar_action = iface.addToolBarIcon.call_args[0][0]
+    # The toolbar carries one button (TCK-2216): its default action is the
+    # publish one, with the icon; its menu holds the three others.
+    from qgis.PyQt.QtWidgets import QToolButton
+
+    button = iface.addToolBarWidget.call_args[0][0]
+    if not isinstance(button, QToolButton) or button.defaultAction() is None:
+        print("FAIL: the toolbar widget is not a tool button with a default action")
+        return 1
+    toolbar_action = button.defaultAction()
     if toolbar_action.icon().isNull():
         print("FAIL: the toolbar action has no icon — icon.png did not load")
+        return 1
+    if button.menu() is None or len([a for a in button.menu().actions() if not a.isSeparator()]) != 3:
+        print("FAIL: the toolbar button's menu does not hold the three other actions")
         return 1
     action = toolbar_action
 
@@ -114,8 +124,9 @@ def main() -> int:
     if iface.removePluginWebMenu.call_count != iface.addPluginToWebMenu.call_count:
         print("FAIL: unload did not remove every menu entry initGui added")
         return 1
-    if iface.removeToolBarIcon.call_count != iface.addToolBarIcon.call_count:
-        print("FAIL: unload did not remove every toolbar icon initGui added")
+    # addToolBarWidget hands back the widget's action; that is what unload removes.
+    if iface.removeToolBarIcon.call_count != iface.addToolBarWidget.call_count:
+        print("FAIL: unload did not remove the toolbar button initGui added")
         return 1
     removed = [call[0][1] for call in iface.removePluginWebMenu.call_args_list]
     if set(id(a) for a in removed) != set(id(a) for a in registered):
