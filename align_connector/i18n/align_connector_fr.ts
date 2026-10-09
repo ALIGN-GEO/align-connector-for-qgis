@@ -4,12 +4,12 @@
 <context>
     <name>AlignConnector</name>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="106"/>
+        <location filename="../../align_connector/settings_dialog.py" line="110"/>
         <source> as {}</source>
         <translation> en tant que {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="151"/>
+        <location filename="../../align_connector/settings_dialog.py" line="155"/>
         <source> as “{}”</source>
         <translation> sous le nom « {} »</translation>
     </message>
@@ -94,27 +94,27 @@
         <translation>ALIGN Connector est connecté. Vous pouvez fermer cet onglet et revenir dans QGIS.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="41"/>
+        <location filename="../../align_connector/settings_dialog.py" line="42"/>
         <source>ALIGN Connector — Settings</source>
         <translation>ALIGN Connector, réglages</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="165"/>
+        <location filename="../../align_connector/settings_dialog.py" line="169"/>
         <source>ALIGN answered {} — {}</source>
         <translation>ALIGN a répondu {}, {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/exporter.py" line="427"/>
+        <location filename="../../align_connector/publish/exporter.py" line="450"/>
         <source>ALIGN can publish vector and raster layers. “{}” is neither.</source>
         <translation>ALIGN publie des couches vecteur et raster. « {} » n'est ni l'une ni l'autre.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="95"/>
+        <location filename="../../align_connector/api.py" line="101"/>
         <source>ALIGN could not be reached. Check your connection and try again.</source>
         <translation>ALIGN est injoignable. Vérifiez votre connexion et réessayez.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="254"/>
+        <location filename="../../align_connector/api.py" line="260"/>
         <source>ALIGN could not catalogue the uploaded file</source>
         <translation>ALIGN n'a pas pu cataloguer le fichier envoyé</translation>
     </message>
@@ -144,37 +144,37 @@
         <translation>ALIGN publie des couches vecteur et raster. Cette couche n'est ni l'une ni l'autre.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="206"/>
+        <location filename="../../align_connector/api.py" line="212"/>
         <source>ALIGN refused the upload</source>
         <translation>ALIGN a refusé l'envoi</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="211"/>
+        <location filename="../../align_connector/api.py" line="217"/>
         <source>ALIGN returned an incomplete upload session.</source>
         <translation>ALIGN a renvoyé une session d'envoi incomplète.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="285"/>
+        <location filename="../../align_connector/api.py" line="291"/>
         <source>ALIGN returned an unexpected answer while creating the web map.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en créant la web map.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="115"/>
+        <location filename="../../align_connector/api.py" line="121"/>
         <source>ALIGN returned an unexpected answer while listing organizations.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en listant les organisations.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="146"/>
+        <location filename="../../align_connector/api.py" line="152"/>
         <source>ALIGN returned an unexpected answer while reading the organization's capacity.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en lisant la capacité de l'organisation.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="320"/>
+        <location filename="../../align_connector/api.py" line="326"/>
         <source>ALIGN returned an unexpected answer while registering the reference.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en enregistrant la référence.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="58"/>
+        <location filename="../../align_connector/settings_dialog.py" line="59"/>
         <source>ALIGN server</source>
         <translation>Serveur ALIGN</translation>
     </message>
@@ -189,7 +189,7 @@
         <translation>ALIGN ne prend un nuage de points que par URL (COPC, EPT) ; un fichier local ne peut pas être publié.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="67"/>
+        <location filename="../../align_connector/settings_dialog.py" line="68"/>
         <source>API</source>
         <translation>API</translation>
     </message>
@@ -209,7 +209,7 @@
         <translation>Un paquet de tuiles vectorielles ArcGIS n'est pas un format que lit le Map builder ; exportez-le d'abord en MBTiles.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="63"/>
+        <location filename="../../align_connector/settings_dialog.py" line="64"/>
         <source>Application</source>
         <translation>Application</translation>
     </message>
@@ -269,7 +269,7 @@
         <translation>Connecté à ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="106"/>
+        <location filename="../../align_connector/settings_dialog.py" line="110"/>
         <source>Connected{}</source>
         <translation>Connecté{}</translation>
     </message>
@@ -279,7 +279,7 @@
         <translation>Contact sans organisation ni e-mail : non transmis.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="144"/>
+        <location filename="../../align_connector/settings_dialog.py" line="148"/>
         <source>Contacting ALIGN…</source>
         <translation>Contact d'ALIGN…</translation>
     </message>
@@ -289,7 +289,7 @@
         <translation>Convertir ce fichier demande {} crédits ; cette organisation en a {}. Ajoutez des crédits dans Plans &amp; Capacity, puis publiez à nouveau.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/exporter.py" line="175"/>
+        <location filename="../../align_connector/publish/exporter.py" line="176"/>
         <source>Coordinates will be converted from {} to WGS 84 (EPSG:4326) on export; the layer itself is not changed.</source>
         <translation>Les coordonnées seront converties de {} vers WGS 84 (EPSG:4326) à l'export ; la couche elle-même n'est pas modifiée.</translation>
     </message>
@@ -299,7 +299,7 @@
         <translation>La connexion n'a pas pu aboutir</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="281"/>
+        <location filename="../../align_connector/api.py" line="287"/>
         <source>Could not create the web map</source>
         <translation>La web map n'a pas pu être créée</translation>
     </message>
@@ -309,7 +309,7 @@
         <translation>Impossible d'ouvrir votre navigateur pour vous connecter à ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/panel/camera.py" line="35"/>
+        <location filename="../../align_connector/panel/camera.py" line="36"/>
         <source>Could not read the canvas extent for the web map camera: {}</source>
         <translation>Impossible de lire l'emprise du canevas pour la caméra de la web map : {}</translation>
     </message>
@@ -319,32 +319,32 @@
         <translation>Impossible de lire la capacité de {} : {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="140"/>
+        <location filename="../../align_connector/api.py" line="146"/>
         <source>Could not read what this organization can still spend</source>
         <translation>Impossible de lire ce que cette organisation peut encore dépenser</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="111"/>
+        <location filename="../../align_connector/api.py" line="117"/>
         <source>Could not read your organizations</source>
         <translation>Impossible de lire vos organisations</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="316"/>
+        <location filename="../../align_connector/api.py" line="322"/>
         <source>Could not register the reference</source>
         <translation>La référence n'a pas pu être enregistrée</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/exporter.py" line="354"/>
+        <location filename="../../align_connector/publish/exporter.py" line="377"/>
         <source>Could not write this layer to a publishable file ({}).</source>
         <translation>Impossible d'écrire cette couche dans un fichier publiable ({}).</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/raster.py" line="178"/>
+        <location filename="../../align_connector/publish/raster.py" line="179"/>
         <source>Could not write this raster to a publishable file (GDAL error {}).</source>
         <translation>Impossible d'écrire ce raster dans un fichier publiable (erreur GDAL {}).</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/raster.py" line="180"/>
+        <location filename="../../align_connector/publish/raster.py" line="181"/>
         <source>Could not write this raster to a publishable file (the writer produced nothing).</source>
         <translation>Impossible d'écrire ce raster dans un fichier publiable (l'écriture n'a rien produit).</translation>
     </message>
@@ -458,7 +458,7 @@
         <translation>Ordre et visibilité du panneau Couches, groupes aplatis, ouverte sur la vue du canevas.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="70"/>
+        <location filename="../../align_connector/settings_dialog.py" line="71"/>
         <source>Leave a field empty to return to the default. Change these only to reach another ALIGN deployment.</source>
         <translation>Laissez un champ vide pour revenir à la valeur par défaut. Ne changez ces adresses que pour atteindre un autre déploiement d'ALIGN.</translation>
     </message>
@@ -483,7 +483,7 @@
         <translation>Métadonnées : {}.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="156"/>
+        <location filename="../../align_connector/settings_dialog.py" line="160"/>
         <source>No answer from that address. Check the API URL, and that you are online.</source>
         <translation>Aucune réponse à cette adresse. Vérifiez l'URL de l'API, et que vous êtes en ligne.</translation>
     </message>
@@ -533,7 +533,7 @@
         <translation>Non connecté à ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="111"/>
+        <location filename="../../align_connector/settings_dialog.py" line="115"/>
         <source>Not connected. Signing in opens your browser, where you approve the connection in ALIGN.</source>
         <translation>Non connecté. Se connecter ouvre votre navigateur, où vous approuvez la connexion dans ALIGN.</translation>
     </message>
@@ -719,12 +719,12 @@
         <translation>QGIS ne sait pas lire cette couche : sa source est invalide.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/raster.py" line="136"/>
+        <location filename="../../align_connector/publish/raster.py" line="137"/>
         <source>QGIS cannot read this raster's data.</source>
         <translation>QGIS ne sait pas lire les données de ce raster.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/raster.py" line="170"/>
+        <location filename="../../align_connector/publish/raster.py" line="171"/>
         <source>QGIS could not open this raster's data to write it out.</source>
         <translation>QGIS n'a pas pu ouvrir les données de ce raster pour les écrire.</translation>
     </message>
@@ -739,7 +739,7 @@
         <translation>Le style raster n'est pas transmis : ALIGN affiche le fichier avec son rendu par défaut.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="150"/>
+        <location filename="../../align_connector/settings_dialog.py" line="154"/>
         <source>Reached ALIGN — it recognises this plugin{}.</source>
         <translation>ALIGN est joignable et reconnaît cette extension{}.</translation>
     </message>
@@ -775,13 +775,13 @@
         <translation>Se connecter à ALIGN…</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="114"/>
+        <location filename="../../align_connector/settings_dialog.py" line="118"/>
         <source>Sign in…</source>
         <translation>Se connecter…</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/dock.py" line="109"/>
-        <location filename="../../align_connector/settings_dialog.py" line="108"/>
+        <location filename="../../align_connector/settings_dialog.py" line="112"/>
         <source>Sign out</source>
         <translation>Se déconnecter</translation>
     </message>
@@ -846,22 +846,22 @@
         <translation>To</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="78"/>
+        <location filename="../../align_connector/settings_dialog.py" line="79"/>
         <source>Test connection</source>
         <translation>Tester la connexion</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="160"/>
+        <location filename="../../align_connector/settings_dialog.py" line="164"/>
         <source>That address answered, but does not know this plugin. It may be an older ALIGN, or the wrong server.</source>
         <translation>Cette adresse a répondu, mais ne connaît pas cette extension. C'est peut-être un ALIGN plus ancien, ou le mauvais serveur.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/exporter.py" line="297"/>
+        <location filename="../../align_connector/publish/exporter.py" line="320"/>
         <source>That layer has no features.</source>
         <translation>Cette couche n'a aucune entité.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/raster.py" line="132"/>
+        <location filename="../../align_connector/publish/raster.py" line="133"/>
         <source>That layer is not valid: QGIS cannot read it.</source>
         <translation>Cette couche n'est pas valide : QGIS ne sait pas la lire.</translation>
     </message>
@@ -996,7 +996,7 @@
         <translation>Il ne reste pas assez d'espace dans le Datastore de cette organisation.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/exporter.py" line="295"/>
+        <location filename="../../align_connector/publish/exporter.py" line="318"/>
         <source>There is nothing to publish: the selection is empty.</source>
         <translation>Il n'y a rien à publier : la sélection est vide.</translation>
     </message>
@@ -1016,17 +1016,17 @@
         <translation>Cette archive PMTiles est envoyée telle quelle.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="205"/>
+        <location filename="../../align_connector/api.py" line="211"/>
         <source>This file is too large for ALIGN to prepare for display.</source>
         <translation>Ce fichier est trop volumineux pour qu'ALIGN le prépare à l'affichage.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/exporter.py" line="428"/>
+        <location filename="../../align_connector/publish/exporter.py" line="451"/>
         <source>This layer</source>
         <translation>Cette couche</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/exporter.py" line="169"/>
+        <location filename="../../align_connector/publish/exporter.py" line="170"/>
         <source>This layer has no coordinate reference system. Set one (Layer Properties, Source) before publishing.</source>
         <translation>Cette couche n'a pas de système de coordonnées. Définissez-en un (Propriétés de la couche, Source) avant de publier.</translation>
     </message>
@@ -1036,12 +1036,17 @@
         <translation>Le GeoTIFF de cette couche sera envoyé tel quel{}. ALIGN le convertit en Cloud-Optimized GeoTIFF à l'arrivée ; si cette conversion doit reprojeter les données, votre original est conservé à côté et les deux comptent dans votre stockage.</translation>
     </message>
     <message>
+        <location filename="../../align_connector/api.py" line="92"/>
+        <source>This organization has not enabled the QGIS plugin for its members. An owner or admin can turn it on in Settings → Integrations.</source>
+        <translation>Cette organisation n'a pas activé le plugin QGIS pour ses membres. Un owner ou un admin peut l'activer dans Settings › Integrations.</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/auth/loopback.py" line="59"/>
         <source>This page was not opened by QGIS. You can close it.</source>
         <translation>Cette page n'a pas été ouverte par QGIS. Vous pouvez la fermer.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/raster.py" line="162"/>
+        <location filename="../../align_connector/publish/raster.py" line="163"/>
         <source>This raster has no pixels to write.</source>
         <translation>Ce raster n'a aucun pixel à écrire.</translation>
     </message>
@@ -1142,11 +1147,11 @@
         <translation>Pourquoi elle ne peut pas être publiée</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="107"/>
-        <location filename="../../align_connector/api.py" line="136"/>
-        <location filename="../../align_connector/api.py" line="188"/>
-        <location filename="../../align_connector/api.py" line="269"/>
-        <location filename="../../align_connector/api.py" line="303"/>
+        <location filename="../../align_connector/api.py" line="113"/>
+        <location filename="../../align_connector/api.py" line="142"/>
+        <location filename="../../align_connector/api.py" line="194"/>
+        <location filename="../../align_connector/api.py" line="275"/>
+        <location filename="../../align_connector/api.py" line="309"/>
         <source>You are not signed in to ALIGN.</source>
         <translation>Vous n'êtes pas connecté à ALIGN.</translation>
     </message>
@@ -1161,12 +1166,12 @@
         <translation>Vous n'appartenez encore à aucune organisation ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="47"/>
+        <location filename="../../align_connector/settings_dialog.py" line="48"/>
         <source>Your ALIGN account</source>
         <translation>Votre compte ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="234"/>
+        <location filename="../../align_connector/api.py" line="240"/>
         <source>Your ALIGN session expired while the file was uploading.</source>
         <translation>Votre session ALIGN a expiré pendant l'envoi du fichier.</translation>
     </message>
@@ -1264,7 +1269,7 @@
         <translation>carte de chaleur</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/exporter.py" line="174"/>
+        <location filename="../../align_connector/publish/exporter.py" line="175"/>
         <source>its custom coordinate system</source>
         <translation>son système de coordonnées personnalisé</translation>
     </message>
@@ -1372,12 +1377,12 @@
         <translation>le symbole</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/exporter.py" line="340"/>
+        <location filename="../../align_connector/publish/exporter.py" line="363"/>
         <source>the writer produced an empty file</source>
         <translation>l'écriture a produit un fichier vide</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/exporter.py" line="352"/>
+        <location filename="../../align_connector/publish/exporter.py" line="375"/>
         <source>the writer refused the layer</source>
         <translation>l'écriture a refusé la couche</translation>
     </message>
@@ -1387,7 +1392,7 @@
         <translation>transmis</translation>
     </message>
     <message>
-        <location filename="../../align_connector/settings_dialog.py" line="165"/>
+        <location filename="../../align_connector/settings_dialog.py" line="169"/>
         <source>unexpected error</source>
         <translation>erreur inattendue</translation>
     </message>
@@ -1517,7 +1522,7 @@
         <translation>{} : {} couches de symbole, seule celle {} est gardée.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/raster.py" line="143"/>
+        <location filename="../../align_connector/publish/raster.py" line="144"/>
         <source>“{}” is a {} connection, not a dataset: there is no file to publish. Remote services are added to ALIGN from the web application.</source>
         <translation>« {} » est une connexion {}, pas un jeu de données : il n'y a pas de fichier à publier. Les services distants s'ajoutent à ALIGN depuis l'application web.</translation>
     </message>

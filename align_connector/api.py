@@ -86,9 +86,15 @@ def _raise_for(result, fallback):
         message, needs_sign_in = known
         if result.status == 402:
             message = _credits_refusal(result) or message
-        elif result.status in (403, 415):
-            # The server says which role, or which type: worth more than our
-            # generic line, when it says anything at all.
+        elif result.status == 403 and result.code() == "QGIS_CONNECTOR_NOT_ALLOWED":
+            # The organization's switch, not the role (TCK-1666): its own
+            # sentence, in the user's language, with the remedy.
+            message = tr(
+                "This organization has not enabled the QGIS plugin for its members. "
+                "An owner or admin can turn it on in Settings → Integrations."
+            )
+        elif result.status == 415:
+            # The server names the type it refused: worth more than our line.
             message = result.message(message)
         raise ApiError(message, needs_sign_in=needs_sign_in, status=result.status)
     if result.status == net.NO_RESPONSE:
