@@ -60,7 +60,10 @@ def shipped_files():
 
 def build(version: str) -> pathlib.Path:
     DIST.mkdir(exist_ok=True)
-    target = DIST / "align_connector-{}.zip".format(version)
+    # QGIS keys a repository entry by the file name up to its first dot
+    # (``fileName.partition(".")[0]`` in pyplugin_installer), which must be
+    # the plugin's folder name: hence a dot, not a dash, before the version.
+    target = DIST / "align_connector.{}.zip".format(version)
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
         for path in shipped_files():
             archive.write(path, "align_connector/" + path.relative_to(PACKAGE).as_posix())

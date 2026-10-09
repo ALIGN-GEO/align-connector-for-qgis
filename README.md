@@ -95,7 +95,7 @@ The plugin is in **beta**, distributed from ALIGN's own plugin repository until 
 1. In QGIS, *Plugins → Manage and Install Plugins → Settings*, tick **Show also experimental plugins**, then under *Plugin repositories* click **Add**: name `ALIGN`, URL `https://aligngeo.com/qgis/plugins.xml`.
 2. Back in *All*, search **ALIGN Connector** and click **Install Plugin**.
 
-**From a ZIP**: download `align_connector-<version>.zip` from the same address (or from this repository's Releases), then *Plugins → Manage and Install Plugins → Install from ZIP*.
+**From a ZIP**: download `align_connector.<version>.zip` from the same address (or from this repository's Releases), then *Plugins → Manage and Install Plugins → Install from ZIP*.
 
 Either way, nothing else to install: no Python package, no key to paste. The [documentation](https://aligngeo.com/docs/integrations/qgis/) walks through signing in and publishing.
 
@@ -110,7 +110,7 @@ On Windows, `scripts/dev_install.ps1` links this repository into your QGIS profi
 ### Releasing
 
 1. In `align_connector/metadata.txt`, bump `version` and write the `changelog` entry. `python scripts/check_metadata.py` says whether the plugin repository would accept it.
-2. `python scripts/package.py` builds `dist/align_connector-<version>.zip` (plugin folder with `LICENSE` inside, no compiled files) and its SHA-256, and verifies the zip the way QGIS will.
+2. `python scripts/package.py` builds `dist/align_connector.<version>.zip` (plugin folder with `LICENSE` inside, no compiled files) and its SHA-256, and verifies the zip the way QGIS will.
 3. Tag `v<version>` and push the tag: the Release workflow rebuilds the zip with the same script and attaches it to a GitHub Release.
 4. `python scripts/package.py --repository-xml https://aligngeo.com/qgis` prints the `plugins.xml` served by ALIGN's beta repository; it goes to the site with the zip and the icon.
 
