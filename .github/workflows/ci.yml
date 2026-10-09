@@ -111,6 +111,36 @@ jobs:
       - name: Translations complete and compiled
         run: python scripts/translations.py check
 
+  # The plugin on a real QGIS, twice: the 3.44 LTR (Qt5) the code is
+  # developed against, and the 4.x line (Qt6) users have since 2026-03. The
+  # smokes above prove the logic on stand-ins; these load the plugin for real
+  # (TCK-2180). Tags per hub.docker.com/r/qgis/qgis: `ltr` = 3.44.x, `4.2` =
+  # the Qt6 release line.
+  qgis:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ltr', '4.2']
+    container:
+      image: qgis/qgis:${{ matrix.image }}
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: QGIS and Qt versions
+        run: python3 -c "from qgis.core import Qgis; from qgis.PyQt.QtCore import QT_VERSION_STR, PYQT_VERSION_STR; print(Qgis.QGIS_VERSION, 'Qt', QT_VERSION_STR, 'PyQt', PYQT_VERSION_STR)"
+
+      - name: Every module imports on this binding
+        run: python3 -c "import pkgutil, importlib, align_connector; [importlib.import_module(m.name) for m in pkgutil.walk_packages(align_connector.__path__, 'align_connector.')]; print('all modules import')"
+
+      - name: Plugin loads, registers and unloads on real Qt
+        run: python3 scripts/smoke_lifecycle.py
+
+      - name: The shipped translation loads in a real QTranslator
+        run: python3 scripts/smoke_i18n.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

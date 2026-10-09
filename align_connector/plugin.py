@@ -38,7 +38,7 @@ from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of
 from .publish.reference_task import RegisterReferenceTask
 from .publish.task import PublishLayerTask
 from .publish.webmap_task import ComposeWebMapTask
-from .qtcompat import run_exec
+from .qtcompat import qt_enum, run_exec
 from .settings_dialog import SettingsDialog
 
 #: Menu title under QGIS' "Web" menu. Kept in one place: it is both what we add
@@ -209,20 +209,20 @@ class AlignConnectorPlugin:
     def _on_waiting(self):
         self._message(
             self.tr("Finish signing in from your browser, then come back to QGIS."),
-            Qgis.Info,
+            qt_enum(Qgis, "MessageLevel", "Info"),
         )
 
     def _on_signed_in(self):
         self._refresh_state()
-        self._message(self.tr("Connected to ALIGN."), Qgis.Success)
+        self._message(self.tr("Connected to ALIGN."), qt_enum(Qgis, "MessageLevel", "Success"))
 
     def _on_signed_out(self):
         self._refresh_state()
-        self._message(self.tr("Signed out of ALIGN."), Qgis.Info)
+        self._message(self.tr("Signed out of ALIGN."), qt_enum(Qgis, "MessageLevel", "Info"))
 
     def _on_failed(self, reason):
         self._refresh_state()
-        self._message(reason, Qgis.Warning)
+        self._message(reason, qt_enum(Qgis, "MessageLevel", "Warning"))
 
     def _message(self, text, level):
         self.iface.messageBar().pushMessage(PLUGIN_NAME, text, level=level, duration=6)
@@ -297,7 +297,7 @@ class AlignConnectorPlugin:
             text = self.tr("Publishing {} layers to {} — follow them in the ALIGN panel.").format(count, org["name"])
         if batch.web_map_name:
             text += " " + self.tr("The web map “{}” will be created once they have all landed.").format(batch.web_map_name)
-        self._message(text, Qgis.Info)
+        self._message(text, qt_enum(Qgis, "MessageLevel", "Info"))
 
     def _on_lot_finished(self, follower):
         """Every layer of the lot has landed, or failed: ask for the web map."""
@@ -307,7 +307,7 @@ class AlignConnectorPlugin:
         if not plan.layers:
             self._message(
                 self.tr("No layer of the lot was published, so the web map “{}” was not created.").format(batch.web_map_name),
-                Qgis.Warning,
+                qt_enum(Qgis, "MessageLevel", "Warning"),
             )
             return
         task = ComposeWebMapTask(
@@ -339,7 +339,7 @@ class AlignConnectorPlugin:
         if not succeeded and task.needs_sign_in:
             self.session.sign_out()
             self._refresh_state()
-        self._message(text, _LEVELS.get(outcome.level, Qgis.Warning))
+        self._message(text, _LEVELS.get(outcome.level, qt_enum(Qgis, "MessageLevel", "Warning")))
 
     def _on_publish_finished(self, task, succeeded):
         """Report the outcome, in the words of whoever refused it."""
@@ -359,10 +359,10 @@ class AlignConnectorPlugin:
             self.session.sign_out()
             self._refresh_state()
 
-        self._message(outcome.text, _LEVELS.get(outcome.level, Qgis.Warning))
+        self._message(outcome.text, _LEVELS.get(outcome.level, qt_enum(Qgis, "MessageLevel", "Warning")))
 
 
-_LEVELS = {SUCCESS: Qgis.Success, INFO: Qgis.Info}
+_LEVELS = {SUCCESS: qt_enum(Qgis, "MessageLevel", "Success"), INFO: qt_enum(Qgis, "MessageLevel", "Info")}
 
 
 def _layer_type(name):

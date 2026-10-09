@@ -18,6 +18,7 @@ import shutil
 from qgis.core import QgsTask
 
 from .. import api
+from ..qtcompat import qt_enum
 from ..metadata import plugin_version
 from .exporter import ExportFailed, export_for_publish
 from .uploader import ResumableUploader, UploadCancelled, UploadFailed
@@ -76,7 +77,7 @@ class PublishLayerTask(QgsTask):
         style=None,
         iso=None,
     ):
-        super().__init__("Publishing “{}” to ALIGN".format(asset_name), QgsTask.CanCancel)
+        super().__init__("Publishing “{}” to ALIGN".format(asset_name), qt_enum(QgsTask, "Flag", "CanCancel"))
         self.session = session
         self.layer = layer
         self.org_id = org_id

@@ -50,6 +50,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QVariant
 
 from ..i18n import tr
+from ..qtcompat import qt_enum
 
 #: Formats we can write, best first. `(driver, extension, content type)`.
 _FORMATS = (
@@ -210,12 +211,34 @@ def passthrough_source_of(layer, selected_only=False):
     return ready
 
 
-#: Attribute types no vector format can store. Serialised to JSON text instead.
-_COMPLEX_TYPES = (QVariant.Map, QVariant.List, QVariant.StringList, QVariant.Hash)
+#: Attribute types no vector format can store, serialised to JSON text instead.
+#: Qt's numeric type ids (QMetaType::QVariantMap, QVariantList, QStringList,
+#: QVariantHash), stable across Qt5 and Qt6: QGIS 3 answers ``field.type()``
+#: with a ``QVariant.Type`` (an int on PyQt5), QGIS 4 with a ``QMetaType.Type``
+#: enum member, and the id is what both agree on (TCK-2180).
+_COMPLEX_TYPE_IDS = frozenset((8, 9, 11, 28))
+
+
+def _type_id(qt_type):
+    return getattr(qt_type, "value", qt_type)
 
 
 def _is_complex(field):
-    return field.type() in _COMPLEX_TYPES
+    return _type_id(field.type()) in _COMPLEX_TYPE_IDS
+
+
+def _string_type():
+    """The field type of a text column, for the QgsField constructor at hand.
+
+    QGIS 3.38 introduced the ``QMetaType`` overload and QGIS 4 keeps only
+    that one; older releases take ``QVariant.String``.
+    """
+    try:
+        from qgis.PyQt.QtCore import QMetaType
+
+        return QMetaType.Type.QString
+    except (ImportError, AttributeError):
+        return QVariant.String
 
 
 def _as_text(value):
@@ -243,7 +266,7 @@ def flatten_complex_fields(layer, selected_only=False):
     fields = QgsFields()
     for field in layer.fields():
         if _is_complex(field):
-            fields.append(QgsField(field.name(), QVariant.String))
+            fields.append(QgsField(field.name(), _string_type()))
         else:
             fields.append(field)
 
@@ -335,7 +358,7 @@ def export_layer(layer, selected_only=False, target_dir=None):
             )
 
         error, message = _write(source, path, options)
-        if error == QgsVectorFileWriter.NoError:
+        if error == qt_enum(QgsVectorFileWriter, "WriterError", "NoError"):
             if not os.path.exists(path) or os.path.getsize(path) == 0:
                 last_error = tr("the writer produced an empty file")
                 continue

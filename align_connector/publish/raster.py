@@ -41,6 +41,7 @@ from qgis.core import (
 
 from .exporter import ExportFailed, ExportResult, safe_basename
 from ..i18n import tr
+from ..qtcompat import qt_enum
 
 #: The one content type that makes ALIGN recognise a raster upload. Sending
 #: `application/octet-stream` would upload fine and never derive anything: the
@@ -174,7 +175,7 @@ def export_raster(layer, target_dir=None):
     writer.setCreateOptions(_CREATE_OPTIONS)
 
     error = _write(writer, pipe, provider)
-    if error != QgsRasterFileWriter.NoError:
+    if error != qt_enum(QgsRasterFileWriter, "WriterError", "NoError"):
         raise ExportFailed(tr("Could not write this raster to a publishable file (GDAL error {}).").format(error))
     if not os.path.exists(path) or os.path.getsize(path) == 0:
         raise ExportFailed(tr("Could not write this raster to a publishable file (the writer produced nothing)."))

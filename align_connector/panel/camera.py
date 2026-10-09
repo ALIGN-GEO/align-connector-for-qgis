@@ -12,6 +12,7 @@ from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform
 
 from .webmap import map_view_of
 from ..i18n import tr
+from ..qtcompat import qt_enum
 
 
 def canvas_map_view(canvas):
@@ -32,6 +33,6 @@ def canvas_map_view(canvas):
         )
     except Exception as exc:  # noqa: BLE001 — any failure here is a lost convenience, said in the log
         QgsMessageLog.logMessage(
-            tr("Could not read the canvas extent for the web map camera: {}").format(exc), "ALIGN Connector", Qgis.Warning
+            tr("Could not read the canvas extent for the web map camera: {}").format(exc), "ALIGN Connector", qt_enum(Qgis, "MessageLevel", "Warning")
         )
         return None

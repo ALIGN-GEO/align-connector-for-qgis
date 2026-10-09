@@ -354,7 +354,7 @@ class PublishView(QWidget):
             QgsMessageLog.logMessage(
                 tr("Could not read the capacity of {}: {}").format(org["name"], exc.message),
                 "ALIGN Connector",
-                Qgis.Warning,
+                qt_enum(Qgis, "MessageLevel", "Warning"),
             )
             return
         finally:

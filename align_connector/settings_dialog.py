@@ -30,6 +30,7 @@ from . import config
 from . import net
 from .i18n import tr
 from .metadata import plugin_version
+from .qtcompat import qt_enum
 
 
 class SettingsDialog(QDialog):
@@ -80,7 +81,7 @@ class SettingsDialog(QDialog):
         test_row.addWidget(self.test_button, 0)
         self.test_label = QLabel()
         self.test_label.setWordWrap(True)
-        self.test_label.setTextFormat(Qt.PlainText)
+        self.test_label.setTextFormat(qt_enum(Qt, "TextFormat", "PlainText"))
         test_row.addWidget(self.test_label, 1)
         server_layout.addRow("", test_row)
 
@@ -90,7 +91,10 @@ class SettingsDialog(QDialog):
         version.setEnabled(False)
         layout.addWidget(version)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel, self)
+        buttons = QDialogButtonBox(
+            qt_enum(QDialogButtonBox, "StandardButton", "Save") | qt_enum(QDialogButtonBox, "StandardButton", "Cancel"),
+            self,
+        )
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

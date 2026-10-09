@@ -61,7 +61,7 @@ would not fit is refused in seconds, not after an hour of uploading.
 
 ## Requirements
 
-- QGIS **3.22 LTR or newer** (developed against 3.44 LTR, Qt5, Python 3.12)
+- QGIS **3.22 LTR or newer**, QGIS 4.x included: one source for Qt5 and Qt6 through the `qgis.PyQt` shim and `qtcompat.qt_enum`. Developed against 3.44 LTR (Qt5, Python 3.12); CI loads the plugin on the `qgis/qgis:ltr` and `qgis/qgis:4.2` images.
 - An [ALIGN](https://aligngeo.com) account, and membership of at least one organization with a role that can publish
 
 No third-party Python packages. Nothing to `pip install`.
