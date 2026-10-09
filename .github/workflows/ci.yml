@@ -158,3 +158,12 @@ jobs:
       # costs a review round trip.
       - name: Validate metadata.txt
         run: python scripts/check_metadata.py
+
+      # The zip a release ships is built and verified here on every push, so
+      # a tag never discovers a packaging error (TCK-2047). The XML printed
+      # alongside is what the beta repository serves.
+      - name: Build the plugin zip and the repository XML
+        run: |
+          mkdir -p dist
+          python scripts/package.py --repository-xml https://aligngeo.com/qgis > dist/plugins.xml
+          python -c "import xml.dom.minidom; xml.dom.minidom.parse('dist/plugins.xml'); print('plugins.xml well-formed')"

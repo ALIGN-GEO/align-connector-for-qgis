@@ -1,0 +1,44 @@
+name: Release
+
+# A tag vX.Y.Z becomes a GitHub Release carrying the zip QGIS installs and
+# its SHA-256. The zip is built by scripts/package.py, the same script a
+# developer runs and the one that prints the beta repository's XML, so the
+# three never drift. The tag must name the version metadata.txt declares:
+# the plugin repository refuses a version it has already seen, and QGIS
+# labels an installed plugin by its metadata, not by the tag.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      # The only job of this repository that writes: it creates the release.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Tag and metadata name the same version
+        run: python scripts/check_metadata.py --tag "$GITHUB_REF_NAME"
+
+      - name: Build and verify the plugin zip
+        run: python scripts/package.py
+
+      - name: Create the GitHub Release with the zip and its checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.sha256 \
+            --title "ALIGN Connector $version" \
+            --notes "See the changelog in align_connector/metadata.txt. Install: https://aligngeo.com/docs/integrations/qgis/" \
+            --verify-tag

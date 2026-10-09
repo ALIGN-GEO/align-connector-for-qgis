@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
+.ruff_cache/
 
 # Qt / QGIS build artefacts
 *.qmlc

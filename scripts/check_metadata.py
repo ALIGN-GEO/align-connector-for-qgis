@@ -13,12 +13,15 @@ are bound to, and the minimum QGIS version we claim to support).
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
+import argparse
 import configparser
 import pathlib
 import re
 import sys
 
-METADATA = pathlib.Path(__file__).resolve().parent.parent / "align_connector" / "metadata.txt"
+REPO = pathlib.Path(__file__).resolve().parent.parent
+METADATA = REPO / "align_connector" / "metadata.txt"
+LICENSE = REPO / "LICENSE"
 
 # Required by QGIS to load the plugin at all.
 REQUIRED = (
@@ -32,6 +35,10 @@ REQUIRED = (
     "repository",
 )
 
+# Required by the QGIS plugin repository to accept a submission: links that
+# must resolve, a licence it can read, a changelog it shows per version.
+REQUIRED_FOR_REPOSITORY = ("homepage", "tracker", "license", "changelog")
+
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 QGIS_VERSION_RE = re.compile(r"^\d+\.\d+$")
 
@@ -41,6 +48,13 @@ EXPECTED_LICENSE = "GPL-2.0-or-later"
 
 
 def main() -> int:
+    arguments = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    arguments.add_argument(
+        "--tag",
+        help="a git tag (vX.Y.Z) that must name the same version as metadata.txt",
+    )
+    options = arguments.parse_args()
+
     if not METADATA.exists():
         print(f"missing {METADATA}")
         return 1
@@ -58,10 +72,23 @@ def main() -> int:
     for field in REQUIRED:
         if not general.get(field, "").strip():
             problems.append(f"missing or empty required field: {field}")
+    for field in REQUIRED_FOR_REPOSITORY:
+        if not general.get(field, "").strip():
+            problems.append(f"missing or empty field the plugin repository requires: {field}")
+
+    # The repository wants the licence next to metadata.txt; package.py copies
+    # it there from the repository root, which therefore must hold it.
+    if not LICENSE.exists():
+        problems.append("LICENSE (no extension) is missing at the repository root")
 
     version = general.get("version", "")
     if version and not VERSION_RE.match(version):
         problems.append(f"version must be X.Y.Z, got {version!r}")
+    # A release is cut from a tag; a tag that names another version than the
+    # metadata ships a zip QGIS will label wrongly, and the repository
+    # refuses a version it has already seen.
+    if options.tag and options.tag != f"v{version}":
+        problems.append(f"tag {options.tag!r} does not match metadata version {version!r} (expected v{version})")
 
     minimum = general.get("qgisMinimumVersion", "")
     if minimum and not QGIS_VERSION_RE.match(minimum):
