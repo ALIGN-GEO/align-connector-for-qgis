@@ -32,8 +32,10 @@ CLIENT_ID = "align-connector-qgis"
 #: read or download the organization's data.
 SCOPES = ("datastore:publish",)
 
-# Product domains, deliberately — not the hosts they currently resolve to.
-DEFAULT_APP_URL = "https://app.aligngeo.com"
+# Product domains, deliberately, not the hosts they currently resolve to. The web
+# application lives under aligngeo.com (/login, /app, /oauth/authorize); the API
+# has its own host.
+DEFAULT_APP_URL = "https://aligngeo.com"
 DEFAULT_API_URL = "https://api.aligngeo.com"
 
 
