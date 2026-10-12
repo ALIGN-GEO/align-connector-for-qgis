@@ -167,7 +167,7 @@
     <message>
         <location filename="../../align_connector/api.py" line="381"/>
         <source>ALIGN returned an unexpected answer while creating the web map.</source>
-        <translation>ALIGN a renvoyé une réponse inattendue en créant la web map.</translation>
+        <translation>ALIGN a renvoyé une réponse inattendue en créant la carte web.</translation>
     </message>
     <message>
         <location filename="../../align_connector/api.py" line="124"/>
@@ -227,7 +227,7 @@
     <message>
         <location filename="../../align_connector/panel/publish_view.py" line="148"/>
         <source>Also create a web map with these layers</source>
-        <translation>Créer aussi une web map avec ces couches</translation>
+        <translation>Créer aussi une carte web avec ces couches</translation>
     </message>
     <message>
         <location filename="../../align_connector/publish/tiles.py" line="67"/>
@@ -342,7 +342,7 @@
     <message>
         <location filename="../../align_connector/api.py" line="377"/>
         <source>Could not create the web map</source>
-        <translation>La web map n'a pas pu être créée</translation>
+        <translation>La carte web n'a pas pu être créée</translation>
     </message>
     <message>
         <location filename="../../align_connector/auth/session.py" line="150"/>
@@ -352,7 +352,7 @@
     <message>
         <location filename="../../align_connector/panel/camera.py" line="36"/>
         <source>Could not read the canvas extent for the web map camera: {}</source>
-        <translation>Impossible de lire l'emprise du canevas pour la caméra de la web map : {}</translation>
+        <translation>Impossible de lire l'emprise du canevas pour la caméra de la carte web : {}</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/publish_view.py" line="393"/>
@@ -558,7 +558,7 @@
     <message>
         <location filename="../../align_connector/plugin.py" line="352"/>
         <source>No layer of the lot was published, so the web map “{}” was not created.</source>
-        <translation>Aucune couche du lot n'a été publiée, la web map « {} » n'a donc pas été créée.</translation>
+        <translation>Aucune couche du lot n'a été publiée, la carte web « {} » n'a donc pas été créée.</translation>
     </message>
     <message>
         <location filename="../../align_connector/processing/publish_layer.py" line="232"/>
@@ -583,7 +583,7 @@
     <message>
         <location filename="../../align_connector/publish/support.py" line="220"/>
         <source>No tile layer is styled in QGIS: a web map composed here cannot place the archive; add it from the Map builder instead.</source>
-        <translation>Aucune couche de tuiles n'est stylée dans QGIS : une web map composée ici ne peut pas placer l'archive ; ajoutez-la plutôt depuis le Map builder.</translation>
+        <translation>Aucune couche de tuiles n'est stylée dans QGIS : une carte web composée ici ne peut pas placer l'archive ; ajoutez-la plutôt depuis le Map builder.</translation>
     </message>
     <message>
         <location filename="../../align_connector/publish/services.py" line="233"/>
@@ -1146,12 +1146,12 @@
     <message>
         <location filename="../../align_connector/panel/webmap.py" line="89"/>
         <source>The web map could not be created.</source>
-        <translation>La web map n'a pas pu être créée.</translation>
+        <translation>La carte web n'a pas pu être créée.</translation>
     </message>
     <message>
         <location filename="../../align_connector/plugin.py" line="342"/>
         <source>The web map “{}” will be created once they have all landed.</source>
-        <translation>La web map « {} » sera créée quand elles seront toutes arrivées.</translation>
+        <translation>La carte web « {} » sera créée quand elles seront toutes arrivées.</translation>
     </message>
     <message>
         <location filename="../../align_connector/publish/briefing.py" line="122"/>
@@ -1236,7 +1236,7 @@
     <message>
         <location filename="../../align_connector/publish/briefing.py" line="126"/>
         <source>Tile layers for the web map: {}.</source>
-        <translation>Couches de tuiles pour la web map : {}.</translation>
+        <translation>Couches de tuiles pour la carte web : {}.</translation>
     </message>
     <message>
         <location filename="../../align_connector/auth/session.py" line="57"/>
@@ -1293,27 +1293,27 @@
         <location filename="../../align_connector/panel/publish_view.py" line="154"/>
         <location filename="../../align_connector/panel/webmap.py" line="86"/>
         <source>Web map</source>
-        <translation>Web map</translation>
+        <translation>Carte web</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/publish_view.py" line="152"/>
         <source>Web map title</source>
-        <translation>Titre de la web map</translation>
+        <translation>Titre de la carte web</translation>
     </message>
     <message>
         <location filename="../../align_connector/plugin.py" line="371"/>
         <source>Web map “{}”</source>
-        <translation>Web map « {} »</translation>
+        <translation>Carte web « {} »</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/webmap.py" line="91"/>
         <source>Web map “{}” is ready in {} with {} layer.</source>
-        <translation>La web map « {} » est prête dans {} avec {} couche.</translation>
+        <translation>La carte web « {} » est prête dans {} avec {} couche.</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/webmap.py" line="91"/>
         <source>Web map “{}” is ready in {} with {} layers.</source>
-        <translation>La web map « {} » est prête dans {} avec {} couches.</translation>
+        <translation>La carte web « {} » est prête dans {} avec {} couches.</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/publish_view.py" line="139"/>
@@ -1504,7 +1504,7 @@
     <message>
         <location filename="../../align_connector/publish/support.py" line="218"/>
         <source>no tile layer is styled in QGIS, so the web map cannot name what to draw</source>
-        <translation>aucune couche de tuiles n'est stylée dans QGIS, la web map ne peut donc pas dire quoi dessiner</translation>
+        <translation>aucune couche de tuiles n'est stylée dans QGIS, la carte web ne peut donc pas dire quoi dessiner</translation>
     </message>
     <message>
         <location filename="../../align_connector/processing/publish_layer.py" line="229"/>
@@ -1760,7 +1760,7 @@
     <message>
         <location filename="../../align_connector/panel/outcome.py" line="56"/>
         <source>“{}” was replaced in {} on ALIGN; the web maps that show it now show this version.</source>
-        <translation>« {} » a été remplacée dans {} sur ALIGN ; les web maps qui la montrent affichent désormais cette version.</translation>
+        <translation>« {} » a été remplacée dans {} sur ALIGN ; les cartes web qui la montrent affichent désormais cette version.</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/outcome.py" line="38"/>
