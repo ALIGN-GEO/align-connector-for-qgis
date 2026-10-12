@@ -89,6 +89,12 @@ jobs:
       - name: Publication memory and replacement
         run: python scripts/smoke_memory.py
 
+      # One click copies what a bug report needs (versions, addresses, the
+      # last refusals with ALIGN's codes), in English, and masks anything
+      # shaped like a token or an e-mail address (TCK-2219).
+      - name: Diagnostic for a bug report
+        run: python scripts/smoke_diagnostic.py
+
       # A finished lot becomes one request for the web map that shows it:
       # the successful items only, in the panel's order, with visibility,
       # geometry and style, and the camera the canvas showed. The follower

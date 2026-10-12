@@ -24,6 +24,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from .. import config
+from ..diagnostic import MAX_HISTORY
 from ..i18n import tr
 from ..qtcompat import qt_enum
 from .outcome import SUCCESS
@@ -34,6 +35,8 @@ class _PublicationRow(QFrame):
 
     def __init__(self, title, org_name, busy=False, parent=None):
         super().__init__(parent)
+        self.title = title
+        self.org_name = org_name
         self.setFrameShape(qt_enum(QFrame, "Shape", "StyledPanel"))
         layout = QVBoxLayout(self)
 
@@ -112,6 +115,10 @@ class ActivityView(QWidget):
         #: task → (row, org id, link builder). Keyed by the task object: the
         #: row must be found again from the task's own signals and outcome.
         self._rows = {}
+        #: The last finished publications, newest first, for the diagnostic
+        #: (TCK-2219): title, organization, level, sentence, ALIGN's status
+        #: and code. Bounded; survives "Clear finished".
+        self.history = []
 
     def start(self, task, org_id, title=None, link=None, busy=False):
         """A publication just left: give it a row that moves.
@@ -137,6 +144,15 @@ class ActivityView(QWidget):
         row, org_id, link = entry
         url = link(org_id, outcome.asset_id) if outcome.level == SUCCESS and outcome.asset_id else None
         row.finish(outcome, url)
+        self.history.insert(0, {
+            "title": row.title,
+            "org": row.org_name,
+            "level": outcome.level,
+            "text": outcome.text,
+            "status": getattr(task, "error_status", None),
+            "code": getattr(task, "error_code", None),
+        })
+        del self.history[MAX_HISTORY:]
         try:
             task.progressChanged.disconnect(self._on_progress)
         except (TypeError, RuntimeError):

@@ -112,6 +112,9 @@ class PublishLayerTask(QgsTask):
 
         #: Set on completion, read by whoever connected to `taskCompleted`.
         self.error_message = None
+        #: ALIGN's status and code behind a refusal, for the diagnostic (TCK-2219).
+        self.error_status = None
+        self.error_code = None
         self.needs_sign_in = False
         self.was_cancelled = False
         self.asset_id = None
@@ -174,6 +177,8 @@ class PublishLayerTask(QgsTask):
             return False
         except api.ApiError as exc:
             self.error_message = with_capacity(exc.message, exc.status, self.capacity_line)
+            self.error_status = exc.status
+            self.error_code = exc.code
             self.needs_sign_in = exc.needs_sign_in
             return False
         finally:

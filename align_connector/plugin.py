@@ -26,9 +26,9 @@ import os
 from qgis.core import Qgis, QgsApplication, QgsMapLayer, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication, QUrl
 from qgis.PyQt.QtGui import QDesktopServices, QIcon
-from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton
+from qgis.PyQt.QtWidgets import QAction, QApplication, QMenu, QToolButton
 
-from . import config, i18n
+from . import config, diagnostic, i18n
 from .auth import AlignSession
 from .panel import webmap
 from .panel.camera import canvas_map_view
@@ -123,6 +123,11 @@ class AlignConnectorPlugin:
             self._open_align,
             status_tip=self.tr("Your Datastore and your maps, in the web application"),
         )
+        copy_diagnostic = self._add_action(
+            self.tr("Copy diagnostic"),
+            self._copy_diagnostic,
+            status_tip=self.tr("Versions, addresses and the last refusals for a bug report; never a token"),
+        )
         settings = self._add_action(
             self.tr("Settings…"),
             self._open_settings,
@@ -144,6 +149,7 @@ class AlignConnectorPlugin:
         menu.addAction(self._sign_in_action)
         menu.addAction(open_align)
         menu.addSeparator()
+        menu.addAction(copy_diagnostic)
         menu.addAction(settings)
         button.setMenu(menu)
         button.setPopupMode(qt_enum(QToolButton, "ToolButtonPopupMode", "MenuButtonPopup"))
@@ -152,7 +158,9 @@ class AlignConnectorPlugin:
         # The panel exists from the start, hidden: QGIS can only give a dock
         # back its saved place if the dock is there when the window is laid
         # out. QGIS shows a dock it adds; a tool is opened when asked.
-        self.dock = AlignDock(self.session, self._start_batch, self.iface.mainWindow())
+        self.dock = AlignDock(
+            self.session, self._start_batch, self.iface.mainWindow(), on_copy_diagnostic=self._copy_diagnostic
+        )
         self.iface.addDockWidget(dock_area(), self.dock)
         self.dock.hide()
 
@@ -247,6 +255,19 @@ class AlignConnectorPlugin:
 
     def _open_align(self):
         QDesktopServices.openUrl(QUrl(config.app_url()))
+
+    def _copy_diagnostic(self):
+        """Put the diagnostic in the clipboard (TCK-2219): what a bug report
+        needs, read from this machine only, and nothing sent anywhere."""
+        organizations = self.dock.publish.organizations() if self.dock is not None else None
+        history = self.dock.activity.history if self.dock is not None else []
+        blocked = self.dock.messages.blocked if self.dock is not None else []
+        text = diagnostic.compose(diagnostic.environment(), self.session.is_signed_in(), organizations, history, blocked)
+        QApplication.clipboard().setText(text)
+        self._message(
+            self.tr("Diagnostic copied. Paste it in your bug report: it holds versions and refusals, never a token."),
+            qt_enum(Qgis, "MessageLevel", "Info"),
+        )
 
     def _on_waiting(self):
         self._message(

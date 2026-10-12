@@ -128,6 +128,8 @@ Reading ALIGN layers from QGIS does not need this plugin: ALIGN serves **OGC API
 
 Issues and pull requests are welcome. The plugin is free software; the ALIGN service it talks to is a commercial product — the same arrangement as most QGIS connectors to hosted platforms.
 
+Reporting a bug: in the ALIGN panel, open **Messages** and click **Copy diagnostic** (also in the toolbar button's menu), then paste it in the issue. It holds the versions, the addresses the plugin talks to, the session state, your organizations' names and the last refusals with ALIGN's codes; never a token nor an e-mail address. The plugin sends no telemetry.
+
 ## License
 
 GPL-2.0-or-later. See [LICENSE](LICENSE).

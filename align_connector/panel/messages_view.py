@@ -9,17 +9,30 @@ Publish view keeps one line that points to it (TCK-2210).
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
-from qgis.PyQt.QtWidgets import QAbstractItemView, QHeaderView, QLabel, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
+from qgis.PyQt.QtWidgets import (
+    QAbstractItemView,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QPushButton,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 from ..i18n import tr
 from ..qtcompat import qt_enum
 
 
 class MessagesView(QWidget):
-    """Rows of (layer, why), refreshed with the layer list."""
+    """Rows of (layer, why), refreshed with the layer list; and the button
+    that copies the diagnostic for a bug report (TCK-2219)."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, on_copy_diagnostic=None):
         super().__init__(parent)
+        #: ``[(layer name, reason)]`` as last shown, for the diagnostic.
+        self.blocked = []
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -40,9 +53,27 @@ class MessagesView(QWidget):
         self.tree.setVisible(False)
         layout.addWidget(self.tree, 1)
 
+        # Reporting a problem: one click, and the report has what the support
+        # needs (versions, addresses, the last refusals), never a token.
+        foot = QHBoxLayout()
+        hint = QLabel(tr("Something wrong? Copy the diagnostic and paste it in your report."))
+        hint.setWordWrap(True)
+        hint.setEnabled(False)
+        foot.addWidget(hint, 1)
+        self.diagnostic_button = QPushButton(tr("Copy diagnostic"))
+        self.diagnostic_button.setFlat(True)
+        self.diagnostic_button.setToolTip(
+            tr("Versions, server addresses, session state and the last refusals, for a bug report. Never a token.")
+        )
+        if on_copy_diagnostic is not None:
+            self.diagnostic_button.clicked.connect(lambda _checked=False: on_copy_diagnostic())
+        foot.addWidget(self.diagnostic_button, 0)
+        layout.addLayout(foot)
+
     def set_rows(self, rows):
         """Show the rows that cannot go (``batch.Row`` with a reason)."""
         blocked = [row for row in rows if not row.publishable]
+        self.blocked = [(row.name, row.reason or "") for row in blocked]
         self.tree.clear()
         for row in blocked:
             item = QTreeWidgetItem([row.name, row.reason or ""])

@@ -29,7 +29,7 @@ OBJECT_NAME = "AlignConnectorDock"
 class AlignDock(QgsDockWidget):
     """The panel QGIS keeps, docks and remembers (by object name)."""
 
-    def __init__(self, session, on_publish, parent=None):
+    def __init__(self, session, on_publish, parent=None, on_copy_diagnostic=None):
         super().__init__("ALIGN", parent)
         self.setObjectName(OBJECT_NAME)
         self.session = session
@@ -50,7 +50,7 @@ class AlignDock(QgsDockWidget):
 
         # -- the views --------------------------------------------------------
         self.tabs = QTabWidget()
-        self.messages = MessagesView()
+        self.messages = MessagesView(on_copy_diagnostic=on_copy_diagnostic)
         self.publish = PublishView(session, on_publish, on_rows=self.messages.set_rows, on_show_messages=self.show_messages)
         self.activity = ActivityView()
         self.tabs.addTab(self.publish, tr("Publish"))

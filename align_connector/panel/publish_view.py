@@ -60,6 +60,9 @@ class PublishView(QWidget):
         self._on_rows = on_rows
         self._on_show_messages = on_show_messages
         self._orgs = []
+        #: Whether ALIGN was asked at least once: the diagnostic tells "none"
+        #: from "never loaded" (TCK-2219).
+        self._orgs_loaded = False
         self._capacity_line = None
         self._titles = {}
         self._selection_only = set()
@@ -208,11 +211,19 @@ class PublishView(QWidget):
         self.refresh_organizations()
         self.refresh_layers()
 
+    def organizations(self):
+        """The organizations as last loaded (name and role), or ``None`` when
+        ALIGN was never asked: for the diagnostic, which reads, never calls."""
+        if not self._orgs_loaded:
+            return None
+        return [{"name": org.get("name"), "role": org.get("role")} for org in self._orgs]
+
     def refresh_organizations(self):
         self.capacity.setText("")
         self.org_box.blockSignals(True)
         self.org_box.clear()
         self._orgs = []
+        self._orgs_loaded = True
         try:
             self._orgs = api.list_organizations(self.session)
         except api.ApiError as exc:

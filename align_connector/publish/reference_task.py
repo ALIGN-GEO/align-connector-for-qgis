@@ -32,6 +32,8 @@ class RegisterReferenceTask(QgsTask):
         self.asset_id = None
         self.created = None
         self.error_message = None
+        self.error_status = None
+        self.error_code = None
         self.needs_sign_in = False
         #: What the other tasks carry, kept so one outcome reader serves all.
         self.servable_asset_id = None
@@ -54,6 +56,8 @@ class RegisterReferenceTask(QgsTask):
             )
         except api.ApiError as exc:
             self.error_message = exc.message
+            self.error_status = exc.status
+            self.error_code = exc.code
             self.needs_sign_in = exc.needs_sign_in
             return False
         self.asset_id = answer["assetId"]
