@@ -156,7 +156,7 @@ def _categorized(renderer, family, report):
         base, outline = _symbol_paint(first, family, report, tr("the symbol"))
         return _style(family, base, outline, {"type": "simple"}), tr("single symbol")
     if fallback is None:
-        fallback = _symbol_paint(_first_symbol(renderer), family, report, tr("the first category"))
+        fallback = _neutral_fallback(_first_symbol(renderer), family, report, tr("the first category"))
     base, outline = fallback
     symbology = {"type": "categorized", "attribute": attribute, "rules": rules}
     return _style(family, base, outline, symbology), tr("categorized on {}, {} classes").format(attribute, len(rules))
@@ -234,7 +234,7 @@ def _rule_based(renderer, family, report):
         rules.append(entry)
     if convertible and field and rules:
         if fallback is None:
-            fallback = _symbol_paint(_symbol_of(children[0]), family, report, tr("the first rule"))
+            fallback = _neutral_fallback(_symbol_of(children[0]), family, report, tr("the first rule"))
         base, outline = fallback
         report.append(tr("Rule-based renderer transmitted as categories on '{}'.").format(field))
         return _style(family, base, outline, {"type": "categorized", "attribute": field, "rules": rules}), \
@@ -245,6 +245,25 @@ def _rule_based(renderer, family, report):
         return None, None
     base, outline = _symbol_paint(first, family, report, tr("the first rule"))
     return _style(family, base, outline, {"type": "simple"}), tr("single symbol")
+
+
+#: What a feature outside every category or rule looks like on ALIGN when the
+#: renderer has no "all other values" row (TCK-2220): a light, translucent
+#: grey that belongs to no class. QGIS hides such a feature; the viewer's
+#: engine draws it with the layer's base paint, so that paint must not be a
+#: class's colour, or the feature passes for a member of that class.
+NEUTRAL_FALLBACK = ("#cbd5e1", 0.4)
+
+
+def _neutral_fallback(first_symbol, family, report, what):
+    """The base paint when nothing says what an unclassified feature looks
+    like: neutral grey, with the first class's outline (the outline is the
+    layer's, shared by every class, and the first class is as good a source
+    as any). Says so in the report."""
+    _, outline = _symbol_paint(first_symbol, family, report, what)
+    colour, opacity = NEUTRAL_FALLBACK
+    report.append(tr("Features outside every category are drawn in neutral grey (QGIS would hide them)."))
+    return {_color_key(family): colour, _opacity_key(family): opacity}, outline
 
 
 # ---------------------------------------------------------------------------

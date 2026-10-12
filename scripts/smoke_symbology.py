@@ -145,6 +145,34 @@ def test_graduated_keeps_sorted_classes_and_the_scheme():
     check(result.style["renderType"] == "line", result.style)
 
 
+def test_categorized_without_all_other_values_falls_back_to_neutral_grey_and_says_so():
+    # TCK-2220: no "all other values" row. QGIS hides a feature outside every
+    # class; the viewer draws it with the base paint, which must belong to no class.
+    categories = [
+        Stub(value="A", label="Zone A", symbol=symbol(fill_layer(fill="#f59e0b")), renderState=True),
+        Stub(value="B", label="Zone B", symbol=symbol(fill_layer(fill="#10b981")), renderState=True),
+    ]
+    renderer = Stub(type="categorizedSymbol", classAttribute="zone", categories=categories)
+    result = symbology.convert(vector(2, renderer))
+    check(result.summary == "categorized on zone, 2 classes", result.summary)
+    check(result.style["paint"] == {"fill-color": "#cbd5e1", "fill-opacity": 0.4}, result.style["paint"])
+    check(result.style["outline"] == {"enabled": True, "width": 1.51, "color": "#1e3a8a"}, "the classes keep their outline")
+    check([r["paint"]["fill-color"] for r in result.style["symbology"]["rules"]] == ["#f59e0b", "#10b981"], "classes untouched")
+    check(any("neutral grey" in line for line in result.report), result.report)
+
+
+def test_rule_based_without_else_falls_back_to_neutral_grey():
+    rules = [
+        Stub(filterExpression='"zone" = \'A\'', isElse=False, label="A", symbol=symbol(fill_layer(fill="#f59e0b")), children=[], active=True),
+        Stub(filterExpression="zone = 12", isElse=False, label="", symbol=symbol(fill_layer(fill="#10b981")), children=[], active=True),
+    ]
+    renderer = Stub(type="RuleRenderer", rootRule=Stub(children=rules))
+    result = symbology.convert(vector(2, renderer))
+    check(result.summary == "categorized on zone, 2 classes", result.summary)
+    check(result.style["paint"]["fill-color"] == "#cbd5e1", "no ELSE: neutral grey, not the first rule's colour")
+    check(any("neutral grey" in line for line in result.report), result.report)
+
+
 def test_rule_based_equalities_on_one_field_become_categories():
     rules = [
         Stub(filterExpression='"zone" = \'A\'', isElse=False, label="A", symbol=symbol(fill_layer(fill="#f59e0b")), children=[], active=True),
