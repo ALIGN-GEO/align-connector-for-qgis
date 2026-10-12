@@ -146,6 +146,10 @@ def test_a_replacement_says_what_changed_and_a_gone_item_says_it_was_published_a
     check("Attribute fields changed: added region; removed area; retyped pop: Int to Long." in changed.text, changed.text)
     check("A map that reads a removed field will need attention." in changed.text, changed.text)
 
+    grown = outcome.outcome_of(_task(replaced=True, schema_changes={"added": ["region"], "removed": [], "retyped": []}), True)
+    check("Attribute fields changed: added region." in grown.text, grown.text)
+    check("removed field" not in grown.text, "no warning when nothing was removed: " + grown.text)
+
     uncompared = outcome.outcome_of(_task(replaced=True, schema_changes=None), True)
     check("The attribute fields were not compared for this format." in uncompared.text, uncompared.text)
 

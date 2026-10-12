@@ -143,7 +143,18 @@ class PublishLayerAlgorithm(QgsProcessingAlgorithm):
 
         selected_only = self.parameterAsBool(parameters, SELECTED_ONLY, context)
         brief = briefing.brief(layer, selected_only)
-        title = (self.parameterAsString(parameters, TITLE, context) or "").strip() or brief.title or layer.name()
+        # The item the layer remembers, replaced in place when it lives in
+        # this organization and the caller did not say otherwise (TCK-2218);
+        # elsewhere, or unticked, a new item. A replacement keeps the item's
+        # title unless one is given: a layer renamed in QGIS does not rename
+        # the item on ALIGN, as the panel proposes it (E2E staging 2026-10-12).
+        link = self._replacement_of(layer, parameters, context)
+        title = (
+            (self.parameterAsString(parameters, TITLE, context) or "").strip()
+            or (link.title if link is not None else None)
+            or brief.title
+            or layer.name()
+        )
         description = (self.parameterAsString(parameters, DESCRIPTION, context) or "").strip() or None
         visibility = VISIBILITIES[self.parameterAsEnum(parameters, VISIBILITY, context)]
         feedback.pushInfo(brief.text)
@@ -159,10 +170,7 @@ class PublishLayerAlgorithm(QgsProcessingAlgorithm):
             visibility=visibility,
             style=brief.style,
             iso=brief.iso,
-            # The item the layer remembers, replaced in place when it lives
-            # in this organization and the caller did not say otherwise
-            # (TCK-2218); elsewhere, or unticked, a new item.
-            replace=self._replacement_of(layer, parameters, context),
+            replace=link,
         )
         self._layer = layer
         return True

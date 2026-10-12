@@ -122,4 +122,9 @@ def _schema_sentence(changes):
         parts.append(tr("retyped {}").format("; ".join(retyped)))
     if not parts:
         return tr("The attribute fields are unchanged.")
-    return tr("Attribute fields changed: {}. A map that reads a removed field will need attention.").format("; ".join(parts))
+    sentence = tr("Attribute fields changed: {}.").format("; ".join(parts))
+    if removed:
+        # Only a field that is gone can break a pop-up or a style on ALIGN;
+        # an added or retyped one is worth knowing, not worth a warning.
+        sentence += " " + tr("A map that reads a removed field will need attention.")
+    return sentence

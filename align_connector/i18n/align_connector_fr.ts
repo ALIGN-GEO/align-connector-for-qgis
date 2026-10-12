@@ -49,6 +49,11 @@
         <translation>Une archive locale est publiée comme fichier, pas comme référence.</translation>
     </message>
     <message>
+        <location filename="../../align_connector/panel/outcome.py" line="129"/>
+        <source>A map that reads a removed field will need attention.</source>
+        <translation>Une carte qui lit un champ retiré demandera attention.</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/publish/tiles.py" line="59"/>
         <source>A remote {} archive: ALIGN takes it as a reference, which a later version of the plugin will publish.</source>
         <translation>Une archive {} distante : ALIGN la prend comme référence, qu'une prochaine version de l'extension publiera.</translation>
@@ -251,8 +256,8 @@
     </message>
     <message>
         <location filename="../../align_connector/panel/outcome.py" line="125"/>
-        <source>Attribute fields changed: {}. A map that reads a removed field will need attention.</source>
-        <translation>Champs attributaires modifiés : {}. Une carte qui lit un champ retiré demandera attention.</translation>
+        <source>Attribute fields changed: {}.</source>
+        <translation>Champs attributaires modifiés : {}.</translation>
     </message>
     <message>
         <location filename="../../align_connector/auth/session.py" line="63"/>
@@ -431,7 +436,7 @@
         <translation>Go</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="221"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="229"/>
         <source>Give the organization to publish into, by name or by id.</source>
         <translation>Indiquez l'organisation où publier, par son nom ou son identifiant.</translation>
     </message>
@@ -561,7 +566,7 @@
         <translation>Aucune couche du lot n'a été publiée, la carte web « {} » n'a donc pas été créée.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="232"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="240"/>
         <source>No organization “{}” among yours: {}</source>
         <translation>Aucune organisation « {} » parmi les vôtres : {}</translation>
     </message>
@@ -801,13 +806,13 @@
     </message>
     <message>
         <location filename="../../align_connector/panel/outcome.py" line="104"/>
-        <location filename="../../align_connector/processing/publish_layer.py" line="201"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="209"/>
         <source>Publishing cancelled. Nothing was catalogued.</source>
         <translation>Publication annulée. Rien n'a été catalogué.</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/outcome.py" line="105"/>
-        <location filename="../../align_connector/processing/publish_layer.py" line="203"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="211"/>
         <source>Publishing failed.</source>
         <translation>La publication a échoué.</translation>
     </message>
@@ -892,7 +897,7 @@
         <translation>Réglages…</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="231"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="239"/>
         <source>Several organizations are named “{}”; give the id. Yours: {}</source>
         <translation>Plusieurs organisations s'appellent « {} » ; donnez l'identifiant. Les vôtres : {}</translation>
     </message>
@@ -1507,7 +1512,7 @@
         <translation>aucune couche de tuiles n'est stylée dans QGIS, la carte web ne peut donc pas dire quoi dessiner</translation>
     </message>
     <message>
-        <location filename="../../align_connector/processing/publish_layer.py" line="229"/>
+        <location filename="../../align_connector/processing/publish_layer.py" line="237"/>
         <source>none</source>
         <translation>aucune</translation>
     </message>
