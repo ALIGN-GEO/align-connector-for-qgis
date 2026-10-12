@@ -96,8 +96,8 @@ def test_a_secret_that_slips_in_through_a_message_is_masked():
          "status": 401, "code": None},
     ]
     text = diagnostic.compose(ENV, True, [{"name": "alg_rt_notaname", "role": "owner"}], leaky,
-                              [("layer", "contact jane.doe+gis@geonova.be")], now=0)
-    for forbidden in ("alg_at_", "alg_rt_", "Bearer alg", "@example.org", "@geonova.be"):
+                              [("layer", "contact jane.doe+gis@example.net")], now=0)
+    for forbidden in ("alg_at_", "alg_rt_", "Bearer alg", "@example.org", "@example.net"):
         check(forbidden not in text, "masked: " + forbidden)
     check(text.count(diagnostic.REDACTED) >= 4, "each secret shape is replaced, not dropped silently")
     check("ALIGN answered 401 for [redacted] and user [redacted]" in text, "the sentence around it survives")
