@@ -17,6 +17,12 @@ source for translators and stays in the repository.
 
     python scripts/package.py
     python scripts/package.py --repository-xml https://aligngeo.com/qgis > plugins.xml
+    python scripts/package.py --repository-xml https://aligngeo.com/qgis \
+        --download-base https://github.com/bdlst/align-connector-for-qgis/releases/download/v0.5.1 > plugins.xml
+
+The second form is the beta repository since the GitHub Release is public:
+the XML and the icon stay on aligngeo.com, the zip is the one the Release
+workflow attached, so the site never carries a second copy that could drift.
 
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
@@ -92,15 +98,18 @@ def verify(target: pathlib.Path, version: str) -> None:
             raise SystemExit("zip metadata says {} but {} was built".format(parser["general"]["version"], version))
 
 
-def repository_xml(general: configparser.SectionProxy, base_url: str, file_name: str) -> str:
+def repository_xml(general: configparser.SectionProxy, base_url: str, file_name: str, download_base: str = None) -> str:
     """The ``plugins.xml`` a QGIS plugin repository serves, with this one entry.
 
     The fields are those ``pyplugin_installer`` reads from an XML repository;
     the ones left out (``uploaded_by``, ``plugin_id``) are the official
     repository's own. Dates are today's: the file is regenerated per release.
+    ``download_base`` is where the zip lives when it is not next to the XML
+    (a GitHub Release); the plugin manager follows the redirect GitHub answers.
     """
     today = datetime.date.today().isoformat()
     base = base_url.rstrip("/")
+    download = (download_base or base_url).rstrip("/")
     fields = [
         ("description", general["description"]),
         ("about", general["about"]),
@@ -111,7 +120,7 @@ def repository_xml(general: configparser.SectionProxy, base_url: str, file_name:
         ("file_name", file_name),
         ("icon", "{}/icon.png".format(base)),
         ("author_name", general["author"]),
-        ("download_url", "{}/{}".format(base, file_name)),
+        ("download_url", "{}/{}".format(download, file_name)),
         ("create_date", today),
         ("update_date", today),
         ("experimental", general.get("experimental", "False")),
@@ -138,6 +147,11 @@ def main() -> int:
         metavar="BASE_URL",
         help="also print plugins.xml for a repository serving the zip and icon.png under BASE_URL",
     )
+    arguments.add_argument(
+        "--download-base",
+        metavar="URL",
+        help="with --repository-xml: the zip is served under URL instead (a GitHub Release's download path)",
+    )
     options = arguments.parse_args()
 
     general = read_metadata()
@@ -150,7 +164,9 @@ def main() -> int:
     if options.repository_xml:
         # Bytes, not text: the XML declares UTF-8, and a console's own
         # encoding (cp1252 on Windows) would silently break the promise.
-        sys.stdout.buffer.write(repository_xml(general, options.repository_xml, target.name).encode("utf-8"))
+        sys.stdout.buffer.write(
+            repository_xml(general, options.repository_xml, target.name, options.download_base).encode("utf-8")
+        )
     return 0
 
 
