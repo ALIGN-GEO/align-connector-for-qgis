@@ -18,6 +18,7 @@ Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
 import re
+from contextlib import suppress
 
 from ..i18n import tr
 
@@ -375,14 +376,14 @@ def _first_symbol(renderer):
         symbol = _symbol_of(children[0])
         if symbol is not None:
             return symbol
-    try:
+    # No render context available means the plain accessor is next, whatever
+    # the binding raised: the same reading as the typed fallbacks above.
+    with suppress(Exception):
         from qgis.core import QgsRenderContext
 
         symbols = _call(renderer, "symbols", None, QgsRenderContext())
         if symbols:
             return _own(symbols[0])
-    except Exception:  # noqa: BLE001 — no render context available, the plain accessor is next
-        pass
     return _symbol_of(renderer)
 
 
@@ -496,14 +497,13 @@ def _unit_name(unit):
     name = getattr(unit, "name", None)
     if isinstance(name, str):
         return name.lower()
-    try:
+    # Any binding gap means "unknown unit", which the caller reports.
+    with suppress(Exception):
         from qgis.core import QgsUnitTypes
 
         encoded = QgsUnitTypes.encodeUnit(unit)
         if isinstance(encoded, str):
             return encoded.lower()
-    except Exception:  # noqa: BLE001 — any binding gap means "unknown unit", reported below
-        pass
     return "unknown"
 
 

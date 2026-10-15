@@ -4,10 +4,14 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Publish QGIS layers to your ALIGN organization's Datastore.
 about=Sign in to ALIGN from QGIS and publish a layer to your organization's Datastore in a few clicks: vector and raster, cloud-native files as they are, web services as live references, with the layer's style and metadata; or publish a whole project as a web map. Your ALIGN role decides what you may publish: the plugin never grants access, it carries your identity and shows what the server answers. Also available as the Processing algorithm align:publishlayer, for models, batch runs and automation. Requires an ALIGN account (aligngeo.com). This plugin is free software (GPL-2.0-or-later); the ALIGN service it talks to is a commercial product, and ALIGN is a trademark of Geo Nova: a fork is welcome, under another name.
-version=0.5.1
+version=0.5.2
 author=Geo Nova
 email=contact@aligngeo.com
-changelog=0.5.1 (2026-10-12)
+changelog=0.5.2 (2026-10-15)
+    No functional change. Two optional QGIS API probes in the style reader
+    are written with contextlib.suppress instead of try/except/pass, so the
+    plugins.qgis.org security scan (Bandit B110) accepts the package.
+    0.5.1 (2026-10-12)
     Publishing a layer again replaces its item in place, and the web maps
     that read it follow; the Processing algorithm gains REPLACE. Features
     outside every category of a classified style are drawn in neutral grey

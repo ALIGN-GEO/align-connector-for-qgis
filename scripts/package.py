@@ -18,7 +18,7 @@ source for translators and stays in the repository.
     python scripts/package.py
     python scripts/package.py --repository-xml https://aligngeo.com/qgis > plugins.xml
     python scripts/package.py --repository-xml https://aligngeo.com/qgis \
-        --download-base https://github.com/bdlst/align-connector-for-qgis/releases/download/v0.5.1 > plugins.xml
+        --download-base https://github.com/bdlst/align-connector-for-qgis/releases/download/v0.5.2 > plugins.xml
 
 The second form is the beta repository since the GitHub Release is public:
 the XML and the icon stay on aligngeo.com, the zip is the one the Release
