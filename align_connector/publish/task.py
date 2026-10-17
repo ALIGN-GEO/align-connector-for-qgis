@@ -14,18 +14,28 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import os
 import shutil
+import time
 
 from qgis.core import QgsTask
 
 from .. import api
+from ..i18n import tr
 from ..qtcompat import qt_enum
 from ..metadata import plugin_version
 from .exporter import ExportFailed, export_for_publish
+from .feature_service import ServicePublishFailed, follow, pick_layer
 from .uploader import ResumableUploader, UploadCancelled, UploadFailed
 
 #: How the export is weighted against the transfer in the progress bar. Writing
 #: the file is quick; sending it is what takes the time.
 _EXPORT_SHARE = 5.0
+
+#: In a feature-service publish, where the transfer ends and the service's
+#: preparation begins in the progress bar (TCK-2320).
+_SERVICE_START = 70.0
+
+#: Seconds between two polls of a feature-service job.
+_SERVICE_POLL_SECONDS = 3
 
 #: The two refusals that are about what the organization can still spend:
 #: credits for a conversion, space for the file.
@@ -77,11 +87,16 @@ class PublishLayerTask(QgsTask):
         style=None,
         iso=None,
         replace=None,
+        as_service=False,
     ):
         """
         :param replace: the :class:`memory.Link` of the item this layer was
             published as, to replace in place (TCK-2218); ``None`` publishes a
             new item.
+        :param as_service: publish the layer as an editable feature service
+            (TCK-2320): the file is sent in the layer's own projection, then
+            ALIGN moves its features into the organization's database and
+            removes the file; a replacement does not apply.
         """
         super().__init__(
             ("Replacing “{}” on ALIGN" if replace is not None else "Publishing “{}” to ALIGN").format(asset_name),
@@ -139,6 +154,21 @@ class PublishLayerTask(QgsTask):
         #: What changed in the attribute schema, as ALIGN read it off the two
         #: files: ``{"added", "removed", "retyped"}`` lists, or None.
         self.schema_changes = None
+        #: A feature-service publish (TCK-2320), and what came of it: the
+        #: service, its layer, its storage projection and what to tell the
+        #: user. `service_pending`: the follow was cancelled, the service will
+        #: still appear in the Datastore when ALIGN has prepared it.
+        self.as_service = bool(as_service)
+        if self.as_service:
+            self.replace = None
+        self.service_id = None
+        self.service_layer_id = None
+        self.service_srid = None
+        self.service_result = None
+        self.service_pending = False
+        #: The file is on ALIGN and its conversion asked: a failure from here
+        #: on leaves the file stored, and the message says so.
+        self._service_stage = False
 
         self._workdir = None
 
@@ -146,7 +176,7 @@ class PublishLayerTask(QgsTask):
 
     def run(self):
         try:
-            export = export_for_publish(self.layer, selected_only=self.selected_only)
+            export = export_for_publish(self.layer, selected_only=self.selected_only, as_service=self.as_service)
             self.flattened_fields = export.flattened
             self.source_crs = export.source_crs
             # Only a directory WE created is ever removed. A raster published
@@ -166,17 +196,20 @@ class PublishLayerTask(QgsTask):
                 catalogued = self._publish_new(export, size_bytes)
             self._read_derivation(catalogued)
             self.locked_fields = locked_fields_of(self.iso, catalogued)
+            if self.as_service:
+                self._service_stage = True
+                self._publish_service()
             self.setProgress(100)
             return True
 
         except UploadCancelled:
             self.was_cancelled = True
             return False
-        except (ExportFailed, UploadFailed) as exc:
-            self.error_message = str(exc)
+        except (ExportFailed, UploadFailed, ServicePublishFailed) as exc:
+            self.error_message = self._service_failure(str(exc))
             return False
         except api.ApiError as exc:
-            self.error_message = with_capacity(exc.message, exc.status, self.capacity_line)
+            self.error_message = self._service_failure(with_capacity(exc.message, exc.status, self.capacity_line))
             self.error_status = exc.status
             self.error_code = exc.code
             self.needs_sign_in = exc.needs_sign_in
@@ -291,7 +324,46 @@ class PublishLayerTask(QgsTask):
     def _on_upload_progress(self, sent, total):
         if total <= 0:
             return
-        self.setProgress(_EXPORT_SHARE + (sent / float(total)) * (100.0 - _EXPORT_SHARE))
+        end = _SERVICE_START if self.as_service else 100.0
+        self.setProgress(_EXPORT_SHARE + (sent / float(total)) * (end - _EXPORT_SHARE))
+
+    def _publish_service(self):
+        """The uploaded file becomes a feature service (TCK-2320).
+
+        ALIGN reads the file's layer, then prepares the service in the
+        background; the task follows the job and reports what it made. A
+        cancellation stops the follow, not the job.
+        """
+        layer = pick_layer(api.preview_feature_service(self.session, self.org_id, self.asset_id))
+        job = api.start_feature_service(
+            self.session, self.org_id, self.asset_id, layer.get("name") or "", self.asset_name, visibility=self.visibility
+        )
+        self.service_id = job.get("serviceId")
+
+        def on_progress(loaded, total):
+            if total:
+                self.setProgress(_SERVICE_START + min(1.0, loaded / float(total)) * (99.0 - _SERVICE_START))
+
+        done = follow(
+            lambda: api.feature_service_job(self.session, self.org_id, job["jobId"]),
+            wait=lambda: time.sleep(_SERVICE_POLL_SECONDS),
+            cancelled=self.isCanceled,
+            on_progress=on_progress,
+        )
+        if done is None:
+            self.service_pending = True
+            return
+        result = done.get("result") if isinstance(done.get("result"), dict) else {}
+        self.service_result = result
+        self.service_layer_id = result.get("layerId")
+        self.service_srid = result.get("storageSrid")
+
+    def _service_failure(self, message):
+        if not self._service_stage:
+            return message
+        return tr("“{}” is stored in your Datastore, but it did not become a feature service: {}").format(
+            self.asset_name, message
+        )
 
     def _provenance(self):
         """What ALIGN records about where this asset came from.

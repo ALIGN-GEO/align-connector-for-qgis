@@ -13,6 +13,8 @@ You work in QGIS. Your data belongs in ALIGN, where your team consumes it and yo
 
 3. **Publish again, in place** — a layer you published remembers the item it became (in the project file, so it survives closing QGIS). Correct the layer, publish again: the panel offers to **replace** the item, same identifier, so every web map that shows it shows the new version; the previous version is kept on ALIGN, and the fields that were added, removed or retyped are named. Untick to publish a new item instead.
 
+4. **Publish as an editable feature service** — where your organization's plan includes feature services, tick “Publish vector layers as editable feature services”. ALIGN moves the features into your organization's database (in their own coordinate system when it has an EPSG code) and serves them through OGC API Features; each layer becomes a new service, shown in the Datastore. Once it is ready, **Edit it in QGIS** puts the service's layer where the local one was, with its style, and hides the local layer without removing it: toggle editing, and your changes are saved on ALIGN, with who changed what and when. The Map builder and every other QGIS opening the service see them. QGIS sends no version with its edits, so the last save of a feature wins. Editing from QGIS needs QGIS 3.34 or later; before that, the plugin gives the service's address.
+
 Large layers keep uploading in the background: you carry on working, the progress is visible, and an interrupted transfer resumes where it stopped rather than starting over.
 
 Your ALIGN role decides what you may do. The plugin never grants access: it carries your identity, and shows you what the server answers. An organization viewer is refused, exactly as in the web app.
@@ -79,6 +81,7 @@ The organization is given by name or id; a wrong one is refused with the list of
 
 - QGIS **3.22 LTR or newer**, QGIS 4.x included: one source for Qt5 and Qt6 through the `qgis.PyQt` shim and `qtcompat.qt_enum`. Developed against 3.44 LTR (Qt5, Python 3.12); CI loads the plugin on the `qgis/qgis:ltr` and `qgis/qgis:4.2` images.
 - An [ALIGN](https://aligngeo.com) account, and membership of at least one organization with a role that can publish
+- To edit a feature service from QGIS: QGIS **3.34** or newer, the first version whose OAuth2 method signs with PKCE
 
 No third-party Python packages. Nothing to `pip install`.
 
@@ -119,7 +122,8 @@ On Windows, `scripts/dev_install.ps1` links this repository into your QGIS profi
 ## Security
 
 - Tokens are stored in QGIS' own encrypted authentication database (`QgsAuthManager`). Only an authentication configuration id is kept in the plugin's settings — never a token, and never in your `.qgs` project file.
-- The plugin holds a token scoped to publishing only. It cannot read or download your organization's data.
+- The plugin holds a token scoped to publishing and to the feature services (`datastore:publish`, `features:read`, `features:write`). It cannot read or download the rest of your organization's Datastore, and a feature service only answers it within your role.
+- A feature-service layer opened in QGIS signs its requests with QGIS' own OAuth2 method (authorization code with PKCE, a grant of its own limited to the features scopes). QGIS keeps and refreshes its tokens in the same encrypted database; the project file only holds the configuration's id. The first time, your browser asks you to approve it.
 - Every session is revocable from ALIGN (*Settings → Connected devices*), and signing out revokes it server-side too.
 
 Reading ALIGN layers from QGIS does not need this plugin: ALIGN serves **OGC API - Features**, which QGIS opens natively.

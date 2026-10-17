@@ -137,7 +137,10 @@ def capacity(session, org_id):
     secret: bytes used and allowed, and whole credits. ALIGN never says what a
     credit is worth; neither does this.
 
-    :returns: ``{"storage": {"usedBytes", "limitBytes"}, "credits": {"available"}}``
+    :returns: ``{"storage": {"usedBytes", "limitBytes"}, "credits": {"available"},
+        "featureServices"}``; `featureServices` says whether a layer may be
+        published here as an editable feature service (TCK-2320), False from a
+        server that does not say
     :raises ApiError: when the call fails
     """
     token = session.access_token()
@@ -159,6 +162,7 @@ def capacity(session, org_id):
             "limitBytes": _count(storage.get("limitBytes")),
         },
         "credits": {"available": _count(credits.get("available"))},
+        "featureServices": body.get("featureServices") is True,
     }
 
 
@@ -420,3 +424,77 @@ def create_reference(session, org_id, name, body, provenance=None, description=N
         "name": answer.get("name") or name,
         "gisFormat": answer.get("gisFormat"),
     }
+
+
+def _feature_service_refusal(result, fallback):
+    """A refusal of the feature-service doors (TCK-2320), in the user's words.
+
+    A token from before this version carries no `features:*` scope: ALIGN
+    answers INSUFFICIENT_SCOPE, and the remedy is to sign in again. The
+    refusals that already say what to do (a layer that cannot be published,
+    a plan without feature services) keep ALIGN's sentence.
+    """
+    if result.status == 403 and result.code() == "INSUFFICIENT_SCOPE":
+        raise ApiError(
+            tr("Sign in to ALIGN again to publish and edit feature services from QGIS."),
+            needs_sign_in=True,
+            status=403,
+            code="INSUFFICIENT_SCOPE",
+        )
+    if result.status == 403 and result.code() == "PLAN_REQUIRED":
+        raise ApiError(result.message(fallback), status=403, code="PLAN_REQUIRED")
+    if result.status == 422 and result.code() == "FEATURE_PUBLICATION_REFUSED":
+        raise ApiError(result.message(fallback), status=422, code="FEATURE_PUBLICATION_REFUSED")
+    _raise_for(result, fallback)
+
+
+def preview_feature_service(session, org_id, asset_id):
+    """The layers of an uploaded file, as a feature service would hold them (TCK-2318).
+
+    :returns: ``{"layers": [{name, featureCount, geometryType, srid, fields, warnings, refusal?}]}``
+    """
+    token = session.access_token()
+    if not token:
+        raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
+    result = net.post_json(config.feature_publication_preview_endpoint(org_id), {"assetId": asset_id}, bearer=token)
+    if not result.ok:
+        _feature_service_refusal(result, tr("ALIGN could not read the layers of the file"))
+    if not isinstance(result.body, dict):
+        raise ApiError(tr("ALIGN returned an unexpected answer while reading the file."))
+    return result.body
+
+
+def start_feature_service(session, org_id, asset_id, layer_name, title, visibility=None, keep_source=False):
+    """Ask ALIGN to publish an uploaded file as a feature service (TCK-2318).
+
+    The file was sent for this purpose only, so by default ALIGN removes it
+    once the service is ready (``keep_source``).
+
+    :returns: the job, ``{"jobId", "serviceId", "status", ...}``
+    """
+    token = session.access_token()
+    if not token:
+        raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
+    payload = {"assetId": asset_id, "layerName": layer_name, "title": title, "keepSource": bool(keep_source)}
+    if visibility:
+        payload["visibility"] = visibility
+    result = net.post_json(config.feature_publications_endpoint(org_id), payload, bearer=token)
+    if not result.ok:
+        _feature_service_refusal(result, tr("ALIGN could not start the feature service"))
+    body = result.body if isinstance(result.body, dict) else None
+    if not body or not body.get("jobId"):
+        raise ApiError(tr("ALIGN returned an unexpected answer while starting the feature service."))
+    return body
+
+
+def feature_service_job(session, org_id, job_id):
+    """ALIGN's current view of a publication job."""
+    token = session.access_token()
+    if not token:
+        raise ApiError(tr("Your ALIGN session expired while the feature service was being prepared."), needs_sign_in=True)
+    result = net.get_json(config.feature_publication_job_endpoint(org_id, job_id), bearer=token)
+    if not result.ok:
+        _feature_service_refusal(result, tr("Could not follow the feature service"))
+    if not isinstance(result.body, dict):
+        raise ApiError(tr("ALIGN returned an unexpected answer while following the feature service."))
+    return result.body

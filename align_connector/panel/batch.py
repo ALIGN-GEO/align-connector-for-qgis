@@ -41,13 +41,16 @@ class Row(object):
 
 class Plan(object):
     """One publication of the batch: a layer, under a title — replacing the
-    item it was published as (`replace`, a :class:`memory.Link`), or new."""
+    item it was published as (`replace`, a :class:`memory.Link`), or new;
+    `as_service`: a vector layer ALIGN turns into an editable feature service
+    (TCK-2320), always a new item."""
 
-    def __init__(self, layer_id, title, selected_only=False, replace=None):
+    def __init__(self, layer_id, title, selected_only=False, replace=None, as_service=False):
         self.layer_id = layer_id
         self.title = title
         self.selected_only = selected_only
         self.replace = replace
+        self.as_service = as_service
 
 
 class Request(object):
@@ -79,6 +82,11 @@ class Batch(object):
         self.web_map_name = web_map_name
         self.map_view = map_view
 
+    @property
+    def as_service(self):
+        """Whether one of the layers goes as a feature service."""
+        return any(getattr(r.plan, "as_service", False) for r in self.requests)
+
 
 def rows_of(layers):
     """The project's layers in the order given, each with its verdict."""
@@ -107,7 +115,7 @@ def describe_blocked(rows):
     return head + " " + "; ".join("{} ({})".format(row.name, row.reason) for row in blocked)
 
 
-def plan(rows, checked_ids, titles=None, selected_only_ids=(), org_id=None, publish_as_new=()):
+def plan(rows, checked_ids, titles=None, selected_only_ids=(), org_id=None, publish_as_new=(), as_service=False):
     """The publications one click sends: the checked, publishable rows, in
     panel order, each under its own title (the proposed one unless renamed).
 
@@ -115,6 +123,10 @@ def plan(rows, checked_ids, titles=None, selected_only_ids=(), org_id=None, publ
     replaced in place (TCK-2218), unless the publisher asked for a new item
     (`publish_as_new`); an item remembered in another organization is not
     this organization's to replace, so the layer goes there as new.
+
+    With `as_service` (TCK-2320), every vector layer goes as an editable
+    feature service: a new service each time, never the replacement of a
+    file; the other kinds publish as they would without it.
     """
     titles = titles or {}
     checked = set(checked_ids)
@@ -125,8 +137,9 @@ def plan(rows, checked_ids, titles=None, selected_only_ids=(), org_id=None, publ
         if row.layer_id not in checked or not row.publishable:
             continue
         title = (titles.get(row.layer_id) or "").strip() or row.title
-        replace = replaceable(row, org_id) if row.layer_id not in as_new else None
-        plans.append(Plan(row.layer_id, title, row.layer_id in selected and row.kind == "vector", replace))
+        service = bool(as_service) and row.kind == "vector"
+        replace = replaceable(row, org_id) if row.layer_id not in as_new and not service else None
+        plans.append(Plan(row.layer_id, title, row.layer_id in selected and row.kind == "vector", replace, service))
     return plans
 
 
@@ -140,11 +153,21 @@ def replaceable(row, org_id):
 
 def describe_plan(plans):
     """What the Publish button says: how many layers one click will send,
-    and how many of them replace an item already on ALIGN."""
+    how many of them replace an item already on ALIGN, and how many become
+    feature services."""
     count = len(plans)
     replaced = sum(1 for p in plans if getattr(p, "replace", None) is not None)
+    services = sum(1 for p in plans if getattr(p, "as_service", False))
     if count == 0:
         return tr("Nothing selected")
+    if services:
+        if services == count:
+            return tr("Publish 1 layer as a feature service") if count == 1 else tr(
+                "Publish {} layers as feature services"
+            ).format(count)
+        if replaced == 0:
+            return tr("Publish {} layers ({} as feature services)").format(count, services)
+        return tr("Publish {} layers ({} as feature services, {} replaced)").format(count, services, replaced)
     if count == 1:
         return tr("Replace 1 layer") if replaced == 1 else tr("Publish 1 layer")
     if replaced == 0:

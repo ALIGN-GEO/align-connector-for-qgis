@@ -83,6 +83,7 @@ class _SignInWorker(QObject):
                 refresh_token=body["refresh_token"],
                 access_token=body["access_token"],
                 access_expires_at=time.time() + float(body.get("expires_in", 3600)),
+                scopes=body.get("scope") if isinstance(body.get("scope"), str) else None,
             )
         except Exception as exc:  # noqa: BLE001 — surfaced to the user, never swallowed
             self.finished.emit(False, str(exc))
@@ -114,6 +115,12 @@ class AlignSession(QObject):
     @staticmethod
     def account():
         return token_store.account()
+
+    @staticmethod
+    def has_scope(scope):
+        """Whether ALIGN granted this session `scope`; a session that never
+        said which scopes it holds is from before the scope asked."""
+        return scope in token_store.granted_scopes()
 
     # -- sign in ------------------------------------------------------------
 
@@ -202,6 +209,7 @@ class AlignSession(QObject):
             access_token=body["access_token"],
             access_expires_at=time.time() + float(body.get("expires_in", 3600)),
             refresh_token=body.get("refresh_token"),
+            scopes=body.get("scope") if isinstance(body.get("scope"), str) else None,
         )
         return body["access_token"]
 

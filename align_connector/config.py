@@ -28,9 +28,15 @@ SETTINGS_GROUP = "align-connector"
 #: comes from the same client that started it (RFC 8252 §8.5).
 CLIENT_ID = "align-connector-qgis"
 
-#: The only scope v1 grants. Publishing, and nothing else — this token cannot
-#: read or download the organization's data.
-SCOPES = ("datastore:publish",)
+#: What the token may do. Publishing to the Datastore; and, for the feature
+#: services (ADR-0063 §11, TCK-2320): reading a service and editing the
+#: features of the services its holder is an editor of. The token still cannot
+#: read or download the rest of the organization's data.
+SCOPES = ("datastore:publish", "features:read", "features:write")
+
+#: What a feature-service layer opened in QGIS may do with its own grant
+#: (TCK-2320): read and edit features, nothing of the Datastore.
+SERVICE_LAYER_SCOPES = ("features:read", "features:write")
 
 # Product domains, deliberately, not the hosts they currently resolve to. The web
 # application lives under aligngeo.com (/login, /app, /oauth/authorize); the API
@@ -148,3 +154,22 @@ def web_map_url(org_id, asset_id):
 def references_endpoint(org_id):
     """Register a web-service layer as a live reference (TCK-2207)."""
     return "{}/api/v1/orgs/{}/datastore/references".format(api_url(), org_id)
+
+
+def feature_publication_preview_endpoint(org_id):
+    """The layers of a Datastore file, as a feature service would hold them (TCK-2318)."""
+    return "{}/api/v1/orgs/{}/feature-services/publications/preview".format(api_url(), org_id)
+
+
+def feature_publications_endpoint(org_id):
+    """Publish a Datastore file as an editable feature service (TCK-2318)."""
+    return "{}/api/v1/orgs/{}/feature-services/publications".format(api_url(), org_id)
+
+
+def feature_publication_job_endpoint(org_id, job_id):
+    return "{}/api/v1/orgs/{}/feature-services/publications/{}".format(api_url(), org_id, job_id)
+
+
+def feature_service_ogc_url(org_id, service_id):
+    """The OGC API Features address of a service: what QGIS opens (TCK-2317)."""
+    return "{}/api/v1/orgs/{}/feature-services/{}/ogc".format(api_url(), org_id, service_id)

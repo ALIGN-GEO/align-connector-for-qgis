@@ -62,9 +62,27 @@ def check(condition, message):
 def test_reads_the_capacity_answer():
     calls = _answer(200, {"storage": {"usedBytes": 3 * GB, "limitBytes": 10 * GB}, "credits": {"available": 844}})
     info = api.capacity(_Session(), "org-1")
-    check(info == {"storage": {"usedBytes": 3 * GB, "limitBytes": 10 * GB}, "credits": {"available": 844}}, info)
+    check(
+        info
+        == {
+            "storage": {"usedBytes": 3 * GB, "limitBytes": 10 * GB},
+            "credits": {"available": 844},
+            "featureServices": False,
+        },
+        info,
+    )
     check(calls[0][0].endswith("/api/v1/orgs/org-1/capacity"), calls)
     check(calls[0][1] == "alg_at_test", "the publish token must travel as bearer")
+
+
+def test_reads_whether_feature_services_are_offered():
+    # TCK-2320: only a literal true offers the option; a server that does not
+    # say (older than the feature) offers nothing.
+    body = {"storage": {"usedBytes": 0, "limitBytes": 0}, "credits": {"available": 1}}
+    _answer(200, dict(body, featureServices=True))
+    check(api.capacity(_Session(), "org-1")["featureServices"] is True, "true is offered")
+    _answer(200, dict(body, featureServices="yes"))
+    check(api.capacity(_Session(), "org-1")["featureServices"] is False, "only a boolean true counts")
 
 
 def test_never_invents_a_figure():
@@ -133,6 +151,7 @@ def test_repeats_the_capacity_only_on_capacity_refusals():
 def main():
     tests = [
         test_reads_the_capacity_answer,
+        test_reads_whether_feature_services_are_offered,
         test_never_invents_a_figure,
         test_refuses_a_malformed_answer,
         test_carries_the_refusal_status,

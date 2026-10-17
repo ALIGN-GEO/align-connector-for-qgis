@@ -9,6 +9,7 @@ Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
 from ..i18n import tr
+from ..publish.feature_service import describe_result
 
 SUCCESS = "success"
 WARNING = "warning"
@@ -28,6 +29,8 @@ def outcome_of(task, succeeded):
     name = getattr(task, "asset_name", None) or tr("Layer")
     org = getattr(task, "org_name", None) or "ALIGN"
 
+    if succeeded and getattr(task, "as_service", False):
+        return _service_outcome(task, name, org)
     if succeeded:
         # A failed server-side conversion is not a success worth celebrating:
         # the file is stored, but nothing can display it. Announcing "it is now
@@ -103,6 +106,25 @@ def outcome_of(task, succeeded):
     if getattr(task, "was_cancelled", False):
         return Outcome(INFO, tr("Publishing cancelled. Nothing was catalogued."))
     return Outcome(WARNING, getattr(task, "error_message", None) or tr("Publishing failed."))
+
+
+def _service_outcome(task, name, org):
+    """A layer published as a feature service (TCK-2320): what it holds, or
+    that ALIGN is still preparing it when the follow was cancelled. The item
+    to open is the service, not the file it came from."""
+    service_id = getattr(task, "service_id", None)
+    result = getattr(task, "service_result", None)
+    if isinstance(result, dict):
+        text = tr("“{}” is now an editable feature service in {} on ALIGN.").format(name, org)
+        text += " " + describe_result(result)
+        return Outcome(SUCCESS, text, service_id)
+    return Outcome(
+        INFO,
+        tr("“{}” was sent to {}; ALIGN is still preparing the feature service, which will appear in your Datastore.").format(
+            name, org
+        ),
+        service_id,
+    )
 
 
 def _schema_sentence(changes):

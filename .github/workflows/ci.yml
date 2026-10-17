@@ -116,6 +116,14 @@ jobs:
       - name: Services become live references
         run: python scripts/smoke_services.py
 
+      # A vector layer published as an editable feature service (TCK-2320):
+      # the layer ALIGN is asked to publish, the job followed to its end, the
+      # result in words, the OAPIF source and the PKCE OAuth2 configuration
+      # that signs it (features only, no secret), the refusals, and a batch
+      # whose vector layers become new services, never replacements.
+      - name: Layers become editable feature services
+        run: python scripts/smoke_feature_service.py
+
       # Every sentence of the source is in the .ts, translated, and the
       # shipped .qm is the compilation of that .ts (TCK-2183). The Qt
       # round trip (scripts/smoke_i18n.py) needs a QGIS and runs on the

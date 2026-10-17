@@ -19,6 +19,9 @@ for a vector and uses the project's own transformation context, datum shifts
 and grids included; it is announced before the send, and the original system
 travels in the provenance (TCK-2199). A raster goes the other way — reprojected
 on the server, original kept — because a reprojected raster is not lossless.
+**A layer published as a feature service keeps its own system** (TCK-2320):
+ALIGN stores a service in the projection of the data (Lambert 93 stays Lambert
+93), so the file leaves untouched in it when the system has an EPSG code.
 
 **Complex fields are flattened to JSON text before writing.** Open-data layers
 routinely carry map or list attributes — an OpenDataSoft export gives every
@@ -163,6 +166,19 @@ def crs_plan(authid, valid=True):
     return KEEP if normalised in _WGS84_AUTHIDS else TRANSFORM
 
 
+def service_crs_plan(authid, valid=True):
+    """``crs_plan`` for a layer published as a feature service. Pure.
+
+    ALIGN stores a service in the data's own projection when it can name it:
+    a system with an EPSG code is kept as it is; one without (a custom
+    definition) is converted to WGS 84 as for any publish.
+    """
+    plan = crs_plan(authid, valid)
+    if plan == TRANSFORM and (authid or "").strip().upper().startswith("EPSG:"):
+        return KEEP
+    return plan
+
+
 def reprojection_notice(authid, valid=True):
     """The sentence a publisher reads before sending, or ``None`` when there is nothing to say."""
     plan = crs_plan(authid, valid)
@@ -294,10 +310,12 @@ def flatten_complex_fields(layer, selected_only=False):
     return flat, complex_names
 
 
-def export_layer(layer, selected_only=False, target_dir=None):
+def export_layer(layer, selected_only=False, target_dir=None, keep_crs=False):
     """Write ``layer`` to a temporary file, in WGS 84.
 
     :param selected_only: write only the selected features
+    :param keep_crs: a feature-service publish: keep the layer's system when it
+        has an EPSG code (:func:`service_crs_plan`)
     :returns: an :class:`ExportResult`
     :raises ExportFailed: when nothing could be written, or when the layer has
         no coordinate reference system
@@ -308,7 +326,7 @@ def export_layer(layer, selected_only=False, target_dir=None):
         raise ExportFailed("That layer is not valid — QGIS cannot read it.")
 
     crs = layer.crs()
-    plan = crs_plan(crs.authid(), crs.isValid())
+    plan = (service_crs_plan if keep_crs else crs_plan)(crs.authid(), crs.isValid())
     if plan == REFUSE:
         raise ExportFailed(reprojection_notice(crs.authid(), crs.isValid()))
 
@@ -427,15 +445,19 @@ def publishable_kind(layer):
     return None
 
 
-def export_for_publish(layer, selected_only=False):
+def export_for_publish(layer, selected_only=False, as_service=False):
     """Write whatever this layer is into a file ALIGN accepts.
 
+    :param as_service: the layer becomes a feature service (vector only):
+        its own coordinate system is kept (:func:`service_crs_plan`)
     :returns: an :class:`ExportResult`
     :raises ExportFailed: when the layer is of a kind the plugin does not send
     """
     kind = publishable_kind(layer)
+    if as_service and kind != "vector":
+        raise ExportFailed(tr("Only a vector layer can be published as a feature service."))
     if kind == "vector":
-        return export_layer(layer, selected_only=selected_only)
+        return export_layer(layer, selected_only=selected_only, keep_crs=as_service)
     if kind == "raster":
         # Imported here, not at module load: the raster half imports this
         # module for its result type, so a top-level import would be a cycle.

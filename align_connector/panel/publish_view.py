@@ -64,6 +64,9 @@ class PublishView(QWidget):
         #: from "never loaded" (TCK-2219).
         self._orgs_loaded = False
         self._capacity_line = None
+        #: Whether the organization selected may publish feature services
+        #: (TCK-2320), as its capacity answer says; the publication checks again.
+        self._feature_services = False
         self._titles = {}
         self._selection_only = set()
         #: Layers the publisher wants as NEW items although they remember one (TCK-2218).
@@ -146,6 +149,20 @@ class PublishView(QWidget):
         )
         self.description_edit.setFixedHeight(64)
         batch_form.addRow(tr("Description"), self.description_edit)
+
+        # -- as feature services (TCK-2320) -----------------------------------
+        # Offered only where ALIGN would accept it: shown for an organization
+        # whose plan includes feature services, hidden otherwise.
+        self.service_box = QCheckBox(tr("Publish vector layers as editable feature services"))
+        self.service_box.setToolTip(
+            tr(
+                "ALIGN moves the features into your organization's database, where QGIS and the Map builder "
+                "edit them live. Each layer becomes a new feature service."
+            )
+        )
+        self.service_box.toggled.connect(self._on_service_toggled)
+        self.service_box.setVisible(False)
+        batch_form.addRow("", self.service_box)
 
         # -- the web map (TCK-2204) -------------------------------------------
         self.webmap_box = QCheckBox(tr("Also create a web map with these layers"))
@@ -307,6 +324,19 @@ class PublishView(QWidget):
         self._sync_all_box()
         self._update_button()
 
+    def _service_mode(self):
+        return self._feature_services and self.service_box.isChecked()
+
+    def _on_service_toggled(self, _checked):
+        # A web map is assembled from files, and a feature service is not one
+        # yet: the two options do not go together in one click.
+        service = self._service_mode()
+        if service:
+            self.webmap_box.setChecked(False)
+        self.webmap_box.setEnabled(not service)
+        self._on_current_changed(self.tree.currentItem(), None)
+        self._update_button()
+
     def _on_webmap_toggled(self, checked):
         self.webmap_title.setEnabled(checked)
         self.webmap_note.setVisible(checked)
@@ -328,6 +358,9 @@ class PublishView(QWidget):
         # Already on ALIGN (TCK-2218): say where, and offer to replace it when
         # the batch goes to that organization; elsewhere it goes as new.
         link = batch.replaceable(row, self.selected_org_id()) if row is not None else None
+        if self._service_mode() and info.kind == "vector":
+            # A feature service is always a new item.
+            link = None
         self.replace_box.blockSignals(True)
         self.replace_box.setVisible(link is not None)
         self.replace_box.setChecked(link is not None and layer_id not in self._publish_as_new)
@@ -388,6 +421,7 @@ class PublishView(QWidget):
         a publish, it only removes a convenience, and the server guards.
         """
         self._capacity_line = None
+        self._set_feature_services(False)
         org = self.selected_org()
         self._update_button()
         # Whether the highlighted layer replaces its item depends on the
@@ -410,6 +444,23 @@ class PublishView(QWidget):
             QApplication.restoreOverrideCursor()
         self._capacity_line = describe_capacity(info)
         self.capacity.setText(self._capacity_line)
+        self._set_feature_services(info.get("featureServices") is True)
+
+    def _set_feature_services(self, offered):
+        # A session signed in before the plugin asked for the features scopes
+        # would upload the file, then be refused the service: say it here.
+        granted = offered and self.session.has_scope("features:write")
+        self._feature_services = granted
+        self.service_box.setVisible(offered)
+        self.service_box.setEnabled(granted)
+        if offered and not granted:
+            self.service_box.setChecked(False)
+        self.service_box.setText(
+            tr("Publish vector layers as editable feature services")
+            if granted or not offered
+            else tr("Publish vector layers as editable feature services (sign in to ALIGN again to use it)")
+        )
+        self._on_service_toggled(self.service_box.isChecked())
 
     def _sync_all_box(self):
         checkable = [item for item in self._items() if _checkable(item)]
@@ -430,6 +481,7 @@ class PublishView(QWidget):
             self._selection_only,
             org_id=self.selected_org_id(),
             publish_as_new=self._publish_as_new,
+            as_service=self._service_mode(),
         )
 
     def _publish(self):

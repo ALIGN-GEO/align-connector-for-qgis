@@ -26,7 +26,7 @@ import os
 from qgis.core import Qgis, QgsApplication, QgsMapLayer, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication, QUrl
 from qgis.PyQt.QtGui import QDesktopServices, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QMenu, QToolButton
+from qgis.PyQt.QtWidgets import QAction, QApplication, QMenu, QPushButton, QToolButton
 
 from . import config, diagnostic, i18n
 from .auth import AlignSession
@@ -36,7 +36,7 @@ from .panel.dock import AlignDock, dock_area
 from .panel.follow import LotFollower
 from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of
 from .processing.provider import AlignProcessingProvider
-from .publish import memory
+from .publish import memory, service_layer
 from .publish.reference_task import RegisterReferenceTask
 from .publish.task import PublishLayerTask, utc_now
 from .publish.webmap_task import ComposeWebMapTask
@@ -341,6 +341,7 @@ class AlignConnectorPlugin:
                     style=request.briefing.style,
                     iso=request.briefing.iso,
                     replace=request.plan.replace,
+                    as_service=getattr(request.plan, "as_service", False),
                 )
             task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
             task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
@@ -415,6 +416,10 @@ class AlignConnectorPlugin:
         layer_id = getattr(task, "layer_id", None)
         if not succeeded or not asset_id or not layer_id or isinstance(task, RegisterReferenceTask):
             return
+        if getattr(task, "as_service", False):
+            # A feature service is edited in place, never replaced by a new
+            # file: the layer must not offer to replace it next time.
+            return
         layer = QgsProject.instance().mapLayer(layer_id)
         if layer is None:
             return
@@ -446,7 +451,53 @@ class AlignConnectorPlugin:
             self.session.sign_out()
             self._refresh_state()
 
-        self._message(outcome.text, _LEVELS.get(outcome.level, qt_enum(Qgis, "MessageLevel", "Warning")))
+        level = _LEVELS.get(outcome.level, qt_enum(Qgis, "MessageLevel", "Warning"))
+        if succeeded and getattr(task, "service_result", None) is not None:
+            self._offer_service_layer(task, outcome.text, level)
+            return
+        self._message(outcome.text, level)
+
+    def _offer_service_layer(self, task, text, level):
+        """The service is ready (TCK-2320, ADR-0063 §3): offer to edit it from
+        QGIS in place of the local layer. The offer stays in the bar until it
+        is taken or closed; an older QGIS gets the address instead."""
+        ogc_url = config.feature_service_ogc_url(task.org_id, task.service_id)
+        if not service_layer.editing_supported():
+            text += " " + self.tr(
+                "Editing it from QGIS needs QGIS 3.34 or later. Its OGC API Features address: {}"
+            ).format(ogc_url)
+            self._message(text, level)
+            return
+        bar = self.iface.messageBar()
+        widget = bar.createMessage(PLUGIN_NAME, text)
+        button = QPushButton(self.tr("Edit it in QGIS"))
+        button.setToolTip(
+            self.tr(
+                "Opens the feature service in place of the local layer, which is kept hidden. "
+                "The first time, your browser asks you to sign in to ALIGN for the service layers."
+            )
+        )
+        button.clicked.connect(lambda _checked=False, t=task, w=widget: self._open_service_layer(t, w, ogc_url))
+        widget.layout().addWidget(button)
+        bar.pushWidget(widget, level, 0)
+
+    def _open_service_layer(self, task, widget, ogc_url):
+        self.iface.messageBar().popWidget(widget)
+        try:
+            layer = service_layer.open_in_place(
+                task.layer_id, task.asset_name, ogc_url, task.service_layer_id, task.service_srid
+            )
+        except service_layer.ServiceLayerUnavailable as exc:
+            self._message(str(exc), qt_enum(Qgis, "MessageLevel", "Warning"))
+            return
+        self.iface.setActiveLayer(layer)
+        self._message(
+            self.tr(
+                "“{}” now opens from its feature service; the local layer is kept, hidden, under it. "
+                "Toggle editing to change the features on ALIGN."
+            ).format(task.asset_name),
+            qt_enum(Qgis, "MessageLevel", "Success"),
+        )
 
 
 _LEVELS = {SUCCESS: qt_enum(Qgis, "MessageLevel", "Success"), INFO: qt_enum(Qgis, "MessageLevel", "Info")}
