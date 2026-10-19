@@ -33,22 +33,24 @@ from ..api import ApiError
 from ..i18n import tr
 from ..qtcompat import qt_enum
 from ..services_api import describe_service, list_services
-from . import services_model
+from . import org_choice, services_model
 
 
 class ServicesView(QWidget):
     """One organization's services, a sheet, and the layers to open."""
 
-    def __init__(self, session, organizations, on_open, parent=None):
+    def __init__(self, session, organizations, on_open, on_org_chosen=None, parent=None):
         """
-        :param organizations: ``() -> [{"id", "name", "role"}]``, the organizations
-            the Publish tab loaded (one read for both tabs)
+        :param organizations: ``() -> [{"id", "name", "role", "connector"}]``, the
+            organizations the Publish tab loaded (one read for both tabs)
         :param on_open: ``(org_id, service, layer_row, edit) -> None``
+        :param on_org_chosen: called with the organization id chosen here (the Publish tab follows)
         """
         super().__init__(parent)
         self.session = session
         self._organizations = organizations
         self._on_open = on_open
+        self._on_org_chosen = on_org_chosen
         self._services = []
         self._description = None
 
@@ -110,16 +112,29 @@ class ServicesView(QWidget):
     # -- data ---------------------------------------------------------------
 
     def refresh(self):
-        """Fill the organizations from the Publish tab's read, then the services."""
+        """Fill the organizations from the Publish tab's read, then the services.
+
+        An organization the plugin may not act in, or whose plan has no
+        feature services, stays listed, greyed, its reason in the tooltip
+        (TCK-2348, CA-17).
+        """
         current = self.org_box.currentData()
         self.org_box.blockSignals(True)
-        self.org_box.clear()
-        for org in self._organizations() or []:
-            self.org_box.addItem(org["name"], org["id"])
-        index = self.org_box.findData(current)
-        self.org_box.setCurrentIndex(index if index >= 0 else 0)
+        org_choice.fill(self.org_box, self._organizations() or [], lambda org: org["name"], org_choice.services_refusal, keep=current)
         self.org_box.blockSignals(False)
         self._on_org_changed()
+
+    def forget(self):
+        """Signed out: drop the organizations and services read for the account (CA-20)."""
+        self.org_box.blockSignals(True)
+        self.org_box.clear()
+        self.org_box.blockSignals(False)
+        self._on_org_changed()
+
+    def choose_organization(self, org_id):
+        """The Publish tab chose ``org_id`` (CA-24): follow it when it may be used here."""
+        if org_id != self.org_box.currentData() and org_choice.choose(self.org_box, org_id) and self.isVisible():
+            self._on_org_changed()
 
     def _on_org_changed(self, _index=None):
         self._services = []
@@ -129,7 +144,11 @@ class ServicesView(QWidget):
             self._fill_list()
             if not self.session.is_signed_in():
                 self.note.setText(tr("Sign in to ALIGN to see your organization's feature services."))
+            elif self.org_box.count() > 0:
+                self.note.setText(tr("None of your organizations offers feature services to the ALIGN Connector: point at one to see why."))
             return
+        if self._on_org_chosen is not None:
+            self._on_org_chosen(org_id)
         QApplication.setOverrideCursor(qt_enum(Qt, "CursorShape", "WaitCursor"))
         try:
             listing = list_services(self.session, org_id)
@@ -145,6 +164,8 @@ class ServicesView(QWidget):
         self._fill_list()
 
     def _fill_list(self, *_args):
+        # The service in hand stays selected through a refresh (TCK-2348, CA-14).
+        kept = self.list.currentItem().data(0, _role()) if self.list.currentItem() is not None else None
         self.list.blockSignals(True)
         self.list.clear()
         for service in services_model.matching(self._services, self.search.text()):
@@ -153,7 +174,9 @@ class ServicesView(QWidget):
             item.setToolTip(0, service.get("description") or service.get("title") or "")
             self.list.addTopLevelItem(item)
         self.list.blockSignals(False)
-        self.list.setCurrentItem(self.list.topLevelItem(0))
+        items = [self.list.topLevelItem(i) for i in range(self.list.topLevelItemCount())]
+        same = next((item for item in items if kept is not None and item.data(0, _role()) == kept), None)
+        self.list.setCurrentItem(same or self.list.topLevelItem(0))
         self._on_service_changed(self.list.currentItem(), None)
 
     def _selected_service(self):

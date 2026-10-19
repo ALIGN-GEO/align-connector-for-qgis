@@ -108,7 +108,7 @@ def _raise_for(result, fallback):
 def list_organizations(session):
     """The organizations the signed-in user belongs to.
 
-    :returns: list of ``{"id", "name", "role"}``, in the order ALIGN returns them
+    :returns: list of ``{"id", "name", "role", "connector"}``, in the order ALIGN returns them
     :raises ApiError: when the call fails
     """
     token = session.access_token()
@@ -123,8 +123,15 @@ def list_organizations(session):
     if not isinstance(items, list):
         raise ApiError(tr("ALIGN returned an unexpected answer while listing organizations."))
 
+    # TCK-2348 (CA-17): ALIGN lists every organization, each saying whether it
+    # opens itself to the plugin; an older ALIGN leaves out those that do not.
     return [
-        {"id": item.get("id"), "name": item.get("name"), "role": item.get("role")}
+        {
+            "id": item.get("id"),
+            "name": item.get("name"),
+            "role": item.get("role"),
+            "connector": item.get("connector") if isinstance(item.get("connector"), dict) else None,
+        }
         for item in items
         if isinstance(item, dict) and item.get("id")
     ]

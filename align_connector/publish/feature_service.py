@@ -19,6 +19,7 @@ Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
 from ..i18n import tr
+from .notices import notice_texts
 
 
 class ServicePublishFailed(Exception):
@@ -89,7 +90,7 @@ def describe_result(result):
     without = int(result.get("withoutGeometry") or 0)
     if without:
         parts.append(tr("{} features have no geometry.").format(without))
-    parts.extend(str(w) for w in (result.get("warnings") or []))
+    parts.extend(notice_texts(result))
     return " ".join(parts)
 
 

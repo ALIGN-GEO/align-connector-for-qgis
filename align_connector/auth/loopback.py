@@ -18,6 +18,8 @@ Three properties matter, and each closes a real hole:
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
+import contextlib
+import socket
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs
@@ -156,6 +158,21 @@ class LoopbackReceiver:
         if self._thread is not None:
             self._thread.join(self._timeout_sec + 1)
         return self._server.result
+
+    def cancel(self):
+        """Give up waiting (TCK-2348, CA-25): :meth:`wait` returns at once
+        with ``{"error": "cancelled"}``, and the port closes.
+
+        Closing a socket does not wake a thread blocked on it: the listener is
+        woken by a connection of our own, finds the result set, and stops.
+        """
+        if self._server.result is None:
+            self._server.result = {"error": "cancelled"}
+        if self._thread is not None and self._thread.is_alive():
+            with contextlib.suppress(OSError):
+                socket.create_connection(("127.0.0.1", self.port), timeout=1).close()
+            self._thread.join(2)
+        self.close()
 
     def close(self):
         """Stop listening. Safe to call more than once."""

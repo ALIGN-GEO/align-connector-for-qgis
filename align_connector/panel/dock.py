@@ -14,7 +14,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 from qgis.gui import QgsDockWidget
 from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtWidgets import QHBoxLayout, QLabel, QPushButton, QTabWidget, QVBoxLayout, QWidget
+from qgis.PyQt.QtWidgets import QApplication, QHBoxLayout, QLabel, QPushButton, QTabWidget, QVBoxLayout, QWidget
 
 from ..i18n import tr
 from ..qtcompat import qt_enum
@@ -51,12 +51,43 @@ class AlignDock(QgsDockWidget):
         head.addWidget(self.sign_button, 0)
         layout.addLayout(head)
 
+        # -- a sign-in waiting in the browser (TCK-2348, CA-25) ----------------
+        self.pending = QWidget()
+        pending = QHBoxLayout(self.pending)
+        pending.setContentsMargins(0, 0, 0, 0)
+        self.pending_label = QLabel(tr("Signing in from the browser…"))
+        self.pending_label.setWordWrap(True)
+        pending.addWidget(self.pending_label, 1)
+        self.copy_link_button = QPushButton(tr("Copy link"))
+        self.copy_link_button.setToolTip(tr("Copy the sign-in address, to finish in another browser."))
+        self.copy_link_button.clicked.connect(self._copy_link)
+        pending.addWidget(self.copy_link_button, 0)
+        self.cancel_button = QPushButton(tr("Cancel"))
+        self.cancel_button.clicked.connect(self.session.cancel_sign_in)
+        pending.addWidget(self.cancel_button, 0)
+        self.pending.setVisible(False)
+        layout.addWidget(self.pending)
+        self.session.pending_changed.connect(self._on_pending_changed)
+
         # -- the views --------------------------------------------------------
         self.tabs = QTabWidget()
         self.messages = MessagesView(on_copy_diagnostic=on_copy_diagnostic)
-        self.publish = PublishView(session, on_publish, on_rows=self.messages.set_rows, on_show_messages=self.show_messages)
+        # One organization chosen for both tabs (TCK-2348, CA-24): each follows
+        # the other where that organization may be used.
+        self.publish = PublishView(
+            session,
+            on_publish,
+            on_rows=self.messages.set_rows,
+            on_show_messages=self.show_messages,
+            on_org_chosen=lambda org_id: self.services.choose_organization(org_id),
+        )
         self.activity = ActivityView()
-        self.services = ServicesView(session, self.publish.organization_list, on_open_service or (lambda *_args: None))
+        self.services = ServicesView(
+            session,
+            self.publish.organization_list,
+            on_open_service or (lambda *_args: None),
+            on_org_chosen=self.publish.choose_organization,
+        )
         self.tabs.addTab(self.publish, tr("Publish"))
         self.tabs.addTab(self.services, tr("Services"))
         self.tabs.addTab(self.activity, tr("Activity"))
@@ -76,9 +107,14 @@ class AlignDock(QgsDockWidget):
 
         Without ``reload`` and signed in, the panel is marked stale: it reads
         everything the next time it shows (a sign-in made while it was hidden
-        left the organizations empty, TCK-2348)."""
+        left the organizations empty, TCK-2348). Signed out, it drops what it
+        read for the account: on a shared computer, the next person sees none
+        of it (CA-20)."""
         self._refresh_account()
         signed_in = self.session.is_signed_in()
+        if not signed_in:
+            self.publish.forget()
+            self.services.forget()
         if reload and signed_in:
             self._stale = False
             self.publish.refresh()
@@ -88,10 +124,13 @@ class AlignDock(QgsDockWidget):
             self._stale = signed_in
 
     def show_panel(self):
-        """Show the panel, raise its tab, and read everything afresh."""
+        """Show the panel and read everything afresh; a panel opening shows
+        Publish, one already open keeps the tab in use (TCK-2348, CA-14)."""
+        opening = not self.isVisible()
         self.setUserVisible(True)
         self.refresh(reload=True)
-        self.tabs.setCurrentWidget(self.publish)
+        if opening:
+            self.tabs.setCurrentWidget(self.publish)
 
     def show_services(self):
         self.setUserVisible(True)
@@ -143,7 +182,15 @@ class AlignDock(QgsDockWidget):
         if self.session.is_signed_in():
             self.session.sign_out()
         else:
+            # A sign-in still waiting is abandoned for a fresh one (CA-25).
             self.session.sign_in()
+
+    def _on_pending_changed(self):
+        self.pending.setVisible(bool(self.session.pending_url))
+
+    def _copy_link(self):
+        if self.session.pending_url:
+            QApplication.clipboard().setText(self.session.pending_url)
 
 
 def dock_area():

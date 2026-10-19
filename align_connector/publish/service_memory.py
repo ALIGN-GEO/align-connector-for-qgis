@@ -112,9 +112,17 @@ def forget(layer):
         remover(key)
 
 
-def service_layer_name(title):
-    """The service layer's name: never the original's (CA-7)."""
-    return tr("{} (ALIGN)").format(title)
+def service_layer_name(title, read_only=False):
+    """The service layer's name: never the original's (CA-7), and a layer
+    open for reading says so (TCK-2348, CA-13)."""
+    return tr("{} (ALIGN, read-only)").format(title) if read_only else tr("{} (ALIGN)").format(title)
+
+
+def rename_for_mode(layer, ref, read_only):
+    """Give an opened layer the name of its new mode, unless the user named
+    it: a name that is not the plugin's default is never rewritten (CA-13)."""
+    if layer.name() == service_layer_name(ref.title, not read_only):
+        layer.setName(service_layer_name(ref.title, read_only))
 
 
 def originals_group_name():

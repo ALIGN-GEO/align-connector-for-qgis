@@ -30,6 +30,7 @@ from .panel.services_model import may_edit
 from .publish import service_layer, service_memory
 from .qtcompat import qt_enum
 from .services_api import describe_service
+from .session_watch import SessionWatch
 
 PLUGIN_NAME = "ALIGN Connector"
 #: How often the token is checked while the project holds a service layer.
@@ -37,13 +38,16 @@ _FRESHNESS_MS = 60 * 1000
 
 
 class ServiceLayerActions(object):
-    def __init__(self, iface, session, message):
+    def __init__(self, iface, session, message, icon=None):
         self.iface = iface
         self.session = session
         #: ``(text, level) -> None``: the plugin's message bar.
         self._message = message
+        #: The plugin's icon, on its menu entries as on "Publish to ALIGN…" (TCK-2348, CA-22).
+        self._icon = icon
         self._signer = None
         self._timer = None
+        self._watch = None
         self._edit_action = None
         self._read_action = None
         self._attached = False
@@ -65,6 +69,8 @@ class ServiceLayerActions(object):
         self._read_action = QAction(tr("Open read-only"), parent)
         self._read_action.triggered.connect(lambda _checked=False: self._on_menu(edit=False))
         for action in (self._edit_action, self._read_action):
+            if self._icon is not None:
+                action.setIcon(self._icon)
             # Not for all layers: only those added one by one below.
             self.iface.addCustomActionForLayerType(action, None, _vector_type(), False)
 
@@ -79,6 +85,14 @@ class ServiceLayerActions(object):
         self._timer.timeout.connect(self._keep_fresh)
         self._timer.start()
 
+        self._watch = SessionWatch(
+            self.iface,
+            self.session,
+            service_layer.service_layers,
+            on_confirmed=lambda: self._reload([layer for layer, _ref in service_layer.service_layers()]),
+        )
+        self._watch.attach()
+
     def detach(self):
         """Take back everything :meth:`attach` added."""
         if not self._attached:
@@ -87,6 +101,9 @@ class ServiceLayerActions(object):
         if self._timer is not None:
             self._timer.stop()
             self._timer = None
+        if self._watch is not None:
+            self._watch.detach()
+            self._watch = None
         project = QgsProject.instance()
         for signal, slot in (
             (project.layersAdded, self._on_layers_added),
@@ -141,6 +158,7 @@ class ServiceLayerActions(object):
         if target is None:
             return
         target.setReadOnly(False)
+        service_memory.rename_for_mode(target, ref, read_only=False)
         target.startEditing()
         self.iface.setActiveLayer(target)
         self._message(tr("“{}” is in editing mode: save to write the changes to ALIGN.").format(target.name()), _level("Success"))

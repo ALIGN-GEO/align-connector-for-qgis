@@ -136,6 +136,12 @@ jobs:
       - name: Service layers, Services tab, session
         run: python scripts/smoke_service_layers.py
 
+      # Patch 0003 (TCK-2348): why a session ends, a sign-in abandoned for a
+      # fresh one, the notices by code, the read-only names, the greyed
+      # organizations, which projects hold service layers.
+      - name: Session end, sign-in restart, notices, names, organizations
+        run: python scripts/smoke_session_end.py
+
       # Every sentence of the source is in the .ts, translated, and the
       # shipped .qm is the compilation of that .ts (TCK-2183). The Qt
       # round trip (scripts/smoke_i18n.py) needs a QGIS and runs on the
@@ -183,6 +189,12 @@ jobs:
 
       - name: Service layers end to end (names, menu, no credential in the project, sign-in)
         run: python3 scripts/smoke_service_layers_qgis.py
+
+      - name: A revocation, learnt at once (reading, saving, opening a project)
+        run: python3 scripts/smoke_session_watch_qgis.py
+
+      - name: The panel (greyed organizations, one organization for both tabs, the tab kept, the sign-in waiting)
+        run: python3 scripts/smoke_dock_qgis.py
 
   metadata:
     runs-on: ubuntu-latest

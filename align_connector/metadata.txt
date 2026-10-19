@@ -21,6 +21,22 @@ changelog=0.7.0 (not released yet: needs ALIGN's feature services in production)
     A project reopened without a session says so on its service layers and
     reads them again after the sign-in.
     The organizations load after a sign-in made with the panel hidden.
+    A revocation in ALIGN is learnt at once: ALIGN's first refusal makes the
+    plugin ask ALIGN, and it says "QGIS's access to ALIGN was withdrawn" (or
+    that the session expired) with a "Sign in…" button, in place of QGIS's
+    raw errors for the ALIGN layers; the panel says "Not connected". A
+    project holding ALIGN service layers checks the session before they load.
+    An edit refused that way stays in QGIS's edit buffer.
+    A refresh that cannot reach ALIGN keeps the session (it used to end it).
+    A layer open for reading is named "<title> (ALIGN, read-only)"; a name
+    you chose is never rewritten.
+    Publication notices are said in your language.
+    The Services tab keeps the service in hand, and the ALIGN button keeps
+    the tab in use. One organization for both tabs; an organization the
+    plugin may not use, or without feature services, is greyed with the
+    reason. "Edit in QGIS" carries the ALIGN icon.
+    Signing in shows "Signing in from the browser…" with Copy link and
+    Cancel; clicking "Sign in" again starts afresh at once.
     0.6.0 (not released)
     Publish vector layers as editable feature services, where the
     organization's plan includes them: the features move into the

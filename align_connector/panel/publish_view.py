@@ -42,23 +42,25 @@ from ..i18n import tr
 from ..publish import briefing, memory, support, tiles
 from ..publish.wording import describe_capacity
 from ..qtcompat import qt_enum
-from . import batch
+from . import batch, org_choice
 
 
 class PublishView(QWidget):
     """Collects what a batch needs, and hands it to the caller in one piece."""
 
-    def __init__(self, session, on_publish, on_rows=None, on_show_messages=None, parent=None):
+    def __init__(self, session, on_publish, on_rows=None, on_show_messages=None, on_org_chosen=None, parent=None):
         """
         :param on_publish: called with one :class:`batch.Batch` per click on Publish
         :param on_rows: called with the rows each time the list is rebuilt (the Messages view listens)
         :param on_show_messages: called when the user asks to see the refusals
+        :param on_org_chosen: called with the organization id chosen here (the Services tab follows)
         """
         super().__init__(parent)
         self.session = session
         self._on_publish = on_publish
         self._on_rows = on_rows
         self._on_show_messages = on_show_messages
+        self._on_org_chosen = on_org_chosen
         self._orgs = []
         #: Whether ALIGN was asked at least once: the diagnostic tells "none"
         #: from "never loaded" (TCK-2219).
@@ -239,19 +241,35 @@ class PublishView(QWidget):
         """The organizations as last loaded, ids included: the Services tab's list."""
         return list(self._orgs)
 
-    def refresh_organizations(self):
+    def forget(self):
+        """Signed out: drop what was read for the account (TCK-2348, CA-20)."""
         self.capacity.setText("")
+        self._orgs = []
+        self._orgs_loaded = False
         self.org_box.blockSignals(True)
         self.org_box.clear()
+        self.org_box.blockSignals(False)
+        self._on_org_changed()
+
+    def refresh_organizations(self):
+        self.capacity.setText("")
+        kept = self.org_box.currentData()
+        self.org_box.blockSignals(True)
         self._orgs = []
         self._orgs_loaded = True
         try:
             self._orgs = api.list_organizations(self.session)
         except api.ApiError as exc:
             self.capacity.setText(exc.message)
-        for org in self._orgs:
-            label = org["name"] if not org.get("role") else "{}  ({})".format(org["name"], _role_label(org["role"]))
-            self.org_box.addItem(label, org["id"])
+        # TCK-2348 (CA-17): an organization that does not allow the plugin
+        # stays listed, greyed, its reason in the tooltip.
+        org_choice.fill(
+            self.org_box,
+            self._orgs,
+            lambda org: org["name"] if not org.get("role") else "{}  ({})".format(org["name"], _role_label(org["role"])),
+            org_choice.connector_refusal,
+            keep=kept,
+        )
         self.org_box.blockSignals(False)
         if not self._orgs and not self.capacity.text():
             self.capacity.setText(tr("You do not belong to any ALIGN organization yet."))
@@ -417,6 +435,11 @@ class PublishView(QWidget):
             self._selection_only.discard(layer_id)
         self._on_current_changed(current, None)
 
+    def choose_organization(self, org_id):
+        """The Services tab chose ``org_id`` (TCK-2348, CA-24): follow it when it may be used here."""
+        if org_id != self.org_box.currentData():
+            org_choice.choose(self.org_box, org_id)
+
     def _on_org_changed(self, _index=None):
         """Refresh the capacity line for the organization now selected (TCK-2179).
 
@@ -427,6 +450,8 @@ class PublishView(QWidget):
         self._capacity_line = None
         self._set_feature_services(False)
         org = self.selected_org()
+        if org is not None and self._on_org_chosen is not None:
+            self._on_org_chosen(org["id"])
         self._update_button()
         # Whether the highlighted layer replaces its item depends on the
         # organization now selected (TCK-2218): the form follows the switch.

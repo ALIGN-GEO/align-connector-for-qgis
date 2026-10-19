@@ -24,6 +24,10 @@ class Recorder(BaseHTTPRequestHandler):
     seen = None  # [(port, path, authorization)]
     other_port = None
     require_token = False
+    #: The token the service accepts, when it requires one (a revocation changes it).
+    token = TOKEN
+    #: What ALIGN's token endpoint answers a refresh: (status, body).
+    refresh_answer = (400, {"error": "invalid_grant", "error_description": "Unknown refresh token", "align_session": "ended"})
 
     def log_message(self, *_args):
         pass
@@ -54,7 +58,7 @@ class Recorder(BaseHTTPRequestHandler):
         path = self.path.split("?")[0]
         if path.endswith("/redirect-out"):
             return self._send(302, headers={"Location": "http://127.0.0.1:{}{}/collections".format(Recorder.other_port, SERVICE)})
-        if Recorder.require_token and path.startswith(SERVICE) and auth != "Bearer " + TOKEN:
+        if Recorder.require_token and path.startswith(SERVICE) and auth != "Bearer " + Recorder.token:
             return self._send(401, {"code": "UNAUTHORIZED"})
         if path in (SERVICE, SERVICE + "/"):
             return self._send(
@@ -99,6 +103,25 @@ class Recorder(BaseHTTPRequestHandler):
                 for i in (1, 2, 3)
             ]
             return self._send(200, {"type": "FeatureCollection", "features": features, "numberMatched": 3, "numberReturned": 3, "links": []}, "application/geo+json")
+        return self._send(404, {"code": "NOT_FOUND"})
+
+
+    def do_POST(self):  # noqa: N802 — http.server's name
+        """ALIGN's token endpoint, and the items of the service (part 4)."""
+        auth = self.headers.get("Authorization")
+        length = int(self.headers.get("Content-Length") or 0)
+        if length:
+            self.rfile.read(length)
+        Recorder.seen.append((self.server.server_address[1], "POST " + self.path, auth))
+        path = self.path.split("?")[0]
+        if path == "/api/v1/oauth/token":
+            status, body = Recorder.refresh_answer
+            return self._send(status, body)
+        if Recorder.require_token and path.startswith(SERVICE) and auth != "Bearer " + Recorder.token:
+            return self._send(401, {"code": "UNAUTHORIZED"})
+        if path == SERVICE + "/collections/" + LAYER + "/items":
+            base = "http://127.0.0.1:{}{}".format(self.server.server_address[1], SERVICE)
+            return self._send(201, {}, headers={"Location": base + "/collections/" + LAYER + "/items/9"})
         return self._send(404, {"code": "NOT_FOUND"})
 
 

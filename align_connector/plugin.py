@@ -26,10 +26,11 @@ import os
 from qgis.core import Qgis, QgsApplication, QgsMapLayer, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication, QUrl
 from qgis.PyQt.QtGui import QDesktopServices, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QMenu, QToolButton
+from qgis.PyQt.QtWidgets import QAction, QApplication, QMenu, QPushButton, QToolButton
 
 from . import config, diagnostic, i18n
 from .auth import AlignSession
+from .auth.session import ENDED_BY_ALIGN, EXPIRED
 from .panel import webmap
 from .panel.camera import canvas_map_view
 from .panel.dock import AlignDock, dock_area
@@ -180,7 +181,9 @@ class AlignConnectorPlugin:
             self.iface.addCustomActionForLayerType(action, None, _layer_type(kind), True)
             self._layer_actions.append(action)
 
-        self.service_actions = ServiceLayerActions(self.iface, self.session, self._message)
+        self.service_actions = ServiceLayerActions(
+            self.iface, self.session, self._message, icon=QIcon(os.path.join(self.plugin_dir, "icon.png"))
+        )
         self.service_actions.attach()
 
         self.session.signed_in.connect(self._on_signed_in)
@@ -290,11 +293,32 @@ class AlignConnectorPlugin:
 
     def _on_signed_in(self):
         self._refresh_state()
-        self._message(self.tr("Connected to ALIGN."), qt_enum(Qgis, "MessageLevel", "Success"))
+        # The authorization is the person's; the organization is chosen in the
+        # panel, for each publication (TCK-2348, CA-24).
+        self._message(
+            self.tr("Connected to ALIGN. Choose the organization in the ALIGN panel, in the Publish or Services tab."),
+            qt_enum(Qgis, "MessageLevel", "Success"),
+        )
 
     def _on_signed_out(self):
         self._refresh_state()
-        self._message(self.tr("Signed out of ALIGN."), qt_enum(Qgis, "MessageLevel", "Info"))
+        # TCK-2348 (CA-21) — say why: a withdrawal is not an expiry, and
+        # neither is the user's own sign-out. The first two offer to sign in.
+        reason = self.session.end_reason
+        if reason == ENDED_BY_ALIGN:
+            self._offer_sign_in(self.tr("QGIS's access to ALIGN was withdrawn. Sign in again."))
+        elif reason == EXPIRED:
+            self._offer_sign_in(self.tr("Your ALIGN session has expired. Sign in again."))
+        else:
+            self._message(self.tr("Signed out of ALIGN."), qt_enum(Qgis, "MessageLevel", "Info"))
+
+    def _offer_sign_in(self, text):
+        bar = self.iface.messageBar()
+        widget = bar.createMessage(PLUGIN_NAME, text)
+        button = QPushButton(self.tr("Sign in…"))
+        button.clicked.connect(lambda _checked=False, w=widget: (bar.popWidget(w), self.session.sign_in()))
+        widget.layout().addWidget(button)
+        bar.pushWidget(widget, qt_enum(Qgis, "MessageLevel", "Warning"), 0)
 
     def _on_failed(self, reason):
         self._refresh_state()

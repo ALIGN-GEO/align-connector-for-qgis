@@ -48,7 +48,8 @@ def open_service(ref, read_only=False, local_layer_id=None):
     :raises ServiceLayerUnavailable: when QGIS cannot open the service
     """
     ogc_url = config.feature_service_ogc_url(ref.org_id, ref.service_id)
-    layer = QgsVectorLayer(oapif_source(ogc_url, ref.layer_id, ref.srid), service_memory.service_layer_name(ref.title), "OAPIF")
+    name = service_memory.service_layer_name(ref.title, read_only=bool(read_only))
+    layer = QgsVectorLayer(oapif_source(ogc_url, ref.layer_id, ref.srid), name, "OAPIF")
     if not layer.isValid():
         raise ServiceLayerUnavailable(
             tr("QGIS could not open the feature service. You can add it yourself from its address: {}").format(ogc_url)

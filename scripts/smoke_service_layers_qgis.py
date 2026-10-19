@@ -66,6 +66,15 @@ class _Session(object):
         self.snapshot.set(TOKEN, time.time() + 3600)
         return True
 
+    def is_signed_in(self):
+        return self.live
+
+    def verify(self):
+        return self.keep_signer_fresh()
+
+    def verify_if_stale(self):
+        return self.keep_signer_fresh()
+
 
 def main():
     app = QgsApplication([], False)
@@ -130,6 +139,7 @@ def main():
     read_ref = service_memory.ServiceRef("org-1", "svc-jardins", LAYER, "jardins", None, service_memory.SERVICE)
     read_only = actions.open(read_ref, read_only=True)
     check(read_only is not None and read_only.readOnly(), "opened read-only, it stays read-only")
+    check(read_only.name() == "jardins (ALIGN, read-only)", "and says so in its name (CA-13): {}".format(read_only.name()))
     check(len(list(read_only.getFeatures())) == 3, "and reads its features")
 
     path = os.path.join(tempfile.mkdtemp(), "recipe.qgs")
