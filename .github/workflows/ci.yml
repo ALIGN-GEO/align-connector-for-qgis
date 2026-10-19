@@ -205,6 +205,9 @@ jobs:
       - name: The input rules on a service layer (set, replaced, a refused save explained)
         run: python3 scripts/smoke_service_form_qgis.py
 
+      - name: QGIS's own message bar (raw errors after a revocation, a rules refusal)
+        run: python3 scripts/smoke_message_bar_qgis.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

@@ -157,11 +157,22 @@ def install():
     for name in ("QNetworkAccessManager", "QNetworkReply", "QNetworkRequest"):
         setattr(network, name, type(name, (object,), {}))
 
+    qgis_gui = types.ModuleType("qgis.gui")
+    qgis_gui.QgsMessageBarItem = type("QgsMessageBarItem", (object,), {})
+
+    # Nothing here is a Qt wrapper: sip's checks never apply.
+    sip = types.ModuleType("qgis.PyQt.sip")
+    sip.simplewrapper = type("simplewrapper", (object,), {})
+    sip.isdeleted = lambda obj: False
+    sip.cast = lambda obj, kind: obj
+
     qgis = types.ModuleType("qgis")
     qgis._align_stub = True
     pyqt = types.ModuleType("qgis.PyQt")
     qgis.core = core
+    qgis.gui = qgis_gui
     qgis.PyQt = pyqt
+    pyqt.sip = sip
     pyqt.QtCore = qtcore
     pyqt.QtWidgets = widgets
     pyqt.QtNetwork = network
@@ -171,7 +182,9 @@ def install():
         {
             "qgis": qgis,
             "qgis.core": core,
+            "qgis.gui": qgis_gui,
             "qgis.PyQt": pyqt,
+            "qgis.PyQt.sip": sip,
             "qgis.PyQt.QtCore": qtcore,
             "qgis.PyQt.QtWidgets": widgets,
             "qgis.PyQt.QtNetwork": network,

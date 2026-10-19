@@ -12,10 +12,15 @@ reading what QGIS already does:
   reply. A 401 from ALIGN's feature services makes the session ask ALIGN, once
   per burst; refused, the session ends with its reason, and the plugin says so
   with its "Sign in…" button. The bearer a 401 answers is never re-sent.
-* **QGIS's raw error for a refused ALIGN layer** (CA-19): the provider raises
-  "Download of features for layer <id> failed…" per layer. Once the session is
-  known to be refused, a message-bar item naming an ALIGN service layer's id is
-  taken back: the plugin's one message says what happened.
+* **QGIS's raw error for a refused ALIGN layer** (CA-19): QGIS pushes "Layer
+  <name>" with the provider's message ("Download of features for layer <id>
+  failed…", "Cannot modify feature of id N"), and "Could not commit changes to
+  layer <name>". Once the session is known to be refused, a message-bar item
+  naming an ALIGN service layer, by its name or its id, is taken back: the
+  plugin's one message says what happened. The bar's signal hands Python a
+  plain ``QWidget``: the item is cast back to QGIS's ``QgsMessageBarItem``
+  to be read (defect 61: read as a ``QWidget``, no message was ever taken
+  back).
 * **A project opening** (CA-23): before QGIS loads the layers of a project that
   holds ALIGN service layers, the session is checked with ALIGN, so a
   revocation made while QGIS was closed is learnt before the layers ask.
@@ -42,6 +47,8 @@ import time
 import zipfile
 
 from qgis.core import QgsNetworkAccessManager, QgsProject
+from qgis.gui import QgsMessageBarItem
+from qgis.PyQt import sip
 from qgis.PyQt.QtCore import QTimer
 from qgis.PyQt.QtNetwork import QNetworkRequest
 
@@ -152,7 +159,10 @@ class SessionWatch:
         # 422) reaches the plugin only then; QGIS is done with the save too.
         QTimer.singleShot(0, lambda: self._judge_bar_item(item))
 
-    def _judge_bar_item(self, item):
+    def _judge_bar_item(self, widget):
+        item = _bar_item(widget)
+        if item is None:
+            return
         text = "{} {}".format(_call(item, "title"), _call(item, "text"))
         bar = self.iface.messageBar()
         refused = self._refused_for_rules(text)
@@ -164,8 +174,7 @@ class SessionWatch:
             return
         if self.session.is_signed_in() and time.time() - self._refused_at > _QUIET_FOR_SEC:
             return
-        ids = {ref.layer_id for _layer, ref in self._service_layers()}
-        if any(layer_id and layer_id in text for layer_id in ids):
+        if any(_names(text, layer, ref) for layer, ref in self._service_layers()):
             bar.popWidget(item)
 
     # -- a save ALIGN refused for its rules (TCK-2343, CA-6) ------------------
@@ -190,8 +199,7 @@ class SessionWatch:
             return None
         now = time.time()
         for layer, ref in self._service_layers():
-            name = layer.name()
-            if not ((name and name in text) or (ref.layer_id and ref.layer_id in text)):
+            if not _names(text, layer, ref):
                 continue
             noted = self._rules_refused.get(ref.layer_id)
             if noted is not None and now - noted["at"] > _RULES_WINDOW_SEC:
@@ -213,6 +221,24 @@ class SessionWatch:
             return
         if project_mentions_services(QgsProject.instance().fileName()):
             self.session.verify_if_stale()
+
+
+def _names(text, layer, ref):
+    """Whether a message names an ALIGN service layer, by its name or its id."""
+    name = layer.name()
+    return bool((name and name in text) or (ref.layer_id and ref.layer_id in text))
+
+
+def _bar_item(widget):
+    """The bar item behind what the bar's signal passed: QGIS declares a
+    ``QgsMessageBarItem``, Python receives a ``QWidget``. ``None`` once QGIS
+    has removed it."""
+    if isinstance(widget, sip.simplewrapper):
+        if sip.isdeleted(widget):
+            return None
+        if not isinstance(widget, QgsMessageBarItem) and widget.inherits("QgsMessageBarItem"):
+            return sip.cast(widget, QgsMessageBarItem)
+    return widget
 
 
 def _call(item, name):

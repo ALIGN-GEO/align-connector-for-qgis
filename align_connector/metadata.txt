@@ -19,6 +19,10 @@ changelog=0.8.0 (not released yet: needs ALIGN's feature services in production)
     a new feature), otherwise by naming the feature, field and rule, a
     changed feature included; QGIS's own messages about it are taken back,
     and the edits stay.
+    QGIS's raw errors for an ALIGN layer after a revocation are now taken
+    back from the message bar, those naming the layer by name included (a
+    refused change, a refused save): the bar hands Python a plain widget,
+    which the plugin read as empty.
     0.7.0 (not released)
     One consent: the plugin signs its feature-service layers itself, with the
     session opened at "Sign in", so no second approval and no QGIS page.
