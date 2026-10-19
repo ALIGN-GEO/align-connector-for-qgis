@@ -148,6 +148,17 @@ def test_repeats_the_capacity_only_on_capacity_refusals():
     check(with_capacity("Could not be reached.", None, capacity) == "Could not be reached.", "no status, nothing added")
 
 
+def test_the_task_title_is_said_in_the_users_language():
+    from align_connector.publish import task
+
+    real, task.tr = task.tr, lambda text: "[fr] " + text
+    try:
+        check(task.task_title("équipements", replacing=False) == "[fr] Publishing “équipements” to ALIGN", "QGIS's task list says it in the user's language (finding N)")
+        check(task.task_title("équipements", replacing=True) == "[fr] Replacing “équipements” on ALIGN", "and a replacement too")
+    finally:
+        task.tr = real
+
+
 def main():
     tests = [
         test_reads_the_capacity_answer,
@@ -158,6 +169,7 @@ def main():
         test_asks_to_sign_in_without_a_token,
         test_describes_the_capacity,
         test_repeats_the_capacity_only_on_capacity_refusals,
+        test_the_task_title_is_said_in_the_users_language,
     ]
     for test in tests:
         test()

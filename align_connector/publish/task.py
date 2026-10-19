@@ -70,6 +70,11 @@ def with_capacity(message, status, capacity_line):
     return message
 
 
+def task_title(asset_name, replacing):
+    """The task's title in QGIS's task list, in the user's language."""
+    return (tr("Replacing “{}” on ALIGN") if replacing else tr("Publishing “{}” to ALIGN")).format(asset_name)
+
+
 class PublishLayerTask(QgsTask):
     """Export one layer, send it, and catalogue it in ALIGN."""
 
@@ -98,10 +103,7 @@ class PublishLayerTask(QgsTask):
             ALIGN moves its features into the organization's database and
             removes the file; a replacement does not apply.
         """
-        super().__init__(
-            ("Replacing “{}” on ALIGN" if replace is not None else "Publishing “{}” to ALIGN").format(asset_name),
-            qt_enum(QgsTask, "Flag", "CanCancel"),
-        )
+        super().__init__(task_title(asset_name, replacing=replace is not None), qt_enum(QgsTask, "Flag", "CanCancel"))
         self.session = session
         self.layer = layer
         self.org_id = org_id

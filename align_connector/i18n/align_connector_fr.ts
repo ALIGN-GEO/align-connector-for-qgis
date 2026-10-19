@@ -1158,6 +1158,11 @@
         <translation>Publication de {} couches vers {}, suivez-les dans le panneau ALIGN.</translation>
     </message>
     <message>
+        <location filename="../../align_connector/publish/task.py" line="76"/>
+        <source>Publishing “{}” to ALIGN</source>
+        <translation>Publication de « {} » sur ALIGN</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/plugin.py" line="395"/>
         <source>Publishing “{}” to {} — follow it in the ALIGN panel.</source>
         <translation>Publication de « {} » vers {}, suivez-la dans le panneau ALIGN.</translation>
@@ -1236,6 +1241,11 @@
         <location filename="../../align_connector/panel/batch.py" line="176"/>
         <source>Replace {} layers</source>
         <translation>Remplacer {} couches</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/task.py" line="76"/>
+        <source>Replacing “{}” on ALIGN</source>
+        <translation>Remplacement de « {} » sur ALIGN</translation>
     </message>
     <message>
         <location filename="../../align_connector/publish/symbology.py" line="240"/>
@@ -2354,7 +2364,7 @@
         <translation>« {} » est ouverte en lecture.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/task.py" line="364"/>
+        <location filename="../../align_connector/publish/task.py" line="366"/>
         <source>“{}” is stored in your Datastore, but it did not become a feature service: {}</source>
         <translation>« {} » est enregistré dans votre Datastore, mais n'est pas devenu un service d'entités : {}</translation>
     </message>
