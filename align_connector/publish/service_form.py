@@ -71,10 +71,13 @@ def _plain_container(name, parent):
 
 
 def _reset(layer):
-    """Back to what QGIS gives a field: what ALIGN no longer asks leaves too."""
+    """Back to what QGIS gives a field: what ALIGN no longer asks leaves too.
+    The expression is emptied as well: QGIS keeps a layer's constraint
+    expression apart from its flag, and sets the flag again from it."""
     for index in range(layer.fields().count()):
         layer.setEditorWidgetSetup(index, QgsEditorWidgetSetup())
         layer.removeFieldConstraint(index, _NOT_NULL)
+        layer.setConstraintExpression(index, "")
         layer.removeFieldConstraint(index, _EXPRESSION)
         layer.removeFieldAlias(index)
     layer.removeCustomProperty(_CHECKS)
