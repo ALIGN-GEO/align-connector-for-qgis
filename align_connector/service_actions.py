@@ -219,7 +219,7 @@ class ServiceLayerActions(object):
             return
         left = service_form.apply_form(layer, described)
         if left and announce:
-            self._message(tr("ALIGN checks these rules of “{}” only when you save: {}.").format(layer.name(), tr("; ").join(left)), _level("Info"))
+            self._message(tr("ALIGN checks these rules of “{}” only when you save: {}.").format(layer.name(), _clause(tr("; ").join(left))), _level("Info"))
 
     def _refresh_rules(self, layers):
         """The rules again from ALIGN, one read per service (CA-5)."""
@@ -240,7 +240,7 @@ class ServiceLayerActions(object):
         lines = service_form.explain_refusal(layer)
         reason = answer or service_form.align_answer(layer) or (tr("; ").join(lines) if lines else tr("a rule ALIGN checks when it saves refused a value"))
         self._message(
-            tr("ALIGN refused to save “{}”: {}. The edits stay in the layer: correct them and save again.").format(layer.name(), reason),
+            tr("ALIGN refused to save “{}”: {}. The edits stay in the layer: correct them and save again.").format(layer.name(), _clause(reason)),
             _level("Warning"),
         )
 
@@ -359,6 +359,12 @@ class ServiceLayerActions(object):
         still = [layer.name() for layer in layers if not service_layer.reload_layer(layer)]
         if still:
             self._message(tr("ALIGN still refuses these layers: {}.").format(", ".join(still)), _level("Warning"))
+
+
+def _clause(text):
+    """Words set inside a sentence: the sentence ends them, so their own final
+    period goes (a rule's message often has one)."""
+    return text.rstrip().rstrip(".")
 
 
 def _level(name):

@@ -271,7 +271,7 @@ def test_the_actions_set_the_rules_and_follow_align(service_form):
     Recorder.seen, Recorder.require_token, Recorder.items_answer = [], False, None
     previous = (config.app_url(), config.api_url())
     config.set_endpoints(previous[0], "http://127.0.0.1:{}".format(server.server_address[1]))
-    inside = {"field": "nom", "widget": "text", "required": True, "alias": "Garden name", "constraintExpression": '["within", {"type": "Polygon"}]', "constraintDescription": "Inside the park"}
+    inside = {"field": "nom", "widget": "text", "required": True, "alias": "Garden name", "constraintExpression": '["within", {"type": "Polygon"}]', "constraintDescription": "Inside the park."}
     current = {"form": {"fields": [inside]}}
     reads = []
 
@@ -290,7 +290,7 @@ def test_the_actions_set_the_rules_and_follow_align(service_form):
         nom = layer.fields().indexOf("nom")
         check(layer.attributeDisplayName(nom) == "Garden name", "opened with its rules: {}".format(messages))
         check(layer.fields().field("nom").constraints().constraints() & QgsFieldConstraints.ConstraintNotNull, "required")
-        check(messages == ["ALIGN checks these rules of “jardins (ALIGN, read-only)” only when you save: Garden name: Inside the park."], messages)
+        check(messages == ["ALIGN checks these rules of “jardins (ALIGN, read-only)” only when you save: Garden name: Inside the park."], "one final period (finding P): {}".format(messages))
         check(reads == [("svc-jardins", False)], "one read, without the per-layer counts: {}".format(reads))
 
         current["form"] = {"fields": [{"field": "nom", "widget": "valueMap", "valueMap": [{"value": "a"}]}]}
