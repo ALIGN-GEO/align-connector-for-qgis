@@ -51,6 +51,8 @@ class ServicesView(QWidget):
         self._organizations = organizations
         self._on_open = on_open
         self._on_org_chosen = on_org_chosen
+        #: The organization chosen before a sign-out, chosen again at the next sign-in (finding O).
+        self._kept_org = None
         self._services = []
         self._description = None
 
@@ -118,14 +120,16 @@ class ServicesView(QWidget):
         feature services, stays listed, greyed, its reason in the tooltip
         (TCK-2348, CA-17).
         """
-        current = self.org_box.currentData()
+        current = self.org_box.currentData() or self._kept_org
         self.org_box.blockSignals(True)
         org_choice.fill(self.org_box, self._organizations() or [], lambda org: org["name"], org_choice.services_refusal, keep=current)
         self.org_box.blockSignals(False)
         self._on_org_changed()
 
     def forget(self):
-        """Signed out: drop the organizations and services read for the account (CA-20)."""
+        """Signed out: drop the organizations and services read for the account
+        (CA-20); only the choice is kept, in memory, for the next sign-in (finding O)."""
+        self._kept_org = self.org_box.currentData() or self._kept_org
         self.org_box.blockSignals(True)
         self.org_box.clear()
         self.org_box.blockSignals(False)

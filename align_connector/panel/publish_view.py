@@ -61,6 +61,8 @@ class PublishView(QWidget):
         self._on_rows = on_rows
         self._on_show_messages = on_show_messages
         self._on_org_chosen = on_org_chosen
+        #: The organization chosen before a sign-out, chosen again at the next sign-in (finding O).
+        self._kept_org = None
         self._orgs = []
         #: Whether ALIGN was asked at least once: the diagnostic tells "none"
         #: from "never loaded" (TCK-2219).
@@ -242,7 +244,10 @@ class PublishView(QWidget):
         return list(self._orgs)
 
     def forget(self):
-        """Signed out: drop what was read for the account (TCK-2348, CA-20)."""
+        """Signed out: drop what was read for the account (TCK-2348, CA-20).
+        Only the choice is kept, in memory, to be found again at the next
+        sign-in if the account still has it (finding O)."""
+        self._kept_org = self.org_box.currentData() or self._kept_org
         self.capacity.setText("")
         self._orgs = []
         self._orgs_loaded = False
@@ -253,7 +258,7 @@ class PublishView(QWidget):
 
     def refresh_organizations(self):
         self.capacity.setText("")
-        kept = self.org_box.currentData()
+        kept = self.org_box.currentData() or self._kept_org
         self.org_box.blockSignals(True)
         self._orgs = []
         self._orgs_loaded = True

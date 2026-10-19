@@ -42,6 +42,7 @@ ORGS = [
     {"id": "o-closed", "name": "A closed", "role": "member", "connector": {"allowed": False, "reason": "org-off", "featureServices": True}},
     {"id": "o-files", "name": "B files only", "role": "member", "connector": {"allowed": True, "featureServices": False}},
     {"id": "o-team", "name": "C team", "role": "member", "connector": {"allowed": True, "featureServices": True}},
+    {"id": "o-second", "name": "D second team", "role": "member", "connector": {"allowed": True, "featureServices": True}},
 ]
 SERVICES = [
     {"serviceId": "s-1", "title": "Arbres", "canEdit": True},
@@ -136,6 +137,7 @@ def main():
     check(session.cancelled == 1 and not dock.pending.isVisibleTo(dock), "Cancel gives the attempt up, and the row goes")
 
     # -- signed out, nothing of the account stays on screen (CA-20) ----------
+    publish.org_box.setCurrentIndex(publish.org_box.findData("o-second"))
     session.signed = False
     dock.refresh(reload=False)  # what the plugin does on signed_out
     check(dock.account.text() == "Not connected to ALIGN", "the header says so")
@@ -143,6 +145,15 @@ def main():
     check(services.list.topLevelItemCount() == 0 and not services.sheet_box.isVisibleTo(services), "no service, no sheet")
     check("Sign in" in services.note.text(), "the Services tab says what to do: {}".format(services.note.text()))
     check(publish.organizations() is None, "the diagnostic says the organizations were not read, not 'none'")
+
+    # -- signed in again, the organization chosen before is kept (finding O) --
+    session.signed = True
+    dock.refresh(reload=True)
+    app.processEvents()
+    check(publish.org_box.currentData() == "o-second", "Publish is back on the organization chosen before: {}".format(publish.org_box.currentData()))
+    dock.tabs.setCurrentWidget(services)
+    services.refresh()
+    check(services.org_box.currentData() == "o-second", "and so is the Services tab: {}".format(services.org_box.currentData()))
 
     dock.deleteLater()
     print("panel inside QGIS {}: all checks passed".format(Qgis.QGIS_VERSION))
