@@ -7,9 +7,10 @@ scratch, so a rule removed in ALIGN leaves QGIS too. The project keeps no
 rule as a source of truth: ALIGN does.
 
 What QGIS cannot take is left to ALIGN and said once, at the opening. ALIGN
-judges every write anyway. When it refuses one (422), QGIS 3.44 passes its
-field-by-field answer on (:func:`align_answer`); QGIS 3.34 only the reason
-phrase, so :func:`explain_refusal` reads the edits waiting to be saved
+judges every write anyway. When it refuses one (422), QGIS 3.44.14 passes
+its field-by-field answer on for a new feature (:func:`align_answer`); for a
+changed feature no QGIS measured does ("Cannot modify feature of id N"), nor
+QGIS 3.34 for any. Then :func:`explain_refusal` reads the edits waiting to be saved
 against the rules the plugin set, rule by rule: QGIS holds one expression per
 field, so each rule is kept on its own beside it, in the layer's custom
 properties, to name only the one a value breaks.

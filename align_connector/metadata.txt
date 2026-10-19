@@ -15,8 +15,10 @@ changelog=0.8.0 (not released yet: needs ALIGN's feature services in production)
     again when the project reopens or you sign in: ALIGN is the source. A
     rule QGIS cannot take is named once, at the opening, and checked by
     ALIGN when you save. When ALIGN refuses a save for its rules, the
-    plugin says why, in ALIGN's words when QGIS passes them on, otherwise
-    by naming the feature, field and rule; the edits stay.
+    plugin says why, in ALIGN's words when QGIS passes them on (3.44, for
+    a new feature), otherwise by naming the feature, field and rule, a
+    changed feature included; QGIS's own messages about it are taken back,
+    and the edits stay.
     0.7.0 (not released)
     One consent: the plugin signs its feature-service layers itself, with the
     session opened at "Sign in", so no second approval and no QGIS page.

@@ -234,11 +234,11 @@ class ServiceLayerActions(object):
             if described[key] is not None:
                 self._set_rules(layer, ref, described[key], announce=False)
 
-    def _explain_refusal(self, layer):
+    def _explain_refusal(self, layer, answer=None):
         """ALIGN refused a save for its rules (CA-6): say which, in ALIGN's
-        words when QGIS passed them on, else from the edits still waiting."""
+        words when they reached the plugin, else from the edits still waiting."""
         lines = service_form.explain_refusal(layer)
-        reason = service_form.align_answer(layer) or (tr("; ").join(lines) if lines else tr("a rule ALIGN checks when it saves refused a value"))
+        reason = answer or service_form.align_answer(layer) or (tr("; ").join(lines) if lines else tr("a rule ALIGN checks when it saves refused a value"))
         self._message(
             tr("ALIGN refused to save “{}”: {}. The edits stay in the layer: correct them and save again.").format(layer.name(), reason),
             _level("Warning"),

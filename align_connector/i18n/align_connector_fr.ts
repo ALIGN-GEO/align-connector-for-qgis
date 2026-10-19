@@ -35,7 +35,7 @@
     </message>
     <message>
         <location filename="../../align_connector/form_rules.py" line="232"/>
-        <location filename="../../align_connector/publish/service_form.py" line="189"/>
+        <location filename="../../align_connector/publish/service_form.py" line="193"/>
         <location filename="../../align_connector/service_actions.py" line="241"/>
         <location filename="../../align_connector/service_actions.py" line="222"/>
         <source>; </source>
@@ -581,7 +581,7 @@
         <translation>Les services d'entités ne font pas partie de l'offre de cette organisation.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/service_form.py" line="198"/>
+        <location filename="../../align_connector/publish/service_form.py" line="202"/>
         <source>Feature {}</source>
         <translation>Entité {}</translation>
     </message>
@@ -772,7 +772,7 @@
         <translation>Doit être une valeur de la liste</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/service_form.py" line="196"/>
+        <location filename="../../align_connector/publish/service_form.py" line="200"/>
         <source>New feature</source>
         <translation>Nouvelle entité</translation>
     </message>
@@ -2268,7 +2268,7 @@
         <translation>largeur de {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/service_form.py" line="189"/>
+        <location filename="../../align_connector/publish/service_form.py" line="193"/>
         <source>{}, {}: {}</source>
         <translation>{}, {} : {}</translation>
     </message>
@@ -2313,7 +2313,7 @@
         <translation>{} : les propriétés pilotées par des expressions sont ignorées.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/service_form.py" line="108"/>
+        <location filename="../../align_connector/publish/service_form.py" line="112"/>
         <source>{}: {}</source>
         <translation>{} : {}</translation>
     </message>

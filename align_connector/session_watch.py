@@ -20,10 +20,13 @@ reading what QGIS already does:
   holds ALIGN service layers, the session is checked with ALIGN, so a
   revocation made while QGIS was closed is learnt before the layers ask.
 * **A save ALIGN refused for its rules** (TCK-2343, CA-6): QGIS's bar only
-  says "Could not commit changes to layer <name>". For an ALIGN service layer
-  whose last commit errors are ALIGN's refusal for its rules (its answer when
-  QGIS passes it on, the 422's reason phrase otherwise), that message is
-  taken back and the plugin explains the refusal.
+  says "Could not commit changes to layer <name>", and for a changed feature
+  "Cannot modify feature of id N", nothing of the 422 (defect 62). ALIGN's
+  422 on a layer's items is therefore noted from the reply itself, with
+  ALIGN's answer when the reply lets it be read; QGIS's messages naming that
+  layer just after are taken back, and the plugin explains the refusal once.
+  A layer's commit errors that carry ALIGN's answer or the 422's reason
+  phrase count as well.
 
 What it cannot do: QGIS's "Handle Unavailable Layers" window still opens for
 an ALIGN layer that cannot load signed out. QGIS keeps that handler to itself
@@ -34,6 +37,7 @@ Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
 import contextlib
+import re
 import time
 import zipfile
 
@@ -52,6 +56,10 @@ _CHECK_EVERY_SEC = 30
 _QUIET_FOR_SEC = 120
 #: What marks a project that holds ALIGN service layers: their OGC address.
 _SERVICE_MARK = b"/feature-services/"
+#: How long QGIS's messages naming a layer are taken back after ALIGN refused its save for its rules.
+_RULES_WINDOW_SEC = 30
+#: The layer (collection) a write on a service's items is for.
+_ITEMS_OF = re.compile(r"/collections/([^/?#]+)/items")
 
 
 def project_mentions_services(path):
@@ -84,6 +92,8 @@ class SessionWatch:
         #: Called with the layer when ALIGN refused its save for its rules (422): explain it.
         self._on_rules_refusal = on_rules_refusal
         self._refused_at = 0.0
+        #: ``{layer_id: {"at", "answer", "explained"}}``: ALIGN's last refusals for the rules (422).
+        self._rules_refused = {}
         self._checked_at = 0.0
         self._pending = False
         self._attached = False
@@ -113,7 +123,11 @@ class SessionWatch:
 
     def _on_reply(self, content):
         status = content.attribute(qt_enum(QNetworkRequest, "Attribute", "HttpStatusCodeAttribute"))
-        if status != 401 or not signable(content.request().url().toString(), config.api_url()):
+        url = content.request().url().toString()
+        if status == 422 and signable(url, config.api_url()):
+            self._note_rules_refusal(url, content)
+            return
+        if status != 401 or not signable(url, config.api_url()):
             return
         self._refused_at = time.time()
         if self._pending or time.time() - self._checked_at < _CHECK_EVERY_SEC:
@@ -133,31 +147,63 @@ class SessionWatch:
     # -- QGIS's raw errors for refused ALIGN layers (CA-19) -------------------
 
     def _on_bar_item(self, item):
+        # Judged on the next turn of the event loop: QGIS pushes its messages
+        # about a save while saving, and the reply that explains them (ALIGN's
+        # 422) reaches the plugin only then; QGIS is done with the save too.
+        QTimer.singleShot(0, lambda: self._judge_bar_item(item))
+
+    def _judge_bar_item(self, item):
         text = "{} {}".format(_call(item, "title"), _call(item, "text"))
+        bar = self.iface.messageBar()
         refused = self._refused_for_rules(text)
         if refused is not None:
-            bar = self.iface.messageBar()
-            QTimer.singleShot(0, lambda: bar.popWidget(item))
-            self._on_rules_refusal(refused)
+            layer, answer, first = refused
+            bar.popWidget(item)
+            if first:
+                self._on_rules_refusal(layer, answer)
             return
         if self.session.is_signed_in() and time.time() - self._refused_at > _QUIET_FOR_SEC:
             return
         ids = {ref.layer_id for _layer, ref in self._service_layers()}
         if any(layer_id and layer_id in text for layer_id in ids):
-            bar = self.iface.messageBar()
-            QTimer.singleShot(0, lambda: bar.popWidget(item))
+            bar.popWidget(item)
 
     # -- a save ALIGN refused for its rules (TCK-2343, CA-6) ------------------
 
+    def _note_rules_refusal(self, url, content):
+        """ALIGN refused a write on a layer's items for its rules: noted, with
+        its answer when the reply lets it be read."""
+        match = _ITEMS_OF.search(url)
+        if match is None:
+            return
+        body = ""
+        with contextlib.suppress(AttributeError, TypeError):
+            body = bytes(content.content()).decode("utf-8", "replace")
+        answer = rules_refusal(["Server response: " + body])[1] if body else None
+        self._rules_refused[match.group(1)] = {"at": time.time(), "answer": answer, "explained": False}
+
     def _refused_for_rules(self, text):
-        """The ALIGN service layer a bar message says could not be saved, when
-        its last commit errors are ALIGN's refusal for its rules."""
+        """The ALIGN service layer a bar message names just after ALIGN refused
+        its save for its rules: ``(layer, ALIGN's answer or None, whether to
+        explain it)``, the explanation given once per refusal."""
         if self._on_rules_refusal is None:
             return None
-        for layer, _ref in self._service_layers():
+        now = time.time()
+        for layer, ref in self._service_layers():
             name = layer.name()
-            if name and name in text and rules_refusal(layer.commitErrors())[0]:
-                return layer
+            if not ((name and name in text) or (ref.layer_id and ref.layer_id in text)):
+                continue
+            noted = self._rules_refused.get(ref.layer_id)
+            if noted is not None and now - noted["at"] > _RULES_WINDOW_SEC:
+                noted = None
+            refused, answer = rules_refusal(layer.commitErrors())
+            if noted is None:
+                if not refused:
+                    continue
+                noted = self._rules_refused[ref.layer_id] = {"at": now, "answer": None, "explained": False}
+            first = not noted["explained"]
+            noted["explained"] = True
+            return layer, noted["answer"] or answer, first
         return None
 
     # -- a project opening (CA-23) --------------------------------------------

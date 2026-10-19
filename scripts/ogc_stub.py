@@ -26,7 +26,7 @@ class Recorder(BaseHTTPRequestHandler):
     require_token = False
     #: The token the service accepts, when it requires one (a revocation changes it).
     token = TOKEN
-    #: What ALIGN answers a new feature, when not 201: (status, body), e.g. a 422 for its rules.
+    #: What ALIGN answers a write of a feature (new or changed), when not a success: (status, body), e.g. a 422 for its rules.
     items_answer = None
     #: What ALIGN's token endpoint answers a refresh: (status, body).
     refresh_answer = (400, {"error": "invalid_grant", "error_description": "Unknown refresh token", "align_session": "ended"})
@@ -127,6 +127,29 @@ class Recorder(BaseHTTPRequestHandler):
             base = "http://127.0.0.1:{}{}".format(self.server.server_address[1], SERVICE)
             return self._send(201, {}, headers={"Location": base + "/collections/" + LAYER + "/items/9"})
         return self._send(404, {"code": "NOT_FOUND"})
+
+
+    def _change(self, method):
+        """A feature changed (part 4): PUT or PATCH, 204, or ``items_answer``."""
+        auth = self.headers.get("Authorization")
+        length = int(self.headers.get("Content-Length") or 0)
+        if length:
+            self.rfile.read(length)
+        Recorder.seen.append((self.server.server_address[1], method + " " + self.path, auth))
+        path = self.path.split("?")[0]
+        if Recorder.require_token and path.startswith(SERVICE) and auth != "Bearer " + Recorder.token:
+            return self._send(401, {"code": "UNAUTHORIZED"})
+        if path.startswith(SERVICE + "/collections/" + LAYER + "/items/"):
+            if Recorder.items_answer is not None:
+                return self._send(*Recorder.items_answer)
+            return self._send(204)
+        return self._send(404, {"code": "NOT_FOUND"})
+
+    def do_PUT(self):  # noqa: N802 — http.server's name
+        return self._change("PUT")
+
+    def do_PATCH(self):  # noqa: N802 — http.server's name
+        return self._change("PATCH")
 
 
 def _serve():

@@ -20,6 +20,10 @@ service's fields. What is under test:
   that stands for ALIGN): QGIS's bare "Could not commit changes" for that
   layer is taken back and the plugin explains it, in ALIGN's words when
   QGIS passes them on (3.44 does, 3.34 does not); the edits stay (CA-6);
+* a changed feature refused the same way: QGIS's provider then says only
+  "Cannot modify feature of id N", nothing of the 422; the plugin knows the
+  refusal from ALIGN's reply itself, takes back QGIS's messages for that
+  layer and explains it once (defect 62);
 * the plugin's service actions: a layer opens with its rules, what ALIGN
   alone checks said once; "Edit in QGIS" and a project read set them again
   as ALIGN has them now, one read per service, without the per-layer counts
@@ -175,7 +179,7 @@ def test_a_refused_save_is_taken_back_and_explained(app, service_form):
     ref = service_memory.ServiceRef("org-1", "svc-jardins", LAYER, "Jardins", None, service_memory.SERVICE)
 
     iface, refused = _Iface(), []
-    watch = SessionWatch(iface, _Session(), lambda: [(layer, ref)], on_rules_refusal=refused.append)
+    watch = SessionWatch(iface, _Session(), lambda: [(layer, ref)], on_rules_refusal=lambda refused_layer, _answer: refused.append(refused_layer))
     watch.attach()
     check(layer.startEditing(), "in editing mode")
     feature = QgsFeature(layer.fields())
@@ -207,6 +211,53 @@ def test_a_refused_save_is_taken_back_and_explained(app, service_form):
     watch.detach()
     Recorder.items_answer = None
     server.shutdown()
+
+
+def test_a_refused_change_is_taken_back_and_explained(app, service_form):
+    from align_connector import config
+    from align_connector.publish import service_memory
+    from align_connector.session_watch import SessionWatch
+
+    server = serve()
+    previous = (config.app_url(), config.api_url())
+    config.set_endpoints(previous[0], "http://127.0.0.1:{}".format(server.server_address[1]))
+    Recorder.seen, Recorder.require_token = [], False
+    Recorder.items_answer = (422, {"code": "InvalidFeature", "description": "nom: Needs at least 3 letters"})
+    url = "http://127.0.0.1:{}{}".format(server.server_address[1], SERVICE)
+    layer = QgsVectorLayer("url='{}' typename='{}'".format(url, LAYER), "Jardins (ALIGN)", "OAPIF")
+    try:
+        check(layer.isValid(), "the service layer opens")
+        rule = {"field": "nom", "widget": "text", "constraintExpression": '[">=", ["length", ["get", "nom"]], 3]', "constraintDescription": "Needs at least 3 letters"}
+        service_form.apply_form(layer, {"fields": [{"name": "nom", "type": "string"}], "form": {"fields": [rule]}})
+        ref = service_memory.ServiceRef("org-1", "svc-jardins", LAYER, "Jardins", None, service_memory.SERVICE)
+        iface, refused = _Iface(), []
+        watch = SessionWatch(iface, _Session(), lambda: [(layer, ref)], on_rules_refusal=lambda refused_layer, answer: refused.append((refused_layer, answer)))
+        watch.attach()
+        check(layer.startEditing(), "in editing mode")
+        feature = next(layer.getFeatures())
+        check(layer.changeAttributeValue(feature.id(), layer.fields().indexOf("nom"), "ab"), "a value changed in the table")
+        check(not layer.commitChanges(False), "ALIGN refuses the save")
+        check(any("PATCH" in seen[1] or "PUT" in seen[1] for seen in Recorder.seen), "the change reached ALIGN: {}".format(Recorder.seen[-3:]))
+        check(not any("Unprocessable" in line for line in layer.commitErrors()), "QGIS says nothing of the 422 here: {}".format(layer.commitErrors()))
+
+        raw = _Item("Layer Jardins (ALIGN)", "Cannot modify feature of id {}".format(feature.id()))
+        bare = _Item("Commit errors", "Could not commit changes to layer Jardins (ALIGN)")
+        other = _Item("Layer roads", "Cannot modify feature of id 1")
+        for item in (raw, bare, other):
+            iface.bar.widgetAdded.emit(item)
+        app.processEvents()
+        check(iface.bar.popped == [raw, bare], "QGIS's messages for the ALIGN layer go, the other stays: {}".format(iface.bar.popped))
+        check([entry[0] for entry in refused] == [layer], "explained once: {}".format(refused))
+        answer = refused[0][1]
+        check(answer in (None, "nom: Needs at least 3 letters"), "ALIGN's answer when QGIS lets it be read: {}".format(answer))
+        check(service_form.explain_refusal(layer)[0].endswith("nom: Needs at least 3 letters"), service_form.explain_refusal(layer))
+        check(layer.isEditable() and layer.editBuffer().changedAttributeValues(), "the change stays, to be corrected")
+        layer.rollBack()
+        watch.detach()
+    finally:
+        Recorder.items_answer = None
+        config.set_endpoints(*previous)
+        server.shutdown()
 
 
 def test_the_actions_set_the_rules_and_follow_align(service_form):
@@ -278,9 +329,11 @@ def main():
     print("ok  test_a_refusal_is_explained")
     test_a_refused_save_is_taken_back_and_explained(app, service_form)
     print("ok  test_a_refused_save_is_taken_back_and_explained")
+    test_a_refused_change_is_taken_back_and_explained(app, service_form)
+    print("ok  test_a_refused_change_is_taken_back_and_explained")
     test_the_actions_set_the_rules_and_follow_align(service_form)
     print("ok  test_the_actions_set_the_rules_and_follow_align")
-    print("5 checks passed")
+    print("6 checks passed")
     app.exitQgis()
 
 
