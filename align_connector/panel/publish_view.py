@@ -48,12 +48,13 @@ from . import batch, org_choice
 class PublishView(QWidget):
     """Collects what a batch needs, and hands it to the caller in one piece."""
 
-    def __init__(self, session, on_publish, on_rows=None, on_show_messages=None, on_org_chosen=None, parent=None):
+    def __init__(self, session, on_publish, on_rows=None, on_show_messages=None, on_org_chosen=None, chosen_org=None, parent=None):
         """
         :param on_publish: called with one :class:`batch.Batch` per click on Publish
         :param on_rows: called with the rows each time the list is rebuilt (the Messages view listens)
         :param on_show_messages: called when the user asks to see the refusals
         :param on_org_chosen: called with the organization id chosen here (the Services tab follows)
+        :param chosen_org: ``() -> id``, the organization last chosen in either tab, chosen again when the list refills
         """
         super().__init__(parent)
         self.session = session
@@ -61,8 +62,7 @@ class PublishView(QWidget):
         self._on_rows = on_rows
         self._on_show_messages = on_show_messages
         self._on_org_chosen = on_org_chosen
-        #: The organization chosen before a sign-out, chosen again at the next sign-in (finding O).
-        self._kept_org = None
+        self._chosen_org = chosen_org or (lambda: None)
         self._orgs = []
         #: Whether ALIGN was asked at least once: the diagnostic tells "none"
         #: from "never loaded" (TCK-2219).
@@ -247,10 +247,7 @@ class PublishView(QWidget):
         return list(self._orgs)
 
     def forget(self):
-        """Signed out: drop what was read for the account (TCK-2348, CA-20).
-        Only the choice is kept, in memory, to be found again at the next
-        sign-in if the account still has it (finding O)."""
-        self._kept_org = self.org_box.currentData() or self._kept_org
+        """Signed out: drop what was read for the account (TCK-2348, CA-20)."""
         self.capacity.setText("")
         self._orgs = []
         self._orgs_loaded = False
@@ -261,7 +258,7 @@ class PublishView(QWidget):
 
     def refresh_organizations(self):
         self.capacity.setText("")
-        kept = self.org_box.currentData() or self._kept_org
+        kept = self.org_box.currentData() or self._chosen_org()
         self.org_box.blockSignals(True)
         self._orgs = []
         self._orgs_loaded = True

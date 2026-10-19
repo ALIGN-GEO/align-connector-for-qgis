@@ -73,20 +73,25 @@ class AlignDock(QgsDockWidget):
         self.tabs = QTabWidget()
         self.messages = MessagesView(on_copy_diagnostic=on_copy_diagnostic)
         # One organization chosen for both tabs (TCK-2348, CA-24): each follows
-        # the other where that organization may be used.
+        # the other where that organization may be used, and the choice lives
+        # here, once, so that a tab filled later, or after a sign-out, opens
+        # on it too (findings O, defect 68). Kept in memory only, shown nowhere.
+        self._chosen_org = None
         self.publish = PublishView(
             session,
             on_publish,
             on_rows=self.messages.set_rows,
             on_show_messages=self.show_messages,
-            on_org_chosen=lambda org_id: self.services.choose_organization(org_id),
+            on_org_chosen=lambda org_id: self._choose(org_id, self.services.choose_organization),
+            chosen_org=lambda: self._chosen_org,
         )
         self.activity = ActivityView()
         self.services = ServicesView(
             session,
             self.publish.organization_list,
             on_open_service or (lambda *_args: None),
-            on_org_chosen=self.publish.choose_organization,
+            on_org_chosen=lambda org_id: self._choose(org_id, self.publish.choose_organization),
+            chosen_org=lambda: self._chosen_org,
         )
         self.tabs.addTab(self.publish, tr("Publish"))
         self.tabs.addTab(self.services, tr("Services"))
@@ -131,6 +136,11 @@ class AlignDock(QgsDockWidget):
         self.refresh(reload=True)
         if opening:
             self.tabs.setCurrentWidget(self.publish)
+
+    def _choose(self, org_id, follow):
+        """An organization was chosen in one tab: remembered, and the other follows."""
+        self._chosen_org = org_id
+        follow(org_id)
 
     def show_services(self):
         self.setUserVisible(True)

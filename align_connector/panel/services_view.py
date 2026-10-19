@@ -39,20 +39,20 @@ from . import org_choice, services_model
 class ServicesView(QWidget):
     """One organization's services, a sheet, and the layers to open."""
 
-    def __init__(self, session, organizations, on_open, on_org_chosen=None, parent=None):
+    def __init__(self, session, organizations, on_open, on_org_chosen=None, chosen_org=None, parent=None):
         """
         :param organizations: ``() -> [{"id", "name", "role", "connector"}]``, the
             organizations the Publish tab loaded (one read for both tabs)
         :param on_open: ``(org_id, service, layer_row, edit) -> None``
         :param on_org_chosen: called with the organization id chosen here (the Publish tab follows)
+        :param chosen_org: ``() -> id``, the organization last chosen in either tab, chosen again when the list refills
         """
         super().__init__(parent)
         self.session = session
         self._organizations = organizations
         self._on_open = on_open
         self._on_org_chosen = on_org_chosen
-        #: The organization chosen before a sign-out, chosen again at the next sign-in (finding O).
-        self._kept_org = None
+        self._chosen_org = chosen_org or (lambda: None)
         self._services = []
         self._description = None
 
@@ -120,16 +120,14 @@ class ServicesView(QWidget):
         feature services, stays listed, greyed, its reason in the tooltip
         (TCK-2348, CA-17).
         """
-        current = self.org_box.currentData() or self._kept_org
+        current = self.org_box.currentData() or self._chosen_org()
         self.org_box.blockSignals(True)
         org_choice.fill(self.org_box, self._organizations() or [], lambda org: org["name"], org_choice.services_refusal, keep=current)
         self.org_box.blockSignals(False)
         self._on_org_changed()
 
     def forget(self):
-        """Signed out: drop the organizations and services read for the account
-        (CA-20); only the choice is kept, in memory, for the next sign-in (finding O)."""
-        self._kept_org = self.org_box.currentData() or self._kept_org
+        """Signed out: drop the organizations and services read for the account (CA-20)."""
         self.org_box.blockSignals(True)
         self.org_box.clear()
         self.org_box.blockSignals(False)

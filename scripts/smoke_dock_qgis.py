@@ -174,6 +174,24 @@ def main():
     services.refresh()
     check(services.org_box.currentData() == "o-second", "and so is the Services tab: {}".format(services.org_box.currentData()))
 
+    # -- one organization for both tabs, the Services tab opened after a
+    #    reconnection for the first time (defect 68) --------------------------
+    fresh = dock_module.AlignDock(session, lambda batch: None)
+    fresh.show_panel()
+    fresh.publish.org_box.setCurrentIndex(fresh.publish.org_box.findData("o-second"))
+    session.signed = False
+    fresh.refresh(reload=False)
+    session.signed = True
+    fresh.refresh(reload=True)
+    app.processEvents()
+    check(fresh.publish.org_box.currentData() == "o-second", "Publish keeps the organization chosen: {}".format(fresh.publish.org_box.currentData()))
+    fresh.tabs.setCurrentWidget(fresh.services)
+    app.processEvents()
+    check(fresh.services.org_box.currentData() == "o-second", "the Services tab opens on it too (CA-24): {}".format(fresh.services.org_box.currentData()))
+    check(fresh.publish.org_box.currentData() == "o-second", "and Publish is not moved by it: {}".format(fresh.publish.org_box.currentData()))
+    fresh.publish.detach()
+    fresh.deleteLater()
+
     dock.deleteLater()
     print("panel inside QGIS {}: all checks passed".format(Qgis.QGIS_VERSION))
     app.exitQgis()
