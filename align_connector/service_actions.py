@@ -35,7 +35,7 @@ from .qtcompat import qt_enum
 from .services_api import describe_service
 from .session_watch import SessionWatch
 
-PLUGIN_NAME = "ALIGN Connector"
+PLUGIN_NAME = config.PLUGIN_NAME
 #: How often the token is checked while the project holds a service layer.
 _FRESHNESS_MS = 60 * 1000
 

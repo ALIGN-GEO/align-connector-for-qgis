@@ -49,7 +49,7 @@ from .settings_dialog import SettingsDialog
 #: and what we must remove, and the two must never drift apart.
 MENU_TITLE = "&ALIGN"
 
-PLUGIN_NAME = "ALIGN Connector"
+PLUGIN_NAME = config.PLUGIN_NAME
 
 
 class AlignConnectorPlugin:

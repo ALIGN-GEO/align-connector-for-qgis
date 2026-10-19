@@ -161,7 +161,8 @@ class SessionWatch:
 
     def _judge_bar_item(self, widget):
         item = _bar_item(widget)
-        if item is None:
+        if item is None or _call(item, "title") == config.PLUGIN_NAME:
+            # The plugin's own messages name ALIGN layers too, and say what happened (defect 66).
             return
         text = "{} {}".format(_call(item, "title"), _call(item, "text"))
         bar = self.iface.messageBar()

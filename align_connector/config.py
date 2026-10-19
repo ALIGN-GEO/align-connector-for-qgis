@@ -23,6 +23,10 @@ from qgis.PyQt.QtCore import QSettings
 #: Root of every QSettings key this plugin owns.
 SETTINGS_GROUP = "align-connector"
 
+#: The title of the plugin's messages in QGIS's message bar: the session
+#: watch never takes back a message under it (TCK-2296, defect 66).
+PLUGIN_NAME = "ALIGN Connector"
+
 #: Client identity, as allowlisted server-side. Not a secret: a public OAuth
 #: client is identified, never authenticated — PKCE is what proves the exchange
 #: comes from the same client that started it (RFC 8252 §8.5).

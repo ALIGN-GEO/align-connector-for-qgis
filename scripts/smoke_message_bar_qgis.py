@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Prove, on QGIS's own message bar, what the plugin takes back from it
-(TCK-2296 defects 61 and 62).
+(TCK-2296 defects 61, 62 and 66).
 
     python scripts/smoke_message_bar_qgis.py
 
@@ -15,10 +15,12 @@ is under test:
 * after ALIGN ended the session, QGIS's raw errors for an ALIGN service
   layer are taken back, whether they name the layer's identifier (a failed
   download) or only its name (a refused change, a refused save); another
-  layer's stay; signed in again, they stay too (CA-19, defect 61);
+  layer's stay; signed in again, they stay too (CA-19, defect 61); the
+  plugin's own messages, which name the layer too, always stay (defect 66);
 * a change ALIGN refuses for its rules (a 422 of a local server that stands
   for ALIGN): QGIS's two messages for the layer go, the refusal is
-  explained once, the edit stays (CA-6, defect 62).
+  explained once, and the explanation stays in the bar; the edit stays
+  (CA-6, defects 62 and 66).
 
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
@@ -36,6 +38,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from qgis.core import Qgis, QgsApplication, QgsVectorLayer  # noqa: E402
 
 from ogc_stub import LAYER, SERVICE, Recorder, serve  # noqa: E402
+
+#: The title of the plugin's own messages in QGIS's bar.
+PLUGIN = "ALIGN Connector"
 
 
 def check(condition, message):
@@ -84,8 +89,16 @@ def test_raw_errors_after_a_revocation_are_taken_back(app, bar):
         bar.pushCritical(title, "Cannot modify feature of id 1")
         bar.pushMessage("Commit errors", "Could not commit changes to layer Jardins (ALIGN, read-only)", Qgis.MessageLevel.Warning)
         bar.pushCritical("Layer roads", "Download of features for layer roads failed or partially failed")
+        bar.pushMessage(PLUGIN, "Sign in to ALIGN to read this layer: “Jardins (ALIGN, read-only)”.", Qgis.MessageLevel.Warning)
         _settle(app)
-        check(_left(bar) == [("Layer roads", "Download of features for layer roads failed or partially failed")], "only another layer's error stays: {}".format(_left(bar)))
+        check(
+            _left(bar)
+            == [
+                (PLUGIN, "Sign in to ALIGN to read this layer: “Jardins (ALIGN, read-only)”."),
+                ("Layer roads", "Download of features for layer roads failed or partially failed"),
+            ],
+            "only another layer's error and the plugin's own message stay (defect 66): {}".format(_left(bar)),
+        )
 
         session.signed_in = True
         bar.pushCritical(title, "The layer extent reported by the server is not correct.")
@@ -109,7 +122,13 @@ def test_a_rules_refusal_is_taken_back_from_the_real_bar(app, bar):
     url = "http://127.0.0.1:{}{}".format(server.server_address[1], SERVICE)
     layer = QgsVectorLayer("url='{}' typename='{}'".format(url, LAYER), "Jardins (ALIGN)", "OAPIF")
     refused = []
-    watch = SessionWatch(_Iface(bar), _Session(signed_in=True), lambda: [(layer, ref)], on_rules_refusal=lambda refused_layer, answer: refused.append((refused_layer, answer)))
+
+    def explain(refused_layer, answer):
+        # As the plugin does: its explanation names the layer too.
+        refused.append((refused_layer, answer))
+        bar.pushMessage(PLUGIN, "ALIGN refused to save “Jardins (ALIGN)”: nom: Needs at least 3 letters.", Qgis.MessageLevel.Warning)
+
+    watch = SessionWatch(_Iface(bar), _Session(signed_in=True), lambda: [(layer, ref)], on_rules_refusal=explain)
     try:
         check(layer.isValid(), "the service layer opens")
         rule = {"field": "nom", "widget": "text", "constraintExpression": '[">=", ["length", ["get", "nom"]], 3]', "constraintDescription": "Needs at least 3 letters"}
@@ -125,7 +144,10 @@ def test_a_rules_refusal_is_taken_back_from_the_real_bar(app, bar):
         bar.pushMessage("Commit errors", "Could not commit changes to layer Jardins (ALIGN)", Qgis.MessageLevel.Warning)
         bar.pushCritical("Layer roads", "Cannot modify feature of id 1")
         _settle(app)
-        check(_left(bar) == [("Layer roads", "Cannot modify feature of id 1")], "QGIS's messages for the ALIGN layer go, another layer's stays: {}".format(_left(bar)))
+        check(
+            _left(bar) == [(PLUGIN, "ALIGN refused to save “Jardins (ALIGN)”: nom: Needs at least 3 letters."), ("Layer roads", "Cannot modify feature of id 1")],
+            "QGIS's messages for the ALIGN layer go; the plugin's explanation and another layer's message stay (defect 66): {}".format(_left(bar)),
+        )
         check([entry[0] for entry in refused] == [layer], "explained once: {}".format(refused))
         check(layer.isEditable() and layer.editBuffer().changedAttributeValues(), "the change stays, to be corrected")
         layer.rollBack()
