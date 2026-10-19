@@ -1725,7 +1725,7 @@
     <message>
         <location filename="../../align_connector/api.py" line="83"/>
         <source>This organization has not enabled the QGIS plugin for its members. An owner or admin can turn it on in Settings → Integrations.</source>
-        <translation>Cette organisation n'a pas activé le plugin QGIS pour ses membres. Un owner ou un admin peut l'activer dans Settings › Integrations.</translation>
+        <translation>Cette organisation n'a pas activé le plugin QGIS pour ses membres. Un propriétaire ou un administrateur peut l'activer dans Settings → Integrations.</translation>
     </message>
     <message>
         <location filename="../../align_connector/auth/loopback.py" line="61"/>

@@ -232,6 +232,25 @@ def test_the_session_feeds_the_signer():
     check(session.snapshot.current() is None, "signed out: nothing signed")
 
 
+def test_the_connector_refusals_name_the_roles_alike_in_french():
+    """Finding Q: the Services tab and the organization's tooltip say who may
+    turn the connector on in the same words."""
+    import xml.etree.ElementTree as ET
+
+    translations = {
+        message.findtext("source"): message.findtext("translation")
+        for message in ET.parse(str(REPO / "align_connector" / "i18n" / "align_connector_fr.ts")).iter("message")
+    }
+    sentences = [
+        text
+        for source, text in translations.items()
+        if source and ("has not enabled the QGIS plugin" in source or "does not allow the ALIGN Connector" in source)
+    ]
+    check(len(sentences) == 2, "both sentences are translated: {}".format(sentences))
+    check(all("propriétaire ou un administrateur" in text for text in sentences), "the same words for the roles: {}".format(sentences))
+    check(all("Settings → Integrations" in text for text in sentences), "and the same path, as the source writes it: {}".format(sentences))
+
+
 def main():
     tests = [
         test_a_layer_remembers_its_service,
@@ -239,6 +258,7 @@ def main():
         test_the_services_tab_searches_and_describes,
         test_the_two_reads_and_their_refusals,
         test_the_session_feeds_the_signer,
+        test_the_connector_refusals_name_the_roles_alike_in_french,
     ]
     for test in tests:
         test()
