@@ -22,13 +22,14 @@ SPDX-License-Identifier: GPL-2.0-or-later
 import os
 import pathlib
 import sys
+import tempfile
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "scripts"))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from qgis.core import Qgis, QgsApplication  # noqa: E402
+from qgis.core import Qgis, QgsApplication, QgsProject, QgsVectorLayer  # noqa: E402
 from qgis.PyQt.QtCore import QObject, Qt, pyqtSignal  # noqa: E402
 from qgis.PyQt.QtWidgets import QApplication  # noqa: E402
 
@@ -125,6 +126,24 @@ def main():
     check(services._selected_service()["serviceId"] == "s-3", "still in hand after a refresh")
     dock.show_panel()
     check(dock.tabs.currentWidget() is services, "the ALIGN button keeps the tab in use when the panel is open")
+
+    # -- a project opened: the Publish tab lists its layers (defect 67) -------
+    folder = tempfile.mkdtemp()
+    data = os.path.join(folder, "parcelles.geojson")
+    with open(data, "w", encoding="utf-8") as handle:
+        handle.write('{"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"nom": "a"}, "geometry": {"type": "Point", "coordinates": [4.35, 50.85]}}]}')
+    project = QgsProject.instance()
+    project.addMapLayer(QgsVectorLayer(data, "parcelles", "ogr"))
+    saved = os.path.join(folder, "recipe.qgs")
+    check(project.write(saved), "the project writes")
+    project.clear()
+    app.processEvents()
+    check(publish.tree.topLevelItemCount() == 0, "a cleared project lists nothing")
+    check(project.read(saved), "the project opens")
+    app.processEvents()
+    names = [publish.tree.topLevelItem(i).text(0) for i in range(publish.tree.topLevelItemCount())]
+    check(names == ["parcelles"], "the opened project's layers are listed in Publish: {}".format(names))
+    project.clear()
 
     # -- a sign-in waiting in the browser (CA-25) -----------------------------
     check(not dock.pending.isVisibleTo(dock), "nothing waits: no row")

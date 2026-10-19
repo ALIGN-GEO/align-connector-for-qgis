@@ -204,6 +204,9 @@ class PublishView(QWidget):
         root.addedChildren.connect(self._on_project_changed)
         root.removedChildren.connect(self._on_project_changed)
         project.cleared.connect(self._on_project_changed)
+        # A project read builds its tree before its layers are loaded: the
+        # list is read again once QGIS is done (TCK-2296, defect 67).
+        project.readProject.connect(self._on_project_changed)
         self._attached = True
 
     def detach(self):
@@ -211,7 +214,7 @@ class PublishView(QWidget):
         if not self._attached:
             return
         project = QgsProject.instance()
-        for signal in (project.layerTreeRoot().addedChildren, project.layerTreeRoot().removedChildren, project.cleared):
+        for signal in (project.layerTreeRoot().addedChildren, project.layerTreeRoot().removedChildren, project.cleared, project.readProject):
             try:
                 signal.disconnect(self._on_project_changed)
             except (TypeError, RuntimeError):
