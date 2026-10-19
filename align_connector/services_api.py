@@ -10,7 +10,7 @@ Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
 from . import config, net
-from .api import ApiError
+from .api import ApiError, connector_not_allowed
 from .i18n import tr
 
 
@@ -24,7 +24,9 @@ def _refused(result, fallback):
         raise ApiError(
             tr("Sign in again to let the plugin read your feature services."), needs_sign_in=True, status=403, code=code
         )
-    if result.status == 403:
+    if result.status == 403 and code == "QGIS_CONNECTOR_NOT_ALLOWED":
+        raise ApiError(connector_not_allowed(), status=403, code=code)
+    if result.status == 403 and code == "PLAN_REQUIRED":
         raise ApiError(tr("Feature services are not part of this organization's plan."), status=403, code=code)
     if result.status == 404:
         raise ApiError(tr("This feature service is gone, or you can no longer read it."), status=404, code=code)

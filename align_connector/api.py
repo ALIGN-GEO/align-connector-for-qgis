@@ -77,6 +77,15 @@ def _whole(number):
     return int(number) if float(number).is_integer() else number
 
 
+def connector_not_allowed():
+    """The organization's switch for the plugin is off, not the role
+    (TCK-1666): its own sentence, in the user's language, with the remedy."""
+    return tr(
+        "This organization has not enabled the QGIS plugin for its members. "
+        "An owner or admin can turn it on in Settings → Integrations."
+    )
+
+
 def _raise_for(result, fallback):
     """Turn a failed response into an :class:`ApiError` a user can act on.
 
@@ -90,12 +99,7 @@ def _raise_for(result, fallback):
         if result.status == 402:
             message = _credits_refusal(result) or message
         elif result.status == 403 and result.code() == "QGIS_CONNECTOR_NOT_ALLOWED":
-            # The organization's switch, not the role (TCK-1666): its own
-            # sentence, in the user's language, with the remedy.
-            message = tr(
-                "This organization has not enabled the QGIS plugin for its members. "
-                "An owner or admin can turn it on in Settings → Integrations."
-            )
+            message = connector_not_allowed()
         elif result.status == 415:
             # The server names the type it refused: worth more than our line.
             message = result.message(message)
