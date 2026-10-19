@@ -173,9 +173,11 @@ def feature_services_endpoint(org_id):
     return "{}/api/v1/orgs/{}/feature-services".format(api_url(), org_id)
 
 
-def feature_service_endpoint(org_id, service_id):
-    """One service's layers, with their feature counts (TCK-2348)."""
-    return "{}/api/v1/orgs/{}/feature-services/{}?counts=true".format(api_url(), org_id, service_id)
+def feature_service_endpoint(org_id, service_id, counts=True):
+    """One service's layers, with their feature counts (TCK-2348), or
+    without: a count scans each layer, which only the Services tab needs."""
+    endpoint = "{}/api/v1/orgs/{}/feature-services/{}".format(api_url(), org_id, service_id)
+    return endpoint + "?counts=true" if counts else endpoint
 
 
 def feature_service_ogc_url(org_id, service_id):

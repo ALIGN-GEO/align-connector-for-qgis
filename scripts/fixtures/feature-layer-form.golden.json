@@ -1,0 +1,99 @@
+{
+  "$comment": "TCK-2330 — golden contract of the input rules (form) of a feature-service layer, shared across the rule-21 boundary. Consumed by BOTH test suites: orchestrator (domain/value-objects/FeatureLayerForm.golden.test.ts) and viewer (map-viewer/tests/align-feature-form-contract.test.ts). `widgetsByFieldType`: the input types a field of each type takes — the server refuses any other (WIDGET_FIELD_TYPES), the Map Builder offers these, first one the default. `request.form` is the body of PUT …/layers/:layerId/form as the Forms settings table writes it, from its rows (one per field, a field without a rule sends nothing). `stored` is what the server keeps and the service description returns (normalizeLayerForm: the engine's keys only). `sessionForm` is what the Map Builder's edit-session layer carries: the stored rules plus what each field's type implies (valueType, a default input for a field without a rule), never sent to the server. Any key rename on either side MUST update this file.",
+  "widgetsByFieldType": {
+    "string": ["text", "valueMap"],
+    "integer": ["number", "range", "valueMap", "text"],
+    "number": ["number", "range", "valueMap", "text"],
+    "boolean": ["checkbox"],
+    "date": ["date", "valueMap", "text"],
+    "datetime": ["text", "date", "valueMap"]
+  },
+  "fields": [
+    { "name": "nom", "type": "string", "alias": "Nom du jardin" },
+    { "name": "surface", "type": "number" },
+    { "name": "etat", "type": "string" },
+    { "name": "bio", "type": "boolean" },
+    { "name": "ouverture", "type": "date" },
+    { "name": "essence", "type": "string" }
+  ],
+  "request": {
+    "form": {
+      "fields": [
+        { "field": "nom", "widget": "text", "alias": "Garden name", "required": true },
+        {
+          "field": "surface",
+          "widget": "range",
+          "min": 0,
+          "max": 5000,
+          "step": 10,
+          "constraintExpression": "[\">\", [\"get\", \"surface\"], 0]",
+          "constraintDescription": "A surface above zero"
+        },
+        {
+          "field": "etat",
+          "widget": "valueMap",
+          "required": true,
+          "valueMap": [
+            { "value": "ouvert", "label": "Open" },
+            { "value": "ferme", "label": "Closed" }
+          ]
+        },
+        { "field": "bio", "widget": "checkbox" },
+        { "field": "ouverture", "widget": "date", "visibilityExpression": "[\"==\", [\"get\", \"bio\"], true]" }
+      ]
+    }
+  },
+  "stored": {
+    "fields": [
+      { "field": "nom", "widget": "text", "alias": "Garden name", "required": true },
+      {
+        "field": "surface",
+        "widget": "range",
+        "min": 0,
+        "max": 5000,
+        "step": 10,
+        "constraintExpression": "[\">\", [\"get\", \"surface\"], 0]",
+        "constraintDescription": "A surface above zero"
+      },
+      {
+        "field": "etat",
+        "widget": "valueMap",
+        "required": true,
+        "valueMap": [
+          { "value": "ouvert", "label": "Open" },
+          { "value": "ferme", "label": "Closed" }
+        ]
+      },
+      { "field": "bio", "widget": "checkbox" },
+      { "field": "ouverture", "widget": "date", "visibilityExpression": "[\"==\", [\"get\", \"bio\"], true]" }
+    ]
+  },
+  "sessionForm": {
+    "fields": [
+      { "field": "nom", "widget": "text", "alias": "Garden name", "required": true, "valueType": "string" },
+      {
+        "field": "surface",
+        "widget": "range",
+        "min": 0,
+        "max": 5000,
+        "step": 10,
+        "constraintExpression": "[\">\", [\"get\", \"surface\"], 0]",
+        "constraintDescription": "A surface above zero",
+        "valueType": "number"
+      },
+      {
+        "field": "etat",
+        "widget": "valueMap",
+        "required": true,
+        "valueMap": [
+          { "value": "ouvert", "label": "Open" },
+          { "value": "ferme", "label": "Closed" }
+        ],
+        "valueType": "string"
+      },
+      { "field": "bio", "widget": "checkbox" },
+      { "field": "ouverture", "widget": "date", "visibilityExpression": "[\"==\", [\"get\", \"bio\"], true]" },
+      { "field": "essence", "widget": "text", "valueType": "string" }
+    ]
+  }
+}

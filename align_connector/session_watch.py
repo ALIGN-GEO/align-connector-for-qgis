@@ -5,7 +5,8 @@ A revocation in ALIGN's Settings → Integrations takes effect on ALIGN's side
 immediately; on this computer the tokens stay valid by their date. Waiting
 for the next refresh left the user editing for nothing, under QGIS's raw
 errors, for up to an hour (findings E, F and I of the QGIS recipe). Three
-watches close that gap, all reading what QGIS already does:
+watches close that gap, and a fourth explains a save ALIGN refused, all
+reading what QGIS already does:
 
 * **A 401 on a signed request** (CA-16): QGIS's network manager reports every
   reply. A 401 from ALIGN's feature services makes the session ask ALIGN, once
@@ -18,6 +19,11 @@ watches close that gap, all reading what QGIS already does:
 * **A project opening** (CA-23): before QGIS loads the layers of a project that
   holds ALIGN service layers, the session is checked with ALIGN, so a
   revocation made while QGIS was closed is learnt before the layers ask.
+* **A save ALIGN refused for its rules** (TCK-2343, CA-6): QGIS's bar only
+  says "Could not commit changes to layer <name>". For an ALIGN service layer
+  whose last commit errors are ALIGN's refusal for its rules (its answer when
+  QGIS passes it on, the 422's reason phrase otherwise), that message is
+  taken back and the plugin explains the refusal.
 
 What it cannot do: QGIS's "Handle Unavailable Layers" window still opens for
 an ALIGN layer that cannot load signed out. QGIS keeps that handler to itself
@@ -37,6 +43,7 @@ from qgis.PyQt.QtNetwork import QNetworkRequest
 
 from . import config
 from .auth.request_signer import signable
+from .form_rules import rules_refusal
 from .qtcompat import qt_enum
 
 #: One check per burst: a revoked token makes every pending request fail.
@@ -65,15 +72,17 @@ def project_mentions_services(path):
 
 
 class SessionWatch:
-    """The three watches; attached with the service layers (QGIS 3.36+)."""
+    """The four watches; attached with the service layers (QGIS 3.36+)."""
 
-    def __init__(self, iface, session, service_layers, on_confirmed=None):
+    def __init__(self, iface, session, service_layers, on_confirmed=None, on_rules_refusal=None):
         """:param service_layers: ``() -> [(layer, ServiceRef)]``, the project's ALIGN service layers"""
         self.iface = iface
         self.session = session
         self._service_layers = service_layers
         #: Called when ALIGN confirms the session after a 401 (a token in flight): read the layers again.
         self._on_confirmed = on_confirmed
+        #: Called with the layer when ALIGN refused its save for its rules (422): explain it.
+        self._on_rules_refusal = on_rules_refusal
         self._refused_at = 0.0
         self._checked_at = 0.0
         self._pending = False
@@ -124,13 +133,32 @@ class SessionWatch:
     # -- QGIS's raw errors for refused ALIGN layers (CA-19) -------------------
 
     def _on_bar_item(self, item):
+        text = "{} {}".format(_call(item, "title"), _call(item, "text"))
+        refused = self._refused_for_rules(text)
+        if refused is not None:
+            bar = self.iface.messageBar()
+            QTimer.singleShot(0, lambda: bar.popWidget(item))
+            self._on_rules_refusal(refused)
+            return
         if self.session.is_signed_in() and time.time() - self._refused_at > _QUIET_FOR_SEC:
             return
-        text = "{} {}".format(_call(item, "title"), _call(item, "text"))
         ids = {ref.layer_id for _layer, ref in self._service_layers()}
         if any(layer_id and layer_id in text for layer_id in ids):
             bar = self.iface.messageBar()
             QTimer.singleShot(0, lambda: bar.popWidget(item))
+
+    # -- a save ALIGN refused for its rules (TCK-2343, CA-6) ------------------
+
+    def _refused_for_rules(self, text):
+        """The ALIGN service layer a bar message says could not be saved, when
+        its last commit errors are ALIGN's refusal for its rules."""
+        if self._on_rules_refusal is None:
+            return None
+        for layer, _ref in self._service_layers():
+            name = layer.name()
+            if name and name in text and rules_refusal(layer.commitErrors())[0]:
+                return layer
+        return None
 
     # -- a project opening (CA-23) --------------------------------------------
 

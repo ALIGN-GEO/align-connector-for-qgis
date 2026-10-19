@@ -11,7 +11,10 @@ What this wires, and takes back on unload:
   time (CA-6). ALIGN decides again on the click;
 * a project reopened **without a session**: its service layers say "Sign in
   to ALIGN to read this layer", with the button, and read again after the
-  sign-in (CA-11).
+  sign-in (CA-11);
+* the service's **input rules** (TCK-2343): set on the layer when it opens,
+  and again when the project reopens or the session comes back, the service
+  being the source; a save ALIGN refuses for its rules is explained.
 
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
@@ -27,7 +30,7 @@ from .api import ApiError
 from .auth.request_signer import RequestSigner
 from .i18n import tr
 from .panel.services_model import may_edit
-from .publish import service_layer, service_memory
+from .publish import service_form, service_layer, service_memory
 from .qtcompat import qt_enum
 from .services_api import describe_service
 from .session_watch import SessionWatch
@@ -89,7 +92,8 @@ class ServiceLayerActions(object):
             self.iface,
             self.session,
             service_layer.service_layers,
-            on_confirmed=lambda: self._reload([layer for layer, _ref in service_layer.service_layers()]),
+            on_confirmed=lambda: self._reload_all(),
+            on_rules_refusal=self._explain_refusal,
         )
         self._watch.attach()
 
@@ -144,9 +148,10 @@ class ServiceLayerActions(object):
         ref = service_memory.read(layer)
         if ref is None:
             return
-        allowed = self._may_edit(ref)
-        if allowed is None:
+        description = self._describe(ref)
+        if description is None:
             return
+        allowed = may_edit(description)
         if allowed != ref.can_edit:
             service_memory.set_can_edit(layer, allowed)
             self._readd(layer)
@@ -154,9 +159,12 @@ class ServiceLayerActions(object):
             self._message(tr("You may not edit this feature service: it opens for reading."), _level("Info"))
             self.read_layer(layer)
             return
-        target = self._service_layer_of(layer, ref, read_only=False)
+        target = self._service_layer_of(layer, ref, read_only=False, description=description)
         if target is None:
             return
+        if target is layer:
+            # Already open: its rules as the service has them now (CA-5).
+            self._set_rules(target, ref, description, announce=False)
         target.setReadOnly(False)
         service_memory.rename_for_mode(target, ref, read_only=False)
         target.startEditing()
@@ -171,32 +179,70 @@ class ServiceLayerActions(object):
         if target is not None:
             self.iface.setActiveLayer(target)
 
-    def _service_layer_of(self, layer, ref, read_only):
+    def _service_layer_of(self, layer, ref, read_only, description=None):
         """The service layer itself, the one already open for this original, or a new one in its place."""
         if ref.kind == service_memory.SERVICE:
             return layer
         for opened, opened_ref in service_layer.service_layers():
             if opened_ref.service_id == ref.service_id and opened_ref.layer_id == ref.layer_id:
                 return opened
-        return self.open(ref, read_only=read_only, local_layer_id=layer.id())
+        return self.open(ref, read_only=read_only, local_layer_id=layer.id(), description=description)
 
-    def open(self, ref, read_only=False, local_layer_id=None):
-        """Open a service layer; ``None`` (and the reason in the bar) when it cannot be."""
+    def open(self, ref, read_only=False, local_layer_id=None, description=None):
+        """Open a service layer, with the service's input rules; ``None`` (and
+        the reason in the bar) when it cannot be."""
         if not self.session.keep_signer_fresh():
             self._message(tr("Sign in to ALIGN to open this feature service."), _level("Warning"))
             return None
         try:
-            return service_layer.open_service(ref, read_only=read_only, local_layer_id=local_layer_id)
+            layer = service_layer.open_service(ref, read_only=read_only, local_layer_id=local_layer_id)
         except service_layer.ServiceLayerUnavailable as exc:
             self._message(str(exc), _level("Warning"))
             return None
+        self._set_rules(layer, ref, description)
+        return layer
 
-    def _may_edit(self, ref):
+    def _describe(self, ref):
         try:
-            return may_edit(describe_service(self.session, ref.org_id, ref.service_id))
+            return describe_service(self.session, ref.org_id, ref.service_id, counts=False)
         except ApiError as exc:
             self._message(exc.message, _level("Warning"))
             return None
+
+    # -- the input rules (TCK-2343) -----------------------------------------
+
+    def _set_rules(self, layer, ref, description=None, announce=True):
+        """The service's input rules on the layer; what ALIGN alone checks is
+        said once, when the layer opens (CA-3)."""
+        described = service_form.layer_description(description or self._describe(ref), ref.layer_id)
+        if described is None:
+            return
+        left = service_form.apply_form(layer, described)
+        if left and announce:
+            self._message(tr("ALIGN checks these rules of “{}” only when you save: {}.").format(layer.name(), tr("; ").join(left)), _level("Info"))
+
+    def _refresh_rules(self, layers):
+        """The rules again from ALIGN, one read per service (CA-5)."""
+        described = {}
+        for layer in layers:
+            ref = service_memory.read(layer)
+            if ref is None or not layer.isValid():
+                continue
+            key = (ref.org_id, ref.service_id)
+            if key not in described:
+                described[key] = self._describe(ref)
+            if described[key] is not None:
+                self._set_rules(layer, ref, described[key], announce=False)
+
+    def _explain_refusal(self, layer):
+        """ALIGN refused a save for its rules (CA-6): say which, in ALIGN's
+        words when QGIS passed them on, else from the edits still waiting."""
+        lines = service_form.explain_refusal(layer)
+        reason = service_form.align_answer(layer) or (tr("; ").join(lines) if lines else tr("a rule ALIGN checks when it saves refused a value"))
+        self._message(
+            tr("ALIGN refused to save “{}”: {}. The edits stay in the layer: correct them and save again.").format(layer.name(), reason),
+            _level("Warning"),
+        )
 
     def _readd(self, layer):
         for action in (self._edit_action, self._read_action):
@@ -279,6 +325,7 @@ class ServiceLayerActions(object):
             return
         if self.session.keep_signer_fresh():
             self._reload([layer for layer, _ref in layers if not layer.isValid()])
+            self._refresh_rules([layer for layer, _ref in layers])
             return
         names = [layer.name() for layer, _ref in layers]
         text = (
@@ -298,7 +345,12 @@ class ServiceLayerActions(object):
         self.session.sign_in()
 
     def _on_signed_in(self):
-        self._reload([layer for layer, _ref in service_layer.service_layers()])
+        self._reload_all()
+
+    def _reload_all(self):
+        layers = [layer for layer, _ref in service_layer.service_layers()]
+        self._reload(layers)
+        self._refresh_rules(layers)
 
     def _reload(self, layers):
         if not layers:

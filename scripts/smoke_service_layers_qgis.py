@@ -16,6 +16,8 @@ QGIS project and layer tree (the interface is a stand-in). What is proven:
 * the project, written to disk, holds no authcfg and no token (CA-8);
 * a project read without a session says "Sign in to ALIGN to read…" with a
   button, and the sign-in reads the layer again (CA-11);
+* the service layer opens with the service's input rules, read without the
+  per-layer counts (TCK-2343);
 * detaching takes back the signer and the menu entries.
 
 Copyright (C) 2026 Geo Nova
@@ -95,8 +97,15 @@ def main():
     from align_connector.publish import service_layer, service_memory
 
     check(config.api_url() == api_url, "the plugin points at the local server")
-    describe = {"callerMay": ["add", "update", "delete"]}
-    actions_module.describe_service = lambda session, org, service: describe
+    form = {"fields": [{"field": "nom", "widget": "text", "required": True, "alias": "Parcel name"}]}
+    describe = {"callerMay": ["add", "update", "delete"], "layers": [{"layerId": LAYER, "fields": [{"name": "nom", "type": "string"}], "form": form}]}
+    asked_counts = []
+
+    def describe_service(_session, _org, _service, counts=True):
+        asked_counts.append(counts)
+        return describe
+
+    actions_module.describe_service = describe_service
 
     iface = MagicMock()
     iface.mainWindow.return_value = QWidget()
@@ -127,6 +136,8 @@ def main():
 
     check(memory.read(layer) is None, "nor the Datastore item the original was published as")
     check(layer.isEditable() and not layer.readOnly(), "in editing mode")
+    check(layer.attributeDisplayName(layer.fields().indexOf("nom")) == "Parcel name", "with the service's input rules (TCK-2343)")
+    check(asked_counts and not any(asked_counts), "read without the per-layer counts: {}".format(asked_counts))
     signed = [auth for (_p, path, auth) in Recorder.seen if path.startswith("/api/v1/orgs/org-1/feature-services/svc-jardins/ogc")]
     check(signed and all(auth == "Bearer " + TOKEN for auth in signed), "every request was signed")
     group = project.layerTreeRoot().findGroup("Local originals")

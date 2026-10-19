@@ -62,13 +62,15 @@ def list_services(session, org_id):
     }
 
 
-def describe_service(session, org_id, service_id):
-    """One service: its layers (geometry, projection, fields, feature count),
-    and what the user may do with it (``callerMay``).
+def describe_service(session, org_id, service_id, counts=True):
+    """One service: its layers (geometry, projection, fields, input rules,
+    feature count), and what the user may do with it (``callerMay``).
 
+    :param counts: count each layer's features; the Services tab shows them,
+        the opening of a layer does not need them
     :raises ApiError: when the read fails
     """
-    result = net.get_json(config.feature_service_endpoint(org_id, service_id), bearer=_token(session))
+    result = net.get_json(config.feature_service_endpoint(org_id, service_id, counts), bearer=_token(session))
     if not result.ok:
         _refused(result, tr("Could not read the feature service"))
     body = result.body if isinstance(result.body, dict) else None

@@ -142,6 +142,12 @@ jobs:
       - name: Session end, sign-in restart, notices, names, organizations
         run: python scripts/smoke_session_end.py
 
+      # TCK-2343: a service layer's input rules, from ALIGN's golden fixture
+      # of the form, as QGIS widgets, constraints and "visible if"; what the
+      # plugin cannot translate is left to ALIGN, and named.
+      - name: The input rules of a service layer, as QGIS settings
+        run: python scripts/smoke_form_rules.py
+
       # Every sentence of the source is in the .ts, translated, and the
       # shipped .qm is the compilation of that .ts (TCK-2183). The Qt
       # round trip (scripts/smoke_i18n.py) needs a QGIS and runs on the
@@ -195,6 +201,9 @@ jobs:
 
       - name: The panel (greyed organizations, one organization for both tabs, the tab kept, the sign-in waiting)
         run: python3 scripts/smoke_dock_qgis.py
+
+      - name: The input rules on a service layer (set, replaced, a refused save explained)
+        run: python3 scripts/smoke_service_form_qgis.py
 
   metadata:
     runs-on: ubuntu-latest
