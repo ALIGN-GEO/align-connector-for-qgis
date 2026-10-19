@@ -14,6 +14,7 @@ import types
 
 _CORE = (
     "Qgis",
+    "QgsApplication",
     "QgsBlockingNetworkRequest",
     "QgsCoordinateReferenceSystem",
     "QgsCoordinateTransform",
@@ -107,8 +108,46 @@ def install():
     qtcore.QCoreApplication = type(
         "QCoreApplication", (object,), {"translate": staticmethod(lambda context, text, *args: text)}
     )
-    for name in ("QByteArray", "QEventLoop", "QUrl"):
+    for name in ("QByteArray", "QEventLoop", "QUrl", "QThread", "QTimer"):
         setattr(qtcore, name, type(name, (object,), {}))
+
+    class _BoundSignal(object):
+        def __init__(self):
+            self._slots = []
+
+        def connect(self, slot):
+            self._slots.append(slot)
+
+        def emit(self, *args):
+            for slot in list(self._slots):
+                slot(*args)
+
+    class pyqtSignal(object):  # noqa: N801 — Qt's name
+        """A signal per instance, as Qt gives: connect, emit, nothing queued."""
+
+        def __init__(self, *_types):
+            self._name = None
+
+        def __set_name__(self, owner, name):
+            self._name = "_signal_" + name
+
+        def __get__(self, instance, owner):
+            if instance is None:
+                return self
+            bound = instance.__dict__.get(self._name)
+            if bound is None:
+                bound = instance.__dict__[self._name] = _BoundSignal()
+            return bound
+
+    class QObject(object):
+        def __init__(self, parent=None):
+            self._parent = parent
+
+    qtcore.pyqtSignal = pyqtSignal
+    qtcore.QObject = QObject
+
+    gui = types.ModuleType("qgis.PyQt.QtGui")
+    gui.QDesktopServices = type("QDesktopServices", (object,), {"openUrl": staticmethod(lambda url: True)})
 
     widgets = types.ModuleType("qgis.PyQt.QtWidgets")
     for name in _QTWIDGETS:
@@ -126,6 +165,7 @@ def install():
     pyqt.QtCore = qtcore
     pyqt.QtWidgets = widgets
     pyqt.QtNetwork = network
+    pyqt.QtGui = gui
 
     sys.modules.update(
         {
@@ -135,5 +175,6 @@ def install():
             "qgis.PyQt.QtCore": qtcore,
             "qgis.PyQt.QtWidgets": widgets,
             "qgis.PyQt.QtNetwork": network,
+            "qgis.PyQt.QtGui": gui,
         }
     )

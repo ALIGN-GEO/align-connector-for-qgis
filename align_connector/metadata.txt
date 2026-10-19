@@ -4,10 +4,24 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Publish QGIS layers to your ALIGN organization's Datastore.
 about=Sign in to ALIGN from QGIS and publish a layer to your organization's Datastore in a few clicks: vector and raster, cloud-native files as they are, web services as live references, with the layer's style and metadata; or publish a whole project as a web map. Your ALIGN role decides what you may publish: the plugin never grants access, it carries your identity and shows what the server answers. Also available as the Processing algorithm align:publishlayer, for models, batch runs and automation. Requires an ALIGN account (aligngeo.com). This plugin is free software (GPL-2.0-or-later); the ALIGN service it talks to is a commercial product, and ALIGN is a trademark of Geo Nova: a fork is welcome, under another name.
-version=0.6.0
+version=0.7.0
 author=Geo Nova
 email=contact@aligngeo.com
-changelog=0.6.0 (not released yet: needs ALIGN's feature services in production)
+changelog=0.7.0 (not released yet: needs ALIGN's feature services in production)
+    One consent: the plugin signs its feature-service layers itself, with the
+    session opened at "Sign in", so no second approval and no QGIS page.
+    Service layers carry no authentication configuration in the project.
+    Editing from QGIS needs QGIS 3.36 or later.
+    A Services tab lists your organization's feature services, with a search,
+    each service's sheet and layers, and opens a layer for reading or editing.
+    "Edit in QGIS" is in the context menu of a service layer and of the layer
+    it was published from, at any time; "Open read-only" when you may not edit.
+    The service layer is named "<title> (ALIGN)"; the local original is kept,
+    hidden, in a group "Local originals".
+    A project reopened without a session says so on its service layers and
+    reads them again after the sign-in.
+    The organizations load after a sign-in made with the panel hidden.
+    0.6.0 (not released)
     Publish vector layers as editable feature services, where the
     organization's plan includes them: the features move into the
     organization's database and are served through OGC API Features. "Edit

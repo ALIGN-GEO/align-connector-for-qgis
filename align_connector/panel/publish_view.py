@@ -235,6 +235,10 @@ class PublishView(QWidget):
             return None
         return [{"name": org.get("name"), "role": org.get("role")} for org in self._orgs]
 
+    def organization_list(self):
+        """The organizations as last loaded, ids included: the Services tab's list."""
+        return list(self._orgs)
+
     def refresh_organizations(self):
         self.capacity.setText("")
         self.org_box.blockSignals(True)

@@ -18,6 +18,7 @@ minutes) and QGIS must stay usable throughout.
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
+import contextlib
 import time
 from urllib.parse import urlencode
 
@@ -29,11 +30,15 @@ from .. import net
 from ..i18n import tr
 from . import pkce
 from .loopback import LoopbackReceiver
+from .request_signer import TokenSnapshot
 from . import token_store
 
 #: Refresh this many seconds before the token actually expires, so a request
 #: that starts valid does not finish expired.
 _EXPIRY_MARGIN_SEC = 60
+#: The service layers' signer is kept fresh this long before the token expires
+#: (TCK-2348): QGIS fetches on its own schedule, and a refresh must come first.
+_SIGNER_MARGIN_SEC = 300
 
 
 class _SignInWorker(QObject):
@@ -105,6 +110,9 @@ class AlignSession(QObject):
         super().__init__(parent)
         self._thread = None
         self._worker = None
+        #: What the service layers' signer reads (TCK-2348): written here, on
+        #: the interface thread, every time the session's token changes.
+        self.snapshot = TokenSnapshot()
 
     # -- state --------------------------------------------------------------
 
@@ -172,24 +180,58 @@ class AlignSession(QObject):
         self._thread = None
         self._worker = None
         if success:
+            self.prime_signer()
             self.signed_in.emit()
         else:
             self.failed.emit(message)
 
+    # -- the service layers' signer (TCK-2348) --------------------------------
+
+    def prime_signer(self):
+        """Hand the stored token to the signer, without a network call.
+
+        An expired token reads as none there; :meth:`keep_signer_fresh`
+        refreshes it when a service layer needs it.
+        """
+        self.snapshot.clear()
+        # A locked store signs nothing, and must not stop QGIS loading.
+        with contextlib.suppress(Exception):
+            if token_store.has_session():
+                self.snapshot.set(token_store.access_token(), token_store.access_expires_at())
+
+    def keep_signer_fresh(self):
+        """Refresh the token before the signer runs out of it.
+
+        Called on the interface thread, by a timer and when a project with
+        service layers opens. A refresh ALIGN refuses ends the session.
+
+        :returns: whether the signer now holds a live token
+        """
+        if not token_store.has_session():
+            self.snapshot.clear()
+            return False
+        if self.snapshot.expires_at() - _SIGNER_MARGIN_SEC > time.time():
+            return True
+        return self.access_token(fresh_for=_SIGNER_MARGIN_SEC) is not None
+
     # -- using the session --------------------------------------------------
 
-    def access_token(self):
+    def access_token(self, fresh_for=_EXPIRY_MARGIN_SEC):
         """A token good for the next call, refreshing it if needed.
 
+        :param fresh_for: refresh unless the token lives this many seconds more
         :returns: the token, or ``None`` when the session is gone — in which
             case the caller asks the user to sign in again rather than retrying.
         """
         if not token_store.has_session():
+            self.snapshot.clear()
             return None
 
-        if token_store.access_expires_at() - _EXPIRY_MARGIN_SEC > time.time():
+        expires_at = token_store.access_expires_at()
+        if expires_at - fresh_for > time.time():
             existing = token_store.access_token()
             if existing:
+                self.snapshot.set(existing, expires_at)
                 return existing
 
         response = net.post_json(
@@ -201,16 +243,19 @@ class AlignSession(QObject):
             # it was revoked, or because a rotated token was replayed. Holding
             # on to it would only produce 401s.
             token_store.clear()
+            self.snapshot.clear()
             self.signed_out.emit()
             return None
 
         body = response.body
+        expires_at = time.time() + float(body.get("expires_in", 3600))
         token_store.update_access_token(
             access_token=body["access_token"],
-            access_expires_at=time.time() + float(body.get("expires_in", 3600)),
+            access_expires_at=expires_at,
             refresh_token=body.get("refresh_token"),
             scopes=body.get("scope") if isinstance(body.get("scope"), str) else None,
         )
+        self.snapshot.set(body["access_token"], expires_at)
         return body["access_token"]
 
     # -- sign out -----------------------------------------------------------
@@ -254,6 +299,7 @@ class AlignSession(QObject):
             confirmed = True
 
         token_store.clear()
+        self.snapshot.clear()
         self.signed_out.emit()
         if not confirmed:
             self.failed.emit(

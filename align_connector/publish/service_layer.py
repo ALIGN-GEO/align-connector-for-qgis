@@ -1,37 +1,29 @@
 # -*- coding: utf-8 -*-
-"""Opening a feature service in QGIS, in place of the layer it came from
-(ADR-0063 §3, TCK-2320).
+"""Opening a feature service in QGIS (ADR-0063 §3, TCK-2320, TCK-2348).
 
-Once ALIGN has made a layer a feature service, the plugin offers to swap the
-local layer for the service's: the same features, edited live on ALIGN through
-OGC API Features (QGIS' ``OAPIF`` provider, which reads and edits).
+A service layer is read and edited by QGIS' own OGC API Features provider
+(``OAPIF``). The plugin signs its requests with the session the user opened
+once (``auth/request_signer``, Benjamin's decision of 2026-10-19): one
+consent, and a project that holds no credential at all, only the service's
+address (CA-8). The layer therefore reads while the plugin is signed in; a
+project reopened without a session says so and reloads after the sign-in
+(CA-11).
 
-**How the layer is signed.** By QGIS' own OAuth2 method, not by a copy of the
-plugin's token. The plugin's token lives an hour and is refreshed by the
-plugin; a layer saved in a project must keep working without the plugin
-running, after the hour, and when the project is reopened next week. QGIS'
-method does exactly that: it runs the authorization code flow with PKCE once,
-in the browser, keeps the tokens in its encrypted credential store and
-refreshes them itself. The project only ever holds the configuration's id,
-never a token (rule 23, secret out of artifact). Its grant is narrower than
-the plugin's: features only.
-
-PKCE arrived in that method with QGIS 3.34; on an older QGIS the plugin gives
-the service's address instead of a button that would fail.
+The two layers never share a name (CA-7): the service layer is
+"<title> (ALIGN)", the local original is kept, hidden, in a group "Local
+originals". Both remember the service (``service_memory``), so the layer's
+context menu offers to edit it at any time (CA-6).
 
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
-import re
-
-from qgis.core import Qgis, QgsApplication, QgsAuthMethodConfig, QgsMapLayerStyle, QgsProject, QgsVectorLayer
-from qgis.PyQt.QtCore import QSettings
+from qgis.core import Qgis, QgsDataProvider, QgsMapLayerStyle, QgsProject, QgsVectorLayer
 
 from .. import config
+from ..auth.request_signer import supported
 from ..i18n import tr
-from .feature_service import can_edit_in_qgis, oapif_source, oauth2_settings
-
-_METHOD = "OAuth2"
+from . import memory, service_memory
+from .feature_service import oapif_source
 
 
 class ServiceLayerUnavailable(Exception):
@@ -39,88 +31,85 @@ class ServiceLayerUnavailable(Exception):
 
 
 def editing_supported():
-    """Whether this QGIS can open a service layer with its own sign-in."""
-    if not can_edit_in_qgis(getattr(Qgis, "QGIS_VERSION_INT", 0)):
-        return False
-    return _METHOD in QgsApplication.authManager().authMethodsKeys()
+    """Whether this QGIS can carry the plugin's signer (3.36 or later)."""
+    return supported(getattr(Qgis, "QGIS_VERSION_INT", 0))
 
 
-def _deployment_key():
-    """One configuration per ALIGN deployment: its endpoints are in it."""
-    return re.sub(r"[^A-Za-z0-9]+", "_", "{} {}".format(config.app_url(), config.api_url())).strip("_")
+def open_service(ref, read_only=False, local_layer_id=None):
+    """Add a layer of a service to the project.
 
+    With ``local_layer_id``, the service layer takes the local layer's place
+    and style, and the local layer is kept, hidden, in the "Local originals"
+    group: nothing the user had is removed.
 
-def service_authcfg():
-    """The authentication configuration that signs the service layers.
-
-    Created once per deployment and reused: every service layer of every
-    project shares one sign-in. One the user deleted from QGIS' manager is
-    created again.
-    """
-    manager = QgsApplication.authManager()
-    settings = QSettings()
-    key = "{}/feature_service_authcfg/{}".format(config.SETTINGS_GROUP, _deployment_key())
-    known = str(settings.value(key, "") or "")
-    if known and known in manager.configIds():
-        return known
-
-    if not manager.masterPasswordIsSet() and not manager.setMasterPassword(True):
-        raise ServiceLayerUnavailable(
-            tr("QGIS' password manager must be unlocked to keep the sign-in of the feature-service layers.")
-        )
-    name = tr("ALIGN feature services")
-    cfg = QgsAuthMethodConfig(_METHOD)
-    cfg.setName(name)
-    cfg.setUri(config.api_url())
-    cfg.setConfig(
-        "oauth2config",
-        oauth2_settings(
-            name, config.authorize_url(), config.token_endpoint(), config.CLIENT_ID, config.SERVICE_LAYER_SCOPES
-        ),
-    )
-    stored = manager.storeAuthenticationConfig(cfg)
-    # The binding returns a bool and fills the id in place; some builds
-    # return the (bool, config) pair instead.
-    if isinstance(stored, tuple):
-        stored, cfg = stored[0], stored[-1]
-    if not stored or not cfg.id():
-        raise ServiceLayerUnavailable(tr("QGIS could not store the sign-in of the feature-service layers."))
-    settings.setValue(key, cfg.id())
-    return cfg.id()
-
-
-def open_in_place(local_layer_id, title, ogc_url, collection_id, srid=None):
-    """Add the service's layer where the local layer is, with its style.
-
-    The local layer stays in the project, hidden under the new one: nothing
-    the user had is removed, and they can delete it once they trust the
-    service. Fields ALIGN renamed at publication may leave a style expression
-    pointing at a name that is gone; the layer still opens.
-
+    :param ref: the service layer (``service_memory.ServiceRef``)
+    :param read_only: open it for reading only (the user may not edit, or asked to read)
     :returns: the service layer, added to the project
     :raises ServiceLayerUnavailable: when QGIS cannot open the service
     """
-    authcfg = service_authcfg()
-    layer = QgsVectorLayer(oapif_source(ogc_url, collection_id, authcfg, srid), title, "OAPIF")
+    ogc_url = config.feature_service_ogc_url(ref.org_id, ref.service_id)
+    layer = QgsVectorLayer(oapif_source(ogc_url, ref.layer_id, ref.srid), service_memory.service_layer_name(ref.title), "OAPIF")
     if not layer.isValid():
         raise ServiceLayerUnavailable(
             tr("QGIS could not open the feature service. You can add it yourself from its address: {}").format(ogc_url)
         )
+    layer.setReadOnly(bool(read_only))
 
     project = QgsProject.instance()
-    local = project.mapLayer(local_layer_id)
+    local = project.mapLayer(local_layer_id) if local_layer_id else None
     if local is not None:
         style = QgsMapLayerStyle()
         style.readFromLayer(local)
         style.writeToLayer(layer)
+        service_memory.remember(local, ref, service_memory.ORIGINAL)
+        # The style carries the original's custom properties: the service layer
+        # is neither the Datastore item the original was published as, nor the original.
+        memory.forget(layer)
+    service_memory.remember(layer, ref, service_memory.SERVICE)
     project.addMapLayer(layer, False)
 
     root = project.layerTreeRoot()
     node = root.findLayer(local_layer_id) if local is not None else None
-    if node is not None:
-        parent = node.parent()
-        parent.insertLayer(parent.children().index(node), layer)
-        node.setItemVisibilityChecked(False)
-    else:
+    if node is None:
         root.insertLayer(0, layer)
+        return layer
+    parent = node.parent()
+    parent.insertLayer(parent.children().index(node), layer)
+    _keep_original(root, node)
     return layer
+
+
+def _keep_original(root, node):
+    """Move the local original into the "Local originals" group, hidden (CA-7)."""
+    name = service_memory.originals_group_name()
+    group = root.findGroup(name) or root.addGroup(name)
+    if node.parent() is group:
+        node.setItemVisibilityChecked(False)
+        return
+    moved = node.clone()
+    moved.setItemVisibilityChecked(False)
+    group.addChildNode(moved)
+    node.parent().removeChildNode(node)
+    group.setExpanded(False)
+
+
+def service_layers(project=None):
+    """The project's service layers, each with its service."""
+    project = project or QgsProject.instance()
+    found = []
+    for layer in project.mapLayers().values():
+        ref = service_memory.read(layer)
+        if ref is not None and ref.kind == service_memory.SERVICE:
+            found.append((layer, ref))
+    return found
+
+
+def reload_layer(layer):
+    """Read a service layer again: once the session is back, an invalid one
+    opens (CA-11), a valid one shows what changed on ALIGN."""
+    if not layer.isValid():
+        layer.setDataSource(layer.source(), layer.name(), layer.providerType(), QgsDataProvider.ProviderOptions())
+    elif layer.dataProvider() is not None:
+        layer.dataProvider().reloadData()
+    layer.triggerRepaint()
+    return layer.isValid()

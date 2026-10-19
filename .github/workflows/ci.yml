@@ -118,11 +118,23 @@ jobs:
 
       # A vector layer published as an editable feature service (TCK-2320):
       # the layer ALIGN is asked to publish, the job followed to its end, the
-      # result in words, the OAPIF source and the PKCE OAuth2 configuration
-      # that signs it (features only, no secret), the refusals, and a batch
-      # whose vector layers become new services, never replacements.
+      # result in words, the OAPIF source (no credential in it, TCK-2348), the
+      # refusals, and a batch whose vector layers become new services, never
+      # replacements.
       - name: Layers become editable feature services
         run: python scripts/smoke_feature_service.py
+
+      # Where the plugin's token may go (TCK-2348, CA-10): only the exact
+      # origin of the API and a feature service's OGC path; never a
+      # neighbouring origin, another route, or a path that walks out.
+      - name: The request signer signs only ALIGN's service requests
+        run: python scripts/smoke_request_signer.py
+
+      # The service layers' decisions (TCK-2348): what a layer remembers of
+      # its service, the names, the Services tab's model, the two reads and
+      # their refusals, and the session feeding the signer.
+      - name: Service layers, Services tab, session
+        run: python scripts/smoke_service_layers.py
 
       # Every sentence of the source is in the .ts, translated, and the
       # shipped .qm is the compilation of that .ts (TCK-2183). The Qt
@@ -163,6 +175,14 @@ jobs:
 
       - name: The Processing provider registers and refuses what it must
         run: python3 scripts/smoke_processing.py
+
+      # TCK-2348 — real requests through QGIS' network manager and a real
+      # OAPIF layer, against a local stand-in of ALIGN's facade.
+      - name: The signer signs inside QGIS, and nowhere else
+        run: python3 scripts/smoke_signer_qgis.py
+
+      - name: Service layers end to end (names, menu, no credential in the project, sign-in)
+        run: python3 scripts/smoke_service_layers_qgis.py
 
   metadata:
     runs-on: ubuntu-latest

@@ -11,8 +11,8 @@ by canned answers; what is under test (TCK-2320, ADR-0063 §3):
 * following ALIGN's job to its end, a failure in ALIGN's words, a cancelled
   follow that leaves the job running, a job that never ends;
 * what the user is told, and which item the "Open in ALIGN" link points to;
-* the OAPIF data source and the OAuth2 configuration that signs it (PKCE, a
-  narrower grant than the plugin's, no secret);
+* the OAPIF data source: no ``authcfg`` and no token, since the plugin signs
+  the layer's requests itself (TCK-2348);
 * the three API calls and their refusals (a token from before the
   ``features`` scopes asks to sign in again);
 * the batch: vector layers become new services, never a replacement, and the
@@ -21,7 +21,6 @@ by canned answers; what is under test (TCK-2320, ADR-0063 §3):
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
-import json
 import pathlib
 import sys
 
@@ -33,7 +32,7 @@ import qgis_stubs  # noqa: E402
 
 qgis_stubs.install()
 
-from align_connector import api, config, net  # noqa: E402
+from align_connector import api, net  # noqa: E402
 from align_connector.panel import batch  # noqa: E402
 from align_connector.panel.outcome import INFO, SUCCESS, outcome_of  # noqa: E402
 from align_connector.publish import exporter, feature_service, memory  # noqa: E402
@@ -179,33 +178,14 @@ def test_the_outcome_links_the_service_not_the_file():
 # -- what QGIS opens --------------------------------------------------------------
 
 
-def test_the_oapif_source_quotes_every_value():
-    source = feature_service.oapif_source("https://api.example/ogc", "lay'er", "abc1234", srid=2154)
+def test_the_oapif_source_quotes_every_value_and_carries_no_credential():
+    source = feature_service.oapif_source("https://api.example/ogc", "lay'er", srid=2154)
     check("typename='lay\\'er'" in source, source)
-    check("url='https://api.example/ogc'" in source and "authcfg='abc1234'" in source, source)
+    check("url='https://api.example/ogc'" in source, source)
     check(source.endswith("srsname='EPSG:2154'"), source)
-    check("srsname" not in feature_service.oapif_source("https://x", "l", "a"), "no projection asked when unknown")
-
-
-def test_the_oauth2_configuration_is_pkce_features_only_and_secret_free():
-    settings = json.loads(
-        feature_service.oauth2_settings(
-            "ALIGN feature services",
-            config.authorize_url(),
-            config.token_endpoint(),
-            config.CLIENT_ID,
-            config.SERVICE_LAYER_SCOPES,
-        )
-    )
-    check(settings["grantFlow"] == 3, "PKCE: the only public-client flow ALIGN accepts")
-    check(settings["configType"] == 1 and settings["accessMethod"] == 0, "a custom configuration, sent as a header")
-    check(settings["scope"] == "features:read features:write", "features only: not the Datastore")
-    check(settings["clientSecret"] == "" and settings["password"] == "", "a public client holds no secret")
-    check(settings["clientId"] == "align-connector-qgis", settings["clientId"])
-    check(settings["requestUrl"].endswith("/oauth/authorize") and settings["tokenUrl"] == settings["refreshTokenUrl"], settings)
-    check(settings["persistToken"] is True, "a restart does not ask again")
-    check(feature_service.can_edit_in_qgis(33400) and feature_service.can_edit_in_qgis(34400), "3.34 and later")
-    check(not feature_service.can_edit_in_qgis(33200) and not feature_service.can_edit_in_qgis(None), "before 3.34: no PKCE")
+    # TCK-2348 (CA-8) — the plugin signs the layer's requests: the project holds no authcfg, no token.
+    check("authcfg" not in source and "token" not in source.lower(), source)
+    check("srsname" not in feature_service.oapif_source("https://x", "l"), "no projection asked when unknown")
 
 
 # -- the API ---------------------------------------------------------------------
@@ -283,8 +263,7 @@ def main():
         test_a_cancelled_follow_stops_polling_and_a_job_that_never_ends_is_told,
         test_describes_the_result,
         test_the_outcome_links_the_service_not_the_file,
-        test_the_oapif_source_quotes_every_value,
-        test_the_oauth2_configuration_is_pkce_features_only_and_secret_free,
+        test_the_oapif_source_quotes_every_value_and_carries_no_credential,
         test_starts_the_service_and_removes_the_file_by_default,
         test_a_token_without_the_features_scopes_asks_to_sign_in_again,
         test_the_refusals_that_say_what_to_do_keep_alignss_words,

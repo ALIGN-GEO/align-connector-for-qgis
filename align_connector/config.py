@@ -32,11 +32,9 @@ CLIENT_ID = "align-connector-qgis"
 #: services (ADR-0063 §11, TCK-2320): reading a service and editing the
 #: features of the services its holder is an editor of. The token still cannot
 #: read or download the rest of the organization's data.
+#: One consent asks for all of it at once (TCK-2348, CA-10 condition 4): the
+#: plugin signs its service layers' requests with this same session.
 SCOPES = ("datastore:publish", "features:read", "features:write")
-
-#: What a feature-service layer opened in QGIS may do with its own grant
-#: (TCK-2320): read and edit features, nothing of the Datastore.
-SERVICE_LAYER_SCOPES = ("features:read", "features:write")
 
 # Product domains, deliberately, not the hosts they currently resolve to. The web
 # application lives under aligngeo.com (/login, /app, /oauth/authorize); the API
@@ -168,6 +166,16 @@ def feature_publications_endpoint(org_id):
 
 def feature_publication_job_endpoint(org_id, job_id):
     return "{}/api/v1/orgs/{}/feature-services/publications/{}".format(api_url(), org_id, job_id)
+
+
+def feature_services_endpoint(org_id):
+    """The organization's feature services the signed-in user may read (TCK-2348)."""
+    return "{}/api/v1/orgs/{}/feature-services".format(api_url(), org_id)
+
+
+def feature_service_endpoint(org_id, service_id):
+    """One service's layers, with their feature counts (TCK-2348)."""
+    return "{}/api/v1/orgs/{}/feature-services/{}?counts=true".format(api_url(), org_id, service_id)
 
 
 def feature_service_ogc_url(org_id, service_id):

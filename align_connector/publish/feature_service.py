@@ -9,8 +9,8 @@ of that second step, free of QGIS so they are testable on a plain interpreter:
 * which layer of the uploaded file ALIGN will publish, or why it will not;
 * following ALIGN's background job to its end, honouring a cancellation;
 * what to tell the user about the result;
-* the data source QGIS opens the service with, and the OAuth2 configuration
-  that signs its requests.
+* the data source QGIS opens the service with: no credentials in it, the
+  plugin signs its requests (TCK-2348, ``auth/request_signer``).
 
 The server decides everything that matters (the plan, the seat, the room, the
 file); this reads its answers.
@@ -18,18 +18,7 @@ file); this reads its answers.
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
-import json
-
 from ..i18n import tr
-
-#: QGIS' OAuth2 method signs with PKCE from 3.34 on; ALIGN accepts no other
-#: public-client flow, so a layer can only be opened for editing from there.
-MIN_QGIS_FOR_EDITING = 33400
-
-#: ``QgsAuthOAuth2Config`` enum values, as serialized in its JSON.
-_GRANT_PKCE = 3
-_CONFIG_CUSTOM = 1
-_ACCESS_HEADER = 0
 
 
 class ServicePublishFailed(Exception):
@@ -108,12 +97,14 @@ def _quoted(value):
     return "'{}'".format(str(value).replace("\\", "\\\\").replace("'", "\\'"))
 
 
-def oapif_source(ogc_url, layer_id, authcfg, srid=None):
+def oapif_source(ogc_url, layer_id, srid=None):
     """The data source of the service's layer for QGIS' OAPIF provider.
+
+    No ``authcfg``, no token: the plugin signs the layer's requests while it
+    runs (TCK-2348, CA-8), so the project holds nothing secret.
 
     :param ogc_url: the service's OGC landing page
     :param layer_id: the collection (the layer's id)
-    :param authcfg: the QGIS authentication configuration carrying the token
     :param srid: ask for the features in the storage projection (EPSG code)
     """
     parts = [
@@ -122,57 +113,7 @@ def oapif_source(ogc_url, layer_id, authcfg, srid=None):
         "restrictToRequestBBOX='1'",
         "typename={}".format(_quoted(layer_id)),
         "url={}".format(_quoted(ogc_url)),
-        "authcfg={}".format(_quoted(authcfg)),
     ]
     if srid:
         parts.append("srsname={}".format(_quoted("EPSG:{}".format(int(srid)))))
     return " ".join(parts)
-
-
-def can_edit_in_qgis(qgis_version_int):
-    """Whether this QGIS can open a feature service with its own sign-in."""
-    try:
-        return int(qgis_version_int) >= MIN_QGIS_FOR_EDITING
-    except (TypeError, ValueError):
-        return False
-
-
-def oauth2_settings(name, authorize_url, token_url, client_id, scopes, port=7070):
-    """The configuration of QGIS' OAuth2 method that signs the service layers.
-
-    QGIS runs the flow itself (authorization code with PKCE, on a loopback
-    redirect RFC 8252 allows on any port) and refreshes the token as it needs:
-    the layer keeps working after the hour of an access token, and when the
-    project is reopened. Its grant is its own, separate from the plugin's, and
-    narrower: features only. ``persistToken`` keeps the tokens in QGIS'
-    encrypted credential store, so a restart does not ask again.
-
-    :returns: the JSON text QGIS stores under ``oauth2config``
-    """
-    return json.dumps(
-        {
-            "accessMethod": _ACCESS_HEADER,
-            "apiKey": "",
-            "clientId": client_id,
-            "clientSecret": "",
-            "configType": _CONFIG_CUSTOM,
-            "customHeader": "",
-            "description": tr("Signs the requests of the ALIGN feature-service layers."),
-            "grantFlow": _GRANT_PKCE,
-            "id": "",
-            "name": name,
-            "password": "",
-            "persistToken": True,
-            "queryPairs": {},
-            "redirectPort": int(port),
-            "redirectUrl": "",
-            "refreshTokenUrl": token_url,
-            "requestTimeout": 30,
-            "requestUrl": authorize_url,
-            "scope": " ".join(scopes),
-            "tokenUrl": token_url,
-            "username": "",
-            "version": 1,
-        },
-        sort_keys=True,
-    )

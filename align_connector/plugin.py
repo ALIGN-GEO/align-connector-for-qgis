@@ -26,7 +26,7 @@ import os
 from qgis.core import Qgis, QgsApplication, QgsMapLayer, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication, QUrl
 from qgis.PyQt.QtGui import QDesktopServices, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QMenu, QPushButton, QToolButton
+from qgis.PyQt.QtWidgets import QAction, QApplication, QMenu, QToolButton
 
 from . import config, diagnostic, i18n
 from .auth import AlignSession
@@ -36,11 +36,12 @@ from .panel.dock import AlignDock, dock_area
 from .panel.follow import LotFollower
 from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of
 from .processing.provider import AlignProcessingProvider
-from .publish import memory, service_layer
+from .publish import memory
 from .publish.reference_task import RegisterReferenceTask
 from .publish.task import PublishLayerTask, utc_now
 from .publish.webmap_task import ComposeWebMapTask
 from .qtcompat import qt_enum, run_exec
+from .service_actions import ServiceLayerActions
 from .settings_dialog import SettingsDialog
 
 #: Menu title under QGIS' "Web" menu. Kept in one place: it is both what we add
@@ -75,6 +76,8 @@ class AlignConnectorPlugin:
         #: The Processing provider, registered by :meth:`initProcessing`.
         self.provider = None
         self.session = AlignSession()
+        #: The feature-service layers: signer, context menu, session (TCK-2348).
+        self.service_actions = None
         #: Running publishes. QGIS' task manager does not own the Python
         #: object, so dropping our reference would collect a task mid-upload.
         self._tasks = []
@@ -159,7 +162,11 @@ class AlignConnectorPlugin:
         # back its saved place if the dock is there when the window is laid
         # out. QGIS shows a dock it adds; a tool is opened when asked.
         self.dock = AlignDock(
-            self.session, self._start_batch, self.iface.mainWindow(), on_copy_diagnostic=self._copy_diagnostic
+            self.session,
+            self._start_batch,
+            self.iface.mainWindow(),
+            on_copy_diagnostic=self._copy_diagnostic,
+            on_open_service=self._open_from_services,
         )
         self.iface.addDockWidget(dock_area(), self.dock)
         self.dock.hide()
@@ -173,6 +180,9 @@ class AlignConnectorPlugin:
             self.iface.addCustomActionForLayerType(action, None, _layer_type(kind), True)
             self._layer_actions.append(action)
 
+        self.service_actions = ServiceLayerActions(self.iface, self.session, self._message)
+        self.service_actions.attach()
+
         self.session.signed_in.connect(self._on_signed_in)
         self.session.signed_out.connect(self._on_signed_out)
         self.session.failed.connect(self._on_failed)
@@ -182,6 +192,9 @@ class AlignConnectorPlugin:
 
     def unload(self):
         """Remove everything :meth:`initGui` added — no more, no less."""
+        if self.service_actions is not None:
+            self.service_actions.detach()
+            self.service_actions = None
         for action in self._actions:
             self.iface.removePluginWebMenu(MENU_TITLE, action)
         for action in self._toolbar_actions:
@@ -458,46 +471,11 @@ class AlignConnectorPlugin:
         self._message(outcome.text, level)
 
     def _offer_service_layer(self, task, text, level):
-        """The service is ready (TCK-2320, ADR-0063 §3): offer to edit it from
-        QGIS in place of the local layer. The offer stays in the bar until it
-        is taken or closed; an older QGIS gets the address instead."""
-        ogc_url = config.feature_service_ogc_url(task.org_id, task.service_id)
-        if not service_layer.editing_supported():
-            text += " " + self.tr(
-                "Editing it from QGIS needs QGIS 3.34 or later. Its OGC API Features address: {}"
-            ).format(ogc_url)
-            self._message(text, level)
-            return
-        bar = self.iface.messageBar()
-        widget = bar.createMessage(PLUGIN_NAME, text)
-        button = QPushButton(self.tr("Edit it in QGIS"))
-        button.setToolTip(
-            self.tr(
-                "Opens the feature service in place of the local layer, which is kept hidden. "
-                "The first time, your browser asks you to sign in to ALIGN for the service layers."
-            )
-        )
-        button.clicked.connect(lambda _checked=False, t=task, w=widget: self._open_service_layer(t, w, ogc_url))
-        widget.layout().addWidget(button)
-        bar.pushWidget(widget, level, 0)
+        """The service is ready (TCK-2320): offer to edit it from QGIS (TCK-2348)."""
+        self.service_actions.offer_after_publish(task, text, level)
 
-    def _open_service_layer(self, task, widget, ogc_url):
-        self.iface.messageBar().popWidget(widget)
-        try:
-            layer = service_layer.open_in_place(
-                task.layer_id, task.asset_name, ogc_url, task.service_layer_id, task.service_srid
-            )
-        except service_layer.ServiceLayerUnavailable as exc:
-            self._message(str(exc), qt_enum(Qgis, "MessageLevel", "Warning"))
-            return
-        self.iface.setActiveLayer(layer)
-        self._message(
-            self.tr(
-                "“{}” now opens from its feature service; the local layer is kept, hidden, under it. "
-                "Toggle editing to change the features on ALIGN."
-            ).format(task.asset_name),
-            qt_enum(Qgis, "MessageLevel", "Success"),
-        )
+    def _open_from_services(self, org_id, service, row, edit):
+        self.service_actions.open_from_services(org_id, service, row, edit)
 
 
 _LEVELS = {SUCCESS: qt_enum(Qgis, "MessageLevel", "Success"), INFO: qt_enum(Qgis, "MessageLevel", "Info")}
