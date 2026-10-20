@@ -162,6 +162,10 @@ def test_the_two_reads_and_their_refusals():
     _answer(403, {"error": "PLAN_REQUIRED", "message": "Feature services are included in the Team plan and above"})
     exc = _raises(lambda: services_api.list_services(_Session(), "org-1"))
     check(exc.code == "PLAN_REQUIRED" and exc.message == "Feature services are not part of this organization's plan.", exc.message)
+    # TCK-2296 (defect 71) — ALIGN's ban is a 403 coded RATE_LIMITED: a wait, in the user's words.
+    _answer(403, {"error": "RATE_LIMITED", "message": "Too many requests, please try again later"})
+    exc = _raises(lambda: services_api.list_services(_Session(), "org-1"))
+    check(exc.code == "RATE_LIMITED" and exc.message == "ALIGN is rate-limiting this client. Wait a moment and try again.", exc.message)
     _answer(403, {"error": "SOMETHING_ELSE", "message": "ALIGN's own reason"})
     exc = _raises(lambda: services_api.describe_service(_Session(), "org-1", "svc-1"))
     check(exc.message == "ALIGN's own reason", "another refusal keeps ALIGN's words: {}".format(exc.message))

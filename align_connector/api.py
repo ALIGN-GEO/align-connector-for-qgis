@@ -89,6 +89,10 @@ def connector_not_allowed():
     )
 
 
+#: The code ALIGN's rate limiter puts on its refusals, whatever their status.
+RATE_LIMITED = "RATE_LIMITED"
+
+
 def _seconds(value):
     """A ``Retry-After`` in seconds, at least one; None for a date or nothing readable."""
     try:
@@ -103,7 +107,16 @@ def _raise_for(result, fallback):
     A status the plugin knows gets the plugin's own sentence, in the user's
     language; the server's English text is only shown for a status the plugin
     has no words for (TCK-2183).
+
+    ALIGN's rate limiter answers 429, and 403 once it bans: both carry the
+    code RATE_LIMITED and a Retry-After, and both are a pace refusal, never a
+    refusal of the user's role (TCK-2296, defect 71).
     """
+    if result.code() == RATE_LIMITED:
+        message, _sign_in = _refusal(429)
+        raise ApiError(
+            message, status=result.status, code=RATE_LIMITED, retry_after=_seconds(result.headers.get("retry-after"))
+        )
     known = _refusal(result.status)
     if known:
         message, needs_sign_in = known

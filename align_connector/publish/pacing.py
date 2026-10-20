@@ -12,7 +12,7 @@ Pure: proven by ``scripts/smoke_capacity.py``.
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
-from ..api import ApiError
+from ..api import RATE_LIMITED, ApiError
 from .uploader import UploadCancelled
 
 #: The longest one layer waits for ALIGN, in all, before the refusal is the user's.
@@ -24,7 +24,10 @@ def paced(call, cancelled, sleep, max_wait=MAX_WAIT_SECONDS):
 
     :param cancelled: ``() -> bool``, read every second of a wait
     :param sleep: ``(seconds) -> None``
-    :raises ApiError: any other refusal, a 429 that names no wait, or one past ``max_wait``
+    A pace refusal is a 429, or any refusal coded RATE_LIMITED (ALIGN's 403
+    once it bans, defect 71).
+
+    :raises ApiError: any other refusal, a pace refusal that names no wait, or one past ``max_wait``
     :raises UploadCancelled: cancelled while waiting
     """
     waited = 0
@@ -32,7 +35,7 @@ def paced(call, cancelled, sleep, max_wait=MAX_WAIT_SECONDS):
         try:
             return call()
         except ApiError as exc:
-            delay = exc.retry_after if exc.status == 429 else None
+            delay = exc.retry_after if exc.status == 429 or exc.code == RATE_LIMITED else None
             if delay is None or waited + delay > max_wait:
                 raise
         for _ in range(delay):

@@ -137,13 +137,13 @@
         <translation>ALIGN ne vérifie ces règles de « {} » qu'à l'enregistrement : {}.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="120"/>
-        <location filename="../../align_connector/services_api.py" line="36"/>
+        <location filename="../../align_connector/api.py" line="133"/>
+        <location filename="../../align_connector/services_api.py" line="37"/>
         <source>ALIGN could not be reached. Check your connection and try again.</source>
         <translation>ALIGN est injoignable. Vérifiez votre connexion et réessayez.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="290"/>
+        <location filename="../../align_connector/api.py" line="303"/>
         <source>ALIGN could not catalogue the uploaded file</source>
         <translation>ALIGN n'a pas pu cataloguer le fichier envoyé</translation>
     </message>
@@ -153,17 +153,17 @@
         <translation>ALIGN n'a pas pu publier le service d'entités.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="484"/>
+        <location filename="../../align_connector/api.py" line="497"/>
         <source>ALIGN could not read the layers of the file</source>
         <translation>ALIGN n'a pas pu lire les couches du fichier</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="377"/>
+        <location filename="../../align_connector/api.py" line="390"/>
         <source>ALIGN could not replace the item</source>
         <translation>ALIGN n'a pas pu remplacer l'item</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="511"/>
+        <location filename="../../align_connector/api.py" line="524"/>
         <source>ALIGN could not start the feature service</source>
         <translation>ALIGN n'a pas pu lancer le service d'entités</translation>
     </message>
@@ -184,7 +184,7 @@
     </message>
     <message>
         <location filename="../../align_connector/api.py" line="59"/>
-        <location filename="../../align_connector/services_api.py" line="34"/>
+        <location filename="../../align_connector/services_api.py" line="35"/>
         <source>ALIGN is rate-limiting this client. Wait a moment and try again.</source>
         <translation>ALIGN limite le débit de ce client. Patientez un instant et réessayez.</translation>
     </message>
@@ -204,12 +204,12 @@
         <translation>ALIGN publie des couches vecteur et raster. Cette couche n'est ni l'une ni l'autre.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="347"/>
+        <location filename="../../align_connector/api.py" line="360"/>
         <source>ALIGN refused the replacement</source>
         <translation>ALIGN a refusé le remplacement</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="242"/>
+        <location filename="../../align_connector/api.py" line="255"/>
         <source>ALIGN refused the upload</source>
         <translation>ALIGN a refusé l'envoi</translation>
     </message>
@@ -219,53 +219,53 @@
         <translation>ALIGN a refusé d'enregistrer « {} » : {}. Les modifications restent dans la couche : corrigez-les et enregistrez à nouveau.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="247"/>
-        <location filename="../../align_connector/api.py" line="352"/>
+        <location filename="../../align_connector/api.py" line="260"/>
+        <location filename="../../align_connector/api.py" line="365"/>
         <source>ALIGN returned an incomplete upload session.</source>
         <translation>ALIGN a renvoyé une session d'envoi incomplète.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="408"/>
+        <location filename="../../align_connector/api.py" line="421"/>
         <source>ALIGN returned an unexpected answer while creating the web map.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en créant la carte web.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="531"/>
+        <location filename="../../align_connector/api.py" line="544"/>
         <source>ALIGN returned an unexpected answer while following the feature service.</source>
         <translation>ALIGN a renvoyé une réponse inattendue pendant le suivi du service d'entités.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="140"/>
+        <location filename="../../align_connector/api.py" line="153"/>
         <source>ALIGN returned an unexpected answer while listing organizations.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en listant les organisations.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/services_api.py" line="60"/>
+        <location filename="../../align_connector/services_api.py" line="61"/>
         <source>ALIGN returned an unexpected answer while listing the feature services.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en listant les services d'entités.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/services_api.py" line="80"/>
+        <location filename="../../align_connector/services_api.py" line="81"/>
         <source>ALIGN returned an unexpected answer while reading the feature service.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en lisant le service d'entités.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="486"/>
+        <location filename="../../align_connector/api.py" line="499"/>
         <source>ALIGN returned an unexpected answer while reading the file.</source>
         <translation>ALIGN a renvoyé une réponse inattendue pendant la lecture du fichier.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="181"/>
+        <location filename="../../align_connector/api.py" line="194"/>
         <source>ALIGN returned an unexpected answer while reading the organization's capacity.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en lisant la capacité de l'organisation.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="443"/>
+        <location filename="../../align_connector/api.py" line="456"/>
         <source>ALIGN returned an unexpected answer while registering the reference.</source>
         <translation>ALIGN a renvoyé une réponse inattendue en enregistrant la référence.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="518"/>
+        <location filename="../../align_connector/api.py" line="531"/>
         <source>ALIGN returned an unexpected answer while starting the feature service.</source>
         <translation>ALIGN a renvoyé une réponse inattendue au lancement du service d'entités.</translation>
     </message>
@@ -330,7 +330,7 @@
         <translation>Un paquet de tuiles vectorielles ArcGIS n'est pas un format que lit le Map builder ; exportez-le d'abord en MBTiles.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="311"/>
+        <location filename="../../align_connector/api.py" line="324"/>
         <source>An item ALIGN converted for display (GeoTIFF, MBTiles) cannot be replaced in place yet. Publish it as a new layer instead.</source>
         <translation>Un item qu'ALIGN a converti pour l'affichage (GeoTIFF, MBTiles) ne peut pas encore être remplacé en place. Publiez-le comme nouvelle couche.</translation>
     </message>
@@ -456,12 +456,12 @@
         <translation>La connexion n'a pas pu aboutir</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="404"/>
+        <location filename="../../align_connector/api.py" line="417"/>
         <source>Could not create the web map</source>
         <translation>La carte web n'a pas pu être créée</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="529"/>
+        <location filename="../../align_connector/api.py" line="542"/>
         <source>Could not follow the feature service</source>
         <translation>Impossible de suivre le service d'entités</translation>
     </message>
@@ -481,27 +481,27 @@
         <translation>Impossible de lire la capacité de {} : {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/services_api.py" line="77"/>
+        <location filename="../../align_connector/services_api.py" line="78"/>
         <source>Could not read the feature service</source>
         <translation>Impossible de lire le service d'entités</translation>
     </message>
     <message>
-        <location filename="../../align_connector/services_api.py" line="56"/>
+        <location filename="../../align_connector/services_api.py" line="57"/>
         <source>Could not read the feature services</source>
         <translation>Impossible de lire les services d'entités</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="175"/>
+        <location filename="../../align_connector/api.py" line="188"/>
         <source>Could not read what this organization can still spend</source>
         <translation>Impossible de lire ce que cette organisation peut encore dépenser</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="136"/>
+        <location filename="../../align_connector/api.py" line="149"/>
         <source>Could not read your organizations</source>
         <translation>Impossible de lire vos organisations</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="439"/>
+        <location filename="../../align_connector/api.py" line="452"/>
         <source>Could not register the reference</source>
         <translation>La référence n'a pas pu être enregistrée</translation>
     </message>
@@ -929,7 +929,7 @@
         <translation>Seuls les {} premiers mots-clés sont gardés ({} dans QGIS).</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="299"/>
+        <location filename="../../align_connector/api.py" line="312"/>
         <source>Only the item's creator or an organization admin can replace it. Publish it as a new layer instead.</source>
         <translation>Seuls le créateur de l'item ou un administrateur de l'organisation peuvent le remplacer. Publiez-le comme nouvelle couche.</translation>
     </message>
@@ -1376,7 +1376,7 @@
         <translation>Reconnectez-vous pour que le plugin puisse lire vos services d'entités.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="462"/>
+        <location filename="../../align_connector/api.py" line="475"/>
         <source>Sign in to ALIGN again to publish and edit feature services from QGIS.</source>
         <translation>Reconnectez-vous à ALIGN pour publier et éditer des services d'entités depuis QGIS.</translation>
     </message>
@@ -1670,22 +1670,22 @@
         <translation>Le fichier a été gardé : vous ne pouvez plus le supprimer.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="302"/>
+        <location filename="../../align_connector/api.py" line="315"/>
         <source>The item changed on ALIGN since this layer was last read. Nothing was replaced: reopen it from ALIGN, or publish as a new layer.</source>
         <translation>L'item a changé sur ALIGN depuis la dernière lecture de cette couche. Rien n'a été remplacé : rouvrez-le depuis ALIGN, ou publiez comme nouvelle couche.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="307"/>
+        <location filename="../../align_connector/api.py" line="320"/>
         <source>The item on ALIGN is stored in another format than this export; a replacement must keep the format. Publish it as a new layer instead.</source>
         <translation>L'item sur ALIGN est stocké dans un autre format que cet export ; un remplacement doit garder le format. Publiez-le comme nouvelle couche.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="315"/>
+        <location filename="../../align_connector/api.py" line="328"/>
         <source>The item this layer was published as is a reference, not a file: it has nothing to replace.</source>
         <translation>L'item sous lequel cette couche a été publiée est une référence, pas un fichier : il n'y a rien à remplacer.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="298"/>
+        <location filename="../../align_connector/api.py" line="311"/>
         <source>The item this layer was published as no longer exists on ALIGN.</source>
         <translation>L'item sous lequel cette couche a été publiée n'existe plus sur ALIGN.</translation>
     </message>
@@ -1735,7 +1735,7 @@
         <translation>L'adresse du service manque dans la source de la couche.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="306"/>
+        <location filename="../../align_connector/api.py" line="319"/>
         <source>The transfer did not complete on ALIGN's side. Try again.</source>
         <translation>Le transfert n'est pas arrivé au bout côté ALIGN. Réessayez.</translation>
     </message>
@@ -1810,7 +1810,7 @@
         <translation>Ce service d'entités n'existe plus, ou vous ne pouvez plus le lire.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="241"/>
+        <location filename="../../align_connector/api.py" line="254"/>
         <source>This file is too large for ALIGN to prepare for display.</source>
         <translation>Ce fichier est trop volumineux pour qu'ALIGN le prépare à l'affichage.</translation>
     </message>
@@ -1969,15 +1969,15 @@
         <translation>Pourquoi elle ne peut pas être publiée</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="132"/>
-        <location filename="../../align_connector/api.py" line="171"/>
-        <location filename="../../align_connector/api.py" line="224"/>
-        <location filename="../../align_connector/api.py" line="342"/>
-        <location filename="../../align_connector/api.py" line="392"/>
-        <location filename="../../align_connector/api.py" line="426"/>
-        <location filename="../../align_connector/api.py" line="481"/>
-        <location filename="../../align_connector/api.py" line="505"/>
-        <location filename="../../align_connector/services_api.py" line="43"/>
+        <location filename="../../align_connector/api.py" line="145"/>
+        <location filename="../../align_connector/api.py" line="184"/>
+        <location filename="../../align_connector/api.py" line="237"/>
+        <location filename="../../align_connector/api.py" line="355"/>
+        <location filename="../../align_connector/api.py" line="405"/>
+        <location filename="../../align_connector/api.py" line="439"/>
+        <location filename="../../align_connector/api.py" line="494"/>
+        <location filename="../../align_connector/api.py" line="518"/>
+        <location filename="../../align_connector/services_api.py" line="44"/>
         <source>You are not signed in to ALIGN.</source>
         <translation>Vous n'êtes pas connecté à ALIGN.</translation>
     </message>
@@ -2007,13 +2007,13 @@
         <translation>Votre compte ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="526"/>
+        <location filename="../../align_connector/api.py" line="539"/>
         <source>Your ALIGN session expired while the feature service was being prepared.</source>
         <translation>Votre session ALIGN a expiré pendant la préparation du service d'entités.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/api.py" line="270"/>
-        <location filename="../../align_connector/api.py" line="365"/>
+        <location filename="../../align_connector/api.py" line="283"/>
+        <location filename="../../align_connector/api.py" line="378"/>
         <source>Your ALIGN session expired while the file was uploading.</source>
         <translation>Votre session ALIGN a expiré pendant l'envoi du fichier.</translation>
     </message>

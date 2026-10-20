@@ -22,6 +22,8 @@ changelog=0.8.0 (not released yet: needs ALIGN's feature services in production)
     A click that publishes more layers than ALIGN lets one person start in a
     minute no longer loses the extra layers: when ALIGN says when to come
     back, each layer waits and is sent then, and a cancel still stops it.
+    When ALIGN blocks a client that asked too often, the plugin says it is
+    being rate-limited and waits, never that your role does not allow it.
     A layer ALIGN will not publish as a feature service (types mixed, too
     many features, a field it cannot name) is refused in your language, under
     the layer's name in QGIS.

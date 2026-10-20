@@ -14,7 +14,9 @@ answer (TCK-2179) and the two sentences built from it:
   what was missing next to what there was — and only for those two refusals;
 * a 429 that says when to come back (TCK-2296, defect 69): the layer waits and
   asks again, a cancel is heard while it waits, and past the longest wait the
-  refusal is the user's.
+  refusal is the user's;
+* a 403 coded RATE_LIMITED (ALIGN's ban, defect 71) is a pace refusal too,
+  never a refusal of the user's role.
 
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
@@ -164,10 +166,31 @@ def test_the_task_title_is_said_in_the_users_language():
         task.tr = real
 
 
-def _rate_limited(retry_after="60"):
-    """ALIGN's 429, as the transport hands it over."""
+def _rate_limited(retry_after="60", status=429):
+    """ALIGN's 429 (or its 403 once it bans), as the transport hands it over."""
     headers = {"retry-after": retry_after} if retry_after is not None else {}
-    return net.HttpResult(429, {"error": "RATE_LIMITED", "message": "Rate limit exceeded"}, None, headers)
+    return net.HttpResult(status, {"error": "RATE_LIMITED", "message": "Too many requests, please try again later"}, None, headers)
+
+
+def test_a_ban_is_a_pace_refusal_not_a_role_refusal():
+    api.net.post_json = lambda url, payload, bearer=None: _rate_limited("30", status=403)
+    refused = None
+    try:
+        api.open_upload_session(_Session(), "org-1", "parcels.gpkg", "application/geopackage+sqlite3", 10)
+    except api.ApiError as exc:
+        refused = exc
+    check(refused is not None and "role" not in refused.message, refused.message if refused else None)
+    check(refused.message == "ALIGN is rate-limiting this client. Wait a moment and try again.", refused.message)
+    check(refused.code == "RATE_LIMITED" and refused.retry_after == 30 and refused.status == 403, vars(refused))
+    api.net.post_json = lambda url, payload, bearer=None: net.HttpResult(403, {"error": "FORBIDDEN", "message": "No."}, None, {})
+    try:
+        api.open_upload_session(_Session(), "org-1", "parcels.gpkg", "application/geopackage+sqlite3", 10)
+    except api.ApiError as exc:
+        check("role" in exc.message and exc.retry_after is None, "a real role refusal stays one (edge)")
+
+    call, seen = _calls(api.ApiError("slow down", status=403, code="RATE_LIMITED", retry_after=2), {"assetId": "a-1"})
+    slept = []
+    check(paced(call, cancelled=lambda: False, sleep=slept.append) == {"assetId": "a-1"} and sum(slept) == 2, (seen, slept))
 
 
 def test_a_429_carries_when_to_come_back():
@@ -244,6 +267,7 @@ def test_a_cancel_is_heard_while_waiting():
 def main():
     tests = [
         test_a_429_carries_when_to_come_back,
+        test_a_ban_is_a_pace_refusal_not_a_role_refusal,
         test_a_layer_waits_when_alignn_asks_and_asks_again,
         test_the_wait_has_an_end_and_other_refusals_are_not_waited_for,
         test_a_cancel_is_heard_while_waiting,

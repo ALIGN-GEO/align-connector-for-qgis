@@ -30,8 +30,9 @@ def _refused(result, fallback):
         raise ApiError(tr("Feature services are not part of this organization's plan."), status=403, code=code)
     if result.status == 404:
         raise ApiError(tr("This feature service is gone, or you can no longer read it."), status=404, code=code)
-    if result.status == 429:
-        raise ApiError(tr("ALIGN is rate-limiting this client. Wait a moment and try again."), status=429)
+    if result.status == 429 or code == "RATE_LIMITED":
+        # TCK-2296 (defect 71): a 403 coded RATE_LIMITED is ALIGN's ban, a wait as well.
+        raise ApiError(tr("ALIGN is rate-limiting this client. Wait a moment and try again."), status=result.status, code=code)
     if result.status == net.NO_RESPONSE:
         raise ApiError(tr("ALIGN could not be reached. Check your connection and try again."))
     raise ApiError(result.message(fallback), status=result.status, code=code)
