@@ -25,9 +25,12 @@ class ApiError(Exception):
         413 storage) without parsing the sentence (TCK-2179).
     """
 
-    def __init__(self, message, needs_sign_in=False, status=None, code=None):
+    def __init__(self, message, needs_sign_in=False, status=None, code=None, retry_after=None):
         super().__init__(message)
         self.message = message
+        #: Seconds ALIGN asked to wait before asking again (a 429's
+        #: ``Retry-After``), or None (TCK-2296, defect 69).
+        self.retry_after = retry_after
         #: The server's own refusal code, when it sent one (TCK-2218): lets a
         #: caller tell "the item is gone" from "you may not", both 4xx.
         self.code = code
@@ -86,6 +89,14 @@ def connector_not_allowed():
     )
 
 
+def _seconds(value):
+    """A ``Retry-After`` in seconds, at least one; None for a date or nothing readable."""
+    try:
+        return max(1, int(str(value).strip()))
+    except (TypeError, ValueError):
+        return None
+
+
 def _raise_for(result, fallback):
     """Turn a failed response into an :class:`ApiError` a user can act on.
 
@@ -103,7 +114,8 @@ def _raise_for(result, fallback):
         elif result.status == 415:
             # The server names the type it refused: worth more than our line.
             message = result.message(message)
-        raise ApiError(message, needs_sign_in=needs_sign_in, status=result.status)
+        retry_after = _seconds(result.headers.get("retry-after")) if result.status == 429 else None
+        raise ApiError(message, needs_sign_in=needs_sign_in, status=result.status, retry_after=retry_after)
     if result.status == net.NO_RESPONSE:
         raise ApiError(tr("ALIGN could not be reached. Check your connection and try again."))
     raise ApiError(result.message(fallback), status=result.status)

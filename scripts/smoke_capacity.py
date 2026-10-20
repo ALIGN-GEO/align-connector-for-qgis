@@ -11,7 +11,10 @@ answer (TCK-2179) and the two sentences built from it:
 * the line under the organization picker: storage used and allowed, whole
   credits, never a currency, and nothing invented when ALIGN did not say;
 * the refusal for space or credits, which repeats that line so the user reads
-  what was missing next to what there was — and only for those two refusals.
+  what was missing next to what there was — and only for those two refusals;
+* a 429 that says when to come back (TCK-2296, defect 69): the layer waits and
+  asks again, a cancel is heard while it waits, and past the longest wait the
+  refusal is the user's.
 
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
@@ -29,7 +32,9 @@ qgis_stubs.install()
 
 from align_connector import api, net  # noqa: E402
 from align_connector.publish.wording import describe_capacity  # noqa: E402
+from align_connector.publish.pacing import paced  # noqa: E402
 from align_connector.publish.task import with_capacity  # noqa: E402
+from align_connector.publish.uploader import UploadCancelled  # noqa: E402
 
 GB = 1024 ** 3
 
@@ -159,8 +164,89 @@ def test_the_task_title_is_said_in_the_users_language():
         task.tr = real
 
 
+def _rate_limited(retry_after="60"):
+    """ALIGN's 429, as the transport hands it over."""
+    headers = {"retry-after": retry_after} if retry_after is not None else {}
+    return net.HttpResult(429, {"error": "RATE_LIMITED", "message": "Rate limit exceeded"}, None, headers)
+
+
+def test_a_429_carries_when_to_come_back():
+    api.net.post_json = lambda url, payload, bearer=None: _rate_limited("42")
+    refused = None
+    try:
+        api.open_upload_session(_Session(), "org-1", "parcels.gpkg", "application/geopackage+sqlite3", 10)
+    except api.ApiError as exc:
+        refused = exc
+    check(refused is not None and refused.status == 429 and refused.retry_after == 42, vars(refused) if refused else None)
+    api.net.post_json = lambda url, payload, bearer=None: _rate_limited(None)
+    try:
+        api.open_upload_session(_Session(), "org-1", "parcels.gpkg", "application/geopackage+sqlite3", 10)
+    except api.ApiError as exc:
+        check(exc.retry_after is None, "no Retry-After: nothing to wait for (edge)")
+
+
+def _calls(*outcomes):
+    """A call that answers each outcome in turn: an exception is raised, a value returned."""
+    queue = list(outcomes)
+    seen = []
+
+    def call():
+        seen.append(1)
+        outcome = queue.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    return call, seen
+
+
+def test_a_layer_waits_when_alignn_asks_and_asks_again():
+    call, seen = _calls(api.ApiError("slow down", status=429, retry_after=3), {"assetId": "a-1"})
+    slept = []
+    session = paced(call, cancelled=lambda: False, sleep=slept.append)
+    check(session == {"assetId": "a-1"} and len(seen) == 2, (session, seen))
+    check(sum(slept) == 3, "it waited what ALIGN asked: {}".format(slept))
+
+
+def test_the_wait_has_an_end_and_other_refusals_are_not_waited_for():
+    call, _ = _calls(*[api.ApiError("slow down", status=429, retry_after=60)] * 20)
+    try:
+        paced(call, cancelled=lambda: False, sleep=lambda _s: None, max_wait=120)
+        check(False, "past the longest wait, the refusal is the user's")
+    except api.ApiError as exc:
+        check(exc.status == 429, exc.status)
+    call, seen = _calls(api.ApiError("no room", status=413))
+    try:
+        paced(call, cancelled=lambda: False, sleep=lambda _s: None)
+    except api.ApiError:
+        check(len(seen) == 1, "a refusal that is not about pace is never asked again (edge)")
+    call, seen = _calls(api.ApiError("slow down", status=429))
+    try:
+        paced(call, cancelled=lambda: False, sleep=lambda _s: None)
+    except api.ApiError:
+        check(len(seen) == 1, "a 429 that does not say when: not guessed (edge)")
+
+
+def test_a_cancel_is_heard_while_waiting():
+    call, seen = _calls(api.ApiError("slow down", status=429, retry_after=30), {"assetId": "a-1"})
+    ticks = []
+
+    def cancelled():
+        return len(ticks) >= 2
+
+    try:
+        paced(call, cancelled=cancelled, sleep=ticks.append)
+        check(False, "cancelled while waiting: it stops")
+    except UploadCancelled:
+        check(len(seen) == 1 and len(ticks) == 2, "stopped within the wait, not after it: {} ticks".format(len(ticks)))
+
+
 def main():
     tests = [
+        test_a_429_carries_when_to_come_back,
+        test_a_layer_waits_when_alignn_asks_and_asks_again,
+        test_the_wait_has_an_end_and_other_refusals_are_not_waited_for,
+        test_a_cancel_is_heard_while_waiting,
         test_reads_the_capacity_answer,
         test_reads_whether_feature_services_are_offered,
         test_never_invents_a_figure,

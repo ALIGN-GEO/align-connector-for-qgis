@@ -14,6 +14,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import os
 import shutil
+import time
 
 from qgis.core import QgsTask
 
@@ -22,6 +23,7 @@ from ..i18n import tr
 from ..qtcompat import qt_enum
 from ..metadata import plugin_version
 from .exporter import ExportFailed, export_for_publish
+from .pacing import paced
 from .uploader import ResumableUploader, UploadCancelled, UploadFailed
 
 #: How the export is weighted against the transfer in the progress bar. Writing
@@ -213,14 +215,19 @@ class PublishLayerTask(QgsTask):
     # -- internals ----------------------------------------------------------
 
     def _publish_new(self, export, size_bytes):
-        """A new item: session, transfer, catalogue."""
-        session_info = api.open_upload_session(
-            self.session,
-            self.org_id,
-            export.filename,
-            export.content_type,
-            size_bytes,
-            already_servable=export.already_servable,
+        """A new item: session, transfer, catalogue. A lot of layers opens its
+        sessions together: when ALIGN asks one to wait, it waits (defect 69)."""
+        session_info = paced(
+            lambda: api.open_upload_session(
+                self.session,
+                self.org_id,
+                export.filename,
+                export.content_type,
+                size_bytes,
+                already_servable=export.already_servable,
+            ),
+            cancelled=self.isCanceled,
+            sleep=time.sleep,
         )
         self.asset_id = session_info["assetId"]
         self._send(export, session_info)
@@ -245,13 +252,17 @@ class PublishLayerTask(QgsTask):
         a kind ALIGN converts — stops the publish with ALIGN's reason, so the
         publisher chooses knowingly between retrying and publishing as new."""
         try:
-            return api.open_replace_session(
-                self.session,
-                self.replace.org_id,
-                self.replace.asset_id,
-                export.filename,
-                export.content_type,
-                size_bytes,
+            return paced(
+                lambda: api.open_replace_session(
+                    self.session,
+                    self.replace.org_id,
+                    self.replace.asset_id,
+                    export.filename,
+                    export.content_type,
+                    size_bytes,
+                ),
+                cancelled=self.isCanceled,
+                sleep=time.sleep,
             )
         except api.ApiError as exc:
             if exc.status == 404 and exc.code == "DATASTORE_ASSET_NOT_FOUND":
