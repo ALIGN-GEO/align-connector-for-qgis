@@ -5,7 +5,9 @@ ALIGN sends each notice as a code, its parameters, and an English message.
 The codes this plugin knows are said in the user's language; a code it does
 not know keeps ALIGN's message, so a newer server never leaves the user
 without the sentence. The codes mirror ALIGN's
-``feature-publication-notices.golden.json``.
+``feature-publication-notices.golden.json``, the refusals of a layer included
+(TCK-2296, finding R): those never name the layer, because the sentence
+around them names it as the user does, not as the exported file does.
 
 Parameters are names from the user's own file: they are escaped, because the
 message bar shows rich text.
@@ -49,6 +51,14 @@ def notice_text(notice):
         return tr("The file was kept: another service of the same publication is built from it.")
     if code == "countsIncomplete":
         return tr("The publication finished after an interruption: the counts shown may be incomplete.")
+    if code == "layerTooLarge" and "max" in value:
+        return tr("This layer has more than {} features, the limit of a published layer.").format(value["max"])
+    if code == "geometryTypesMixed":
+        return tr("The layer mixes geometry types. Split it into one layer per type before publishing.")
+    if code == "geometryTypeUnsupported" and "type" in value:
+        return tr("Its geometry type, {}, cannot be published as a service.").format(value["type"])
+    if code == "fieldNotNamable" and "field" in value:
+        return tr("The field “{}” cannot be named as a column.").format(value["field"])
     return html.escape(str(notice.get("message") or ""), quote=False)
 
 

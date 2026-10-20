@@ -183,7 +183,8 @@ def test_the_notices_are_said_by_code():
     check(notice_texts({"warnings": ["From an older ALIGN."]}) == ["From an older ALIGN."], "an older ALIGN's warnings, as they were")
     # ALIGN's own fixture (``feature-publication-notices.golden.json``): a code it adds fails here first.
     golden = json.loads((REPO / "scripts" / "fixtures" / "feature-publication-notices.golden.json").read_text(encoding="utf-8"))
-    for notice in golden["notices"]:
+    # Its refusals too (TCK-2296, finding R): a layer ALIGN will not publish.
+    for notice in golden["notices"] + golden["refusals"]:
         said = dict(notice, message="MESSAGE")
         check(notice_text(said) != "MESSAGE", "every code ALIGN sends is said by the plugin: {}".format(notice["code"]))
 

@@ -22,6 +22,9 @@ changelog=0.8.0 (not released yet: needs ALIGN's feature services in production)
     A click that publishes more layers than ALIGN lets one person start in a
     minute no longer loses the extra layers: when ALIGN says when to come
     back, each layer waits and is sent then, and a cancel still stops it.
+    A layer ALIGN will not publish as a feature service (types mixed, too
+    many features, a field it cannot name) is refused in your language, under
+    the layer's name in QGIS.
     A service layer takes the input rules set in ALIGN (Settings > Forms):
     lists with their labels, sliders, check boxes and calendars; required
     fields, bounds and conditions as QGIS constraints with their messages;

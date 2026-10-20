@@ -1,5 +1,5 @@
 {
-  "description": "TCK-2348 — the publication notices clients translate by code (the QGIS plugin). A code, its parameters and the English message ALIGN shows. Changing a code or a parameter name breaks those clients: change them together.",
+  "description": "TCK-2348 — the publication notices clients translate by code (the QGIS plugin). A code, its parameters and the English message ALIGN shows. TCK-2296 (finding R) — the refusals of a layer in the preview, in the same shape. Changing a code or a parameter name breaks those clients: change them together.",
   "notices": [
     { "code": "fieldBinaryDropped", "params": { "field": "photo" }, "message": "The field \"photo\" holds binary data and is not published." },
     { "code": "fieldRenamed", "params": { "from": "fid", "to": "source_fid", "reserved": "fid" }, "message": "The field \"fid\" is kept as \"source_fid\": the service numbers its features itself." },
@@ -12,5 +12,11 @@
     { "code": "sourceKept", "params": {}, "message": "The file was kept: you can no longer remove it." },
     { "code": "sourceShared", "params": {}, "message": "The file was kept: another service of the same publication is built from it." },
     { "code": "countsIncomplete", "params": {}, "message": "The publication finished after an interruption: the counts shown may be incomplete." }
+  ],
+  "refusals": [
+    { "code": "layerTooLarge", "params": { "max": "2000000" }, "message": "This layer has more than 2000000 features, the limit of a published layer." },
+    { "code": "geometryTypesMixed", "params": { "layer": "m-lange-R6" }, "message": "The layer \"m-lange-R6\" mixes geometry types. Split it into one layer per type before publishing." },
+    { "code": "geometryTypeUnsupported", "params": { "layer": "arbres", "type": "TIN" }, "message": "The geometry type TIN of \"arbres\" cannot be published as a service." },
+    { "code": "fieldNotNamable", "params": { "field": "???" }, "message": "The field \"???\" cannot be named as a column." }
   ]
 }

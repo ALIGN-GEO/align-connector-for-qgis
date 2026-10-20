@@ -148,7 +148,7 @@
         <translation>ALIGN n'a pas pu cataloguer le fichier envoyé</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/feature_service.py" line="171"/>
+        <location filename="../../align_connector/publish/feature_service.py" line="173"/>
         <source>ALIGN could not publish the feature service.</source>
         <translation>ALIGN n'a pas pu publier le service d'entités.</translation>
     </message>
@@ -526,7 +526,7 @@
         <translation>Les géométries courbes (arcs) ne s'écrivent pas en FlatGeobuf. Segmentez d'abord la couche (Traitement : Segmentiser par distance maximale).</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="35"/>
+        <location filename="../../align_connector/publish/notices.py" line="37"/>
         <source>Curved geometries are published as their linear approximation.</source>
         <translation>Les géométries courbes sont publiées sous leur approximation linéaire.</translation>
     </message>
@@ -695,6 +695,11 @@
         <location filename="../../align_connector/processing/publish_layer.py" line="122"/>
         <source>Item page on ALIGN</source>
         <translation>Page de l'item sur ALIGN</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/notices.py" line="59"/>
+        <source>Its geometry type, {}, cannot be published as a service.</source>
+        <translation>Son type de géométrie, {}, ne peut pas être publié en service.</translation>
     </message>
     <message>
         <location filename="../../align_connector/form_rules.py" line="227"/>
@@ -1475,7 +1480,7 @@
         <translation>Stockage : {} utilisés, sans limite</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/feature_service.py" line="244"/>
+        <location filename="../../align_connector/publish/feature_service.py" line="246"/>
         <source>Stored in EPSG:{}.</source>
         <translation>Stocké en EPSG:{}.</translation>
     </message>
@@ -1530,7 +1535,7 @@
         <translation>L'adresse du Feature Service manque dans la source de la couche.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="39"/>
+        <location filename="../../align_connector/publish/notices.py" line="41"/>
         <source>The M values (measure) of the geometries are not kept: the layer is published in 2D.</source>
         <translation>Les valeurs M (mesure) des géométries ne sont pas gardées : la couche est publiée en 2D.</translation>
     </message>
@@ -1570,12 +1575,12 @@
         <translation>Le nom de couche WMTS manque dans la source de la couche.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="40"/>
+        <location filename="../../align_connector/publish/notices.py" line="42"/>
         <source>The Z values (altitude) and M values (measure) of the geometries are not kept: the layer is published in 2D.</source>
         <translation>Les valeurs Z (altitude) et M (mesure) des géométries ne sont pas gardées : la couche est publiée en 2D.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="38"/>
+        <location filename="../../align_connector/publish/notices.py" line="40"/>
         <source>The Z values (altitude) of the geometries are not kept: the layer is published in 2D.</source>
         <translation>Les valeurs Z (altitude) des géométries ne sont pas gardées : la couche est publiée en 2D.</translation>
     </message>
@@ -1620,7 +1625,7 @@
         <translation>Les champs attributaires n'ont pas été comparés pour ce format.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/feature_service.py" line="175"/>
+        <location filename="../../align_connector/publish/feature_service.py" line="177"/>
         <source>The feature service is still being prepared; it will appear in your Datastore when it is ready.</source>
         <translation>Le service d'entités est encore en préparation ; il apparaîtra dans votre Datastore quand il sera prêt.</translation>
     </message>
@@ -1635,27 +1640,32 @@
         <translation>Les entités seront écrites et envoyées (QGIS ne les a pas encore comptées). Les grandes couches continuent de s'envoyer en arrière-plan : vous pouvez continuer à travailler, et un transfert interrompu reprend.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="29"/>
+        <location filename="../../align_connector/publish/notices.py" line="61"/>
+        <source>The field “{}” cannot be named as a column.</source>
+        <translation>Le champ « {} » ne peut pas servir de nom de colonne.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/notices.py" line="31"/>
         <source>The field “{}” holds binary data and is not published.</source>
         <translation>Le champ « {} » contient des données binaires et n'est pas publié.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="32"/>
+        <location filename="../../align_connector/publish/notices.py" line="34"/>
         <source>The field “{}” is kept as “{}”: the service keeps the geometry in its own column.</source>
         <translation>Le champ « {} » est gardé sous le nom « {} » : le service garde la géométrie dans sa propre colonne.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="33"/>
+        <location filename="../../align_connector/publish/notices.py" line="35"/>
         <source>The field “{}” is kept as “{}”: the service numbers its features itself.</source>
         <translation>Le champ « {} » est gardé sous le nom « {} » : le service numérote lui-même ses entités.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="49"/>
+        <location filename="../../align_connector/publish/notices.py" line="51"/>
         <source>The file was kept: another service of the same publication is built from it.</source>
         <translation>Le fichier a été gardé : un autre service de la même publication en est construit.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="47"/>
+        <location filename="../../align_connector/publish/notices.py" line="49"/>
         <source>The file was kept: you can no longer remove it.</source>
         <translation>Le fichier a été gardé : vous ne pouvez plus le supprimer.</translation>
     </message>
@@ -1685,6 +1695,11 @@
         <translation>L'item sous lequel « {} » avait été publiée n'existait plus sur ALIGN : elle a été publiée comme nouvel item dans {}.</translation>
     </message>
     <message>
+        <location filename="../../align_connector/publish/notices.py" line="57"/>
+        <source>The layer mixes geometry types. Split it into one layer per type before publishing.</source>
+        <translation>La couche mélange des types de géométrie. Séparez-la en une couche par type avant de publier.</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/publish/service_task.py" line="159"/>
         <source>The layers are stored in your Datastore, but they did not become feature services: {}</source>
         <translation>Les couches sont enregistrées dans votre Datastore, mais ne sont pas devenues des services d'entités : {}</translation>
@@ -1700,12 +1715,12 @@
         <translation>La version précédente est conservée sur ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="45"/>
+        <location filename="../../align_connector/publish/notices.py" line="47"/>
         <source>The projection of this layer is unknown: choose it before publishing.</source>
         <translation>La projection de cette couche est inconnue : choisissez-la avant de publier.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/notices.py" line="51"/>
+        <location filename="../../align_connector/publish/notices.py" line="53"/>
         <source>The publication finished after an interruption: the counts shown may be incomplete.</source>
         <translation>La publication s'est terminée après une interruption : les nombres affichés peuvent être incomplets.</translation>
     </message>
@@ -1803,6 +1818,11 @@
         <location filename="../../align_connector/publish/exporter.py" line="473"/>
         <source>This layer</source>
         <translation>Cette couche</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/notices.py" line="55"/>
+        <source>This layer has more than {} features, the limit of a published layer.</source>
+        <translation>Cette couche a plus de {} entités, la limite d'une couche publiée.</translation>
     </message>
     <message>
         <location filename="../../align_connector/publish/exporter.py" line="186"/>
@@ -2325,12 +2345,12 @@
         <translation>{} entités</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/feature_service.py" line="250"/>
+        <location filename="../../align_connector/publish/feature_service.py" line="252"/>
         <source>{} features have no geometry.</source>
         <translation>{} entités n'ont pas de géométrie.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/feature_service.py" line="272"/>
+        <location filename="../../align_connector/publish/feature_service.py" line="274"/>
         <source>{} features published as an editable feature service.</source>
         <translation>{} entités publiées comme service d'entités éditable.</translation>
     </message>
@@ -2345,7 +2365,7 @@
         <translation>{} entités ; le fichier {} sera envoyé tel quel{}. Les gros fichiers continuent de s'envoyer en arrière-plan : vous pouvez continuer à travailler, et un transfert interrompu reprend.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/feature_service.py" line="247"/>
+        <location filename="../../align_connector/publish/feature_service.py" line="249"/>
         <source>{} invalid geometries were repaired.</source>
         <translation>{} géométries invalides ont été réparées.</translation>
     </message>
@@ -2370,7 +2390,7 @@
         <translation>{} couches ne peuvent pas être publiées :</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/feature_service.py" line="268"/>
+        <location filename="../../align_connector/publish/feature_service.py" line="270"/>
         <source>{} layers published as one editable feature service.</source>
         <translation>{} couches publiées en un seul service d'entités éditable.</translation>
     </message>
@@ -2450,7 +2470,7 @@
         <translation>{} : {} couches de symbole, seule celle {} est gardée.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/feature_service.py" line="141"/>
+        <location filename="../../align_connector/publish/feature_service.py" line="143"/>
         <source>“{}” cannot be a layer of the feature service: {}</source>
         <translation>« {} » ne peut pas être une couche du service d'entités : {}</translation>
     </message>
@@ -2522,7 +2542,7 @@
         <translation>« {} » a été stocké dans {}, mais ALIGN n'a pas pu le préparer à l'affichage : {} Le fichier est en sécurité dans votre Datastore.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/feature_service.py" line="258"/>
+        <location filename="../../align_connector/publish/feature_service.py" line="260"/>
         <source>“{}”: {} features.</source>
         <translation>« {} » : {} entités.</translation>
     </message>

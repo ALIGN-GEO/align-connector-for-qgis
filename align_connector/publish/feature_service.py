@@ -25,7 +25,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
 import html
 
 from ..i18n import tr
-from .notices import notice_texts
+from .notices import notice_text, notice_texts
 
 
 class ServicePublishFailed(Exception):
@@ -81,7 +81,7 @@ def pick_layer(preview):
 
     The plugin sends one layer per file, so the file holds exactly one; a
     refusal ALIGN gives for it (types mixed, too many features) is the user's
-    message.
+    message, said from its code when ALIGN sends one (TCK-2296, finding R).
 
     :param preview: ALIGN's answer to the preview, ``{"layers": [...]}``
     :returns: the layer entry
@@ -91,6 +91,8 @@ def pick_layer(preview):
     if not isinstance(layers, list) or not layers or not isinstance(layers[0], dict):
         raise ServicePublishFailed(tr("ALIGN found no layer to publish in the file it received."))
     layer = layers[0]
+    if isinstance(layer.get("refusalNotice"), dict):
+        raise ServicePublishFailed(notice_text(layer["refusalNotice"]))
     if layer.get("refusal"):
         raise ServicePublishFailed(str(layer["refusal"]))
     return layer

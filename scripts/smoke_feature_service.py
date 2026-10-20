@@ -98,6 +98,19 @@ def test_picks_the_one_layer_or_says_why_not():
         ServicePublishFailed,
     )
     check(str(refused) == "The layer mixes points and lines.", "ALIGN's refusal is the user's message")
+    # TCK-2296 (finding R) — a coded refusal is said by the plugin, without the
+    # name the exported file gave the layer: the message around it names the user's.
+    coded = {
+        "name": "m-lange-R6",
+        "refusal": 'The layer "m-lange-R6" mixes geometry types. Split it into one layer per type before publishing.',
+        "refusalNotice": {
+            "code": "geometryTypesMixed",
+            "params": {"layer": "m-lange-R6"},
+            "message": 'The layer "m-lange-R6" mixes geometry types. Split it into one layer per type before publishing.',
+        },
+    }
+    refused = raises(lambda: feature_service.pick_layer({"layers": [coded]}), ServicePublishFailed)
+    check(str(refused) == "The layer mixes geometry types. Split it into one layer per type before publishing.", str(refused))
     for empty in ({}, {"layers": []}, {"layers": ["x"]}, None):
         raises(lambda e=empty: feature_service.pick_layer(e), ServicePublishFailed)
 
