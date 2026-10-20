@@ -251,6 +251,22 @@ def test_the_connector_refusals_name_the_roles_alike_in_french():
     check(all("Settings → Integrations" in text for text in sentences), "and the same path, as the source writes it: {}".format(sentences))
 
 
+def test_the_publish_box_says_the_validated_label_in_french():
+    """Finding L: the label Benjamin validated, plural, in both of its forms."""
+    import xml.etree.ElementTree as ET
+
+    translations = {
+        message.findtext("source"): message.findtext("translation")
+        for message in ET.parse(str(REPO / "align_connector" / "i18n" / "align_connector_fr.ts")).iter("message")
+    }
+    check(translations.get("Publish as editable feature services (OGC API – Features)") == "Publier comme services d'entités éditables (OGC API – Features)", "the label")
+    check(
+        translations.get("Publish as editable feature services (OGC API – Features): sign in to ALIGN again to use it")
+        == "Publier comme services d'entités éditables (OGC API – Features)\u00a0: reconnectez-vous à ALIGN pour l'utiliser",
+        "and its form for a session without the scope",
+    )
+
+
 def main():
     tests = [
         test_a_layer_remembers_its_service,
@@ -259,6 +275,7 @@ def main():
         test_the_two_reads_and_their_refusals,
         test_the_session_feeds_the_signer,
         test_the_connector_refusals_name_the_roles_alike_in_french,
+        test_the_publish_box_says_the_validated_label_in_french,
     ]
     for test in tests:
         test()

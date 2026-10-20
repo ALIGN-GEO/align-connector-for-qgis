@@ -64,6 +64,7 @@ class _Session(QObject):
         self.pending_url = None
         self.cancelled = 0
         self.signed = True
+        self.scoped = True
 
     def is_signed_in(self):
         return self.signed
@@ -72,7 +73,7 @@ class _Session(QObject):
         return "marie@ville.fr"
 
     def has_scope(self, _scope):
-        return True
+        return self.scoped
 
     def cancel_sign_in(self):
         self.cancelled += 1
@@ -116,6 +117,19 @@ def main():
 
     # -- one organization for both tabs (CA-24) -------------------------------
     check(publish.org_box.currentData() == "o-team", "Publish followed the Services tab")
+    check(
+        publish.service_box.text() == "Publish as editable feature services (OGC API – Features)",
+        "the box carries the label Benjamin validated, plural (finding L): {}".format(publish.service_box.text()),
+    )
+    session.scoped = False
+    publish._set_feature_services(True)
+    check(
+        not publish.service_box.isEnabled()
+        and publish.service_box.text() == "Publish as editable feature services (OGC API – Features): sign in to ALIGN again to use it",
+        "signed in before the features scopes, the same label says to sign in again: {}".format(publish.service_box.text()),
+    )
+    session.scoped = True
+    publish._set_feature_services(True)
     publish.org_box.setCurrentIndex(publish.org_box.findData("o-files"))
     check(services.org_box.currentData() == "o-team", "Services does not follow to an organization it may not use (edge)")
 

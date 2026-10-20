@@ -157,7 +157,7 @@ class PublishView(QWidget):
         # -- as feature services (TCK-2320) -----------------------------------
         # Offered only where ALIGN would accept it: shown for an organization
         # whose plan includes feature services, hidden otherwise.
-        self.service_box = QCheckBox(tr("Publish vector layers as editable feature services"))
+        self.service_box = QCheckBox(tr("Publish as editable feature services (OGC API – Features)"))
         self.service_box.setToolTip(
             tr(
                 "ALIGN moves the features into your organization's database, where QGIS and the Map builder "
@@ -490,9 +490,9 @@ class PublishView(QWidget):
         if offered and not granted:
             self.service_box.setChecked(False)
         self.service_box.setText(
-            tr("Publish vector layers as editable feature services")
+            tr("Publish as editable feature services (OGC API – Features)")
             if granted or not offered
-            else tr("Publish vector layers as editable feature services (sign in to ALIGN again to use it)")
+            else tr("Publish as editable feature services (OGC API – Features): sign in to ALIGN again to use it")
         )
         self._on_service_toggled(self.service_box.isChecked())
 
