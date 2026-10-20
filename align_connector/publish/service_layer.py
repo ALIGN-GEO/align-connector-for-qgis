@@ -12,18 +12,23 @@ project reopened without a session says so and reloads after the sign-in
 The two layers never share a name (CA-7): the service layer is
 "<title> (ALIGN)", the local original is kept, hidden, in a group "Local
 originals". Both remember the service (``service_memory``), so the layer's
-context menu offers to edit it at any time (CA-6).
+context menu offers to edit it at any time (CA-6). The layers of a service of
+several layers open into a group named after the service (TCK-2346, CA-5).
 
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
-from qgis.core import Qgis, QgsDataProvider, QgsMapLayerStyle, QgsProject, QgsVectorLayer
+from qgis.core import Qgis, QgsDataProvider, QgsLayerTree, QgsMapLayerStyle, QgsProject, QgsVectorLayer
 
 from .. import config
 from ..auth.request_signer import supported
 from ..i18n import tr
 from . import memory, service_memory
 from .feature_service import oapif_source
+
+
+#: What the group of a service's layers carries: the service it shows (TCK-2346, CA-5).
+GROUP_KEY = "align/serviceGroup"
 
 
 class ServiceLayerUnavailable(Exception):
@@ -40,7 +45,9 @@ def open_service(ref, read_only=False, local_layer_id=None):
 
     With ``local_layer_id``, the service layer takes the local layer's place
     and style, and the local layer is kept, hidden, in the "Local originals"
-    group: nothing the user had is removed.
+    group: nothing the user had is removed. When the service has a group
+    (``service_group``), the layer goes into it instead, after the layers
+    already there: the service's order.
 
     :param ref: the service layer (``service_memory.ServiceRef``)
     :param read_only: open it for reading only (the user may not edit, or asked to read)
@@ -71,13 +78,58 @@ def open_service(ref, read_only=False, local_layer_id=None):
 
     root = project.layerTreeRoot()
     node = root.findLayer(local_layer_id) if local is not None else None
-    if node is None:
+    group = _group_of(root, ref.service_id)
+    if group is not None:
+        group.addLayer(layer)
+    elif node is not None:
+        parent = node.parent()
+        parent.insertLayer(parent.children().index(node), layer)
+    else:
         root.insertLayer(0, layer)
-        return layer
-    parent = node.parent()
-    parent.insertLayer(parent.children().index(node), layer)
-    _keep_original(root, node)
+    if node is not None:
+        _keep_original(root, node)
     return layer
+
+
+def service_group(service_id, title, local_layer_ids):
+    """The group the layers of a service of several layers open into
+    (TCK-2346, CA-5): the one already made for this service; else the group
+    that holds exactly the service's originals, which the service layers then
+    fill again; else a new group named after the service, where the first
+    original is. The user's group is never renamed.
+
+    :param local_layer_ids: the originals, in the service's order
+    """
+    root = QgsProject.instance().layerTreeRoot()
+    group = _group_of(root, service_id)
+    if group is not None:
+        return group
+    nodes = [node for node in (root.findLayer(layer_id) for layer_id in local_layer_ids) if node is not None]
+    parent = nodes[0].parent() if nodes else root
+    if parent is not root and _holds_exactly(parent, local_layer_ids):
+        parent.setCustomProperty(GROUP_KEY, service_id)
+        return parent
+    group = parent.insertGroup(parent.children().index(nodes[0]) if nodes else 0, title)
+    group.setCustomProperty(GROUP_KEY, service_id)
+    return group
+
+
+def _holds_exactly(group, layer_ids):
+    children = group.children()
+    return all(QgsLayerTree.isLayer(child) for child in children) and {child.layerId() for child in children} == set(layer_ids)
+
+
+def _group_of(group, service_id):
+    """The group made for this service, anywhere under ``group``, or ``None``."""
+    for child in group.children():
+        if not QgsLayerTree.isGroup(child):
+            continue
+        if child.customProperty(GROUP_KEY) == service_id:
+            return child
+        found = _group_of(child, service_id)
+        if found is not None:
+            return found
+    return None
 
 
 def _keep_original(root, node):

@@ -143,14 +143,19 @@ class ServiceLayerActions(object):
         if layer is not None:
             self.edit_layer(layer) if edit else self.read_layer(layer)
 
-    def edit_layer(self, layer):
-        """Edit a service layer, or the service of a published original."""
+    def edit_layer(self, layer, description=None, announce=True):
+        """Edit a service layer, or the service of a published original.
+
+        :param description: the service as ALIGN describes it, when already read
+        :param announce: say in the bar that the layer is in editing mode
+        :returns: the layer in editing mode, or ``None``
+        """
         ref = service_memory.read(layer)
         if ref is None:
-            return
-        description = self._describe(ref)
+            return None
+        description = description or self._describe(ref)
         if description is None:
-            return
+            return None
         allowed = may_edit(description)
         if allowed != ref.can_edit:
             service_memory.set_can_edit(layer, allowed)
@@ -158,10 +163,10 @@ class ServiceLayerActions(object):
         if not allowed:
             self._message(tr("You may not edit this feature service: it opens for reading."), _level("Info"))
             self.read_layer(layer)
-            return
+            return None
         target = self._service_layer_of(layer, ref, read_only=False, description=description)
         if target is None:
-            return
+            return None
         if target is layer:
             # Already open: its rules as the service has them now (CA-5).
             self._set_rules(target, ref, description, announce=False)
@@ -169,7 +174,9 @@ class ServiceLayerActions(object):
         service_memory.rename_for_mode(target, ref, read_only=False)
         target.startEditing()
         self.iface.setActiveLayer(target)
-        self._message(tr("“{}” is in editing mode: save to write the changes to ALIGN.").format(target.name()), _level("Success"))
+        if announce:
+            self._message(tr("“{}” is in editing mode: save to write the changes to ALIGN.").format(target.name()), _level("Success"))
+        return target
 
     def read_layer(self, layer):
         ref = service_memory.read(layer)
@@ -252,36 +259,68 @@ class ServiceLayerActions(object):
 
     # -- entry points of the plugin -----------------------------------------
 
-    def offer_after_publish(self, task, text, level):
-        """The service is ready (TCK-2320, ADR-0063 §3): offer to edit it from
-        QGIS in place of the local layer. The local layer remembers its service,
-        so its context menu offers the same at any time (CA-6); the bar's button
-        is a shortcut. Below QGIS 3.36 the address is given instead."""
-        ref = service_memory.ServiceRef(
-            task.org_id, task.service_id, task.service_layer_id, task.asset_name, task.service_srid, service_memory.ORIGINAL
-        )
-        local = QgsProject.instance().mapLayer(task.layer_id)
-        if local is not None:
-            service_memory.remember(local, ref, service_memory.ORIGINAL)
-            self._offer(local)
+    def offer_after_publish(self, org_id, services, text, level):
+        """The services are ready (TCK-2320, TCK-2346, ADR-0063 §3): offer to
+        edit them from QGIS in place of the local layers. Each local layer
+        remembers its service, so its context menu offers the same at any time
+        (CA-6); the bar's button is a shortcut. Below QGIS 3.36 the addresses
+        are given instead.
+
+        :param services: the ready ``feature_service.PublishedService`` entries
+        """
+        project = QgsProject.instance()
+        for service in services:
+            for published in service.layers:
+                local = project.mapLayer(published.local_layer_id) if published.local_layer_id else None
+                if local is None:
+                    continue
+                ref = service_memory.ServiceRef(
+                    org_id, service.service_id, published.layer_id, published.title, published.srid, service_memory.ORIGINAL
+                )
+                service_memory.remember(local, ref, service_memory.ORIGINAL)
+                self._offer(local)
         if not self._attached:
-            text += " " + tr("Editing it from QGIS needs QGIS 3.36 or later. Its OGC API Features address: {}").format(
-                config.feature_service_ogc_url(task.org_id, task.service_id)
-            )
+            addresses = ", ".join(config.feature_service_ogc_url(org_id, service.service_id) for service in services)
+            text += " " + (
+                tr("Editing it from QGIS needs QGIS 3.36 or later. Its OGC API Features address: {}")
+                if len(services) == 1
+                else tr("Editing them from QGIS needs QGIS 3.36 or later. Their OGC API Features addresses: {}")
+            ).format(addresses)
             self._message(text, level)
             return
         bar = self.iface.messageBar()
         widget = bar.createMessage(PLUGIN_NAME, text)
         button = QPushButton(tr("Edit in QGIS"))
-        button.setToolTip(tr("Opens the feature service in place of the local layer, which is kept, hidden, in the group “Local originals”."))
-        button.clicked.connect(lambda _checked=False, layer=local, w=widget: self._edit_published(layer, w))
+        button.setToolTip(_edit_tooltip(services))
+        button.clicked.connect(lambda _checked=False, w=widget: self._edit_published(services, w))
         widget.layout().addWidget(button)
         bar.pushWidget(widget, level, 0)
 
-    def _edit_published(self, local, widget):
+    def _edit_published(self, services, widget):
+        """Each service in place of its local layers; the layers of a service
+        of several layers in a group named after it (TCK-2346, CA-5)."""
         self.iface.messageBar().popWidget(widget)
-        if local is not None:
-            self.edit_layer(local)
+        project = QgsProject.instance()
+        locals_ = [
+            (service, [layer for layer in (project.mapLayer(p.local_layer_id) for p in service.layers if p.local_layer_id) if layer is not None])
+            for service in services
+        ]
+        count = sum(len(layers) for _service, layers in locals_)
+        edited = 0
+        for service, layers in locals_:
+            if not layers:
+                continue
+            ref = service_memory.read(layers[0])
+            description = self._describe(ref) if ref is not None else None
+            if description is None:
+                continue
+            if len(service.layers) > 1:
+                service_layer.service_group(service.service_id, service.title, [layer.id() for layer in layers])
+            for local in layers:
+                if self.edit_layer(local, description=description, announce=count == 1) is not None:
+                    edited += 1
+        if edited > 1:
+            self._message(tr("{} layers are in editing mode: save each one to write its changes to ALIGN.").format(edited), _level("Success"))
 
     def open_from_services(self, org_id, service, row, edit):
         """The Services tab opens a layer of a service, for reading or editing (CA-5)."""
@@ -359,6 +398,17 @@ class ServiceLayerActions(object):
         still = [layer.name() for layer in layers if not service_layer.reload_layer(layer)]
         if still:
             self._message(tr("ALIGN still refuses these layers: {}.").format(", ".join(still)), _level("Warning"))
+
+
+def _edit_tooltip(services):
+    if len(services) == 1 and len(services[0].layers) > 1:
+        return tr(
+            "Opens the layers of the feature service in a group named after it; the local layers are kept, hidden, "
+            "in the group “Local originals”."
+        )
+    if len(services) == 1:
+        return tr("Opens the feature service in place of the local layer, which is kept, hidden, in the group “Local originals”.")
+    return tr("Opens the feature services in place of the local layers, which are kept, hidden, in the group “Local originals”.")
 
 
 def _clause(text):

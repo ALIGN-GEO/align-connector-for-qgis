@@ -18,6 +18,9 @@ QGIS project and layer tree (the interface is a stand-in). What is proven:
   button, and the sign-in reads the layer again (CA-11);
 * the service layer opens with the service's input rules, read without the
   per-layer counts (TCK-2343);
+* "Edit in QGIS" after a service of several layers opens its layers in a
+  group named after the service, in the service's order, each styled as its
+  original, the originals kept hidden (TCK-2346, CA-5);
 * detaching takes back the signer and the menu entries.
 
 Copyright (C) 2026 Geo Nova
@@ -38,7 +41,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from qgis.core import Qgis, QgsApplication, QgsProject, QgsVectorLayer  # noqa: E402
 from qgis.PyQt.QtWidgets import QWidget  # noqa: E402
 
-from ogc_stub import LAYER, TOKEN, Recorder, serve  # noqa: E402
+from ogc_stub import LAYER, LAYER2, TOKEN, Recorder, serve  # noqa: E402
 
 
 def check(condition, message):
@@ -76,6 +79,67 @@ class _Session(object):
 
     def verify_if_stale(self):
         return self.keep_signer_fresh()
+
+
+def check_service_of_several_layers(project, actions, iface, messages, asked_counts):
+    """TCK-2346 (CA-5): the layers of one service open together, in its group."""
+    from qgis.core import QgsSingleSymbolRenderer, QgsSymbol
+    from qgis.PyQt.QtGui import QColor
+
+    from align_connector.publish import service_layer, service_memory
+    from align_connector.publish.feature_service import READY, PublishedLayer, PublishedService
+
+    project.clear()
+    root = project.layerTreeRoot()
+    root.addGroup("Base")
+    garden = root.insertGroup(0, "Jardins partagés")
+    plots = QgsVectorLayer("Point?crs=EPSG:2154&field=nom:string", "parcelles", "memory")
+    water = QgsVectorLayer("Point?crs=EPSG:2154&field=nom:string", "points d'eau", "memory")
+    symbol = QgsSymbol.defaultSymbol(water.geometryType())
+    symbol.setColor(QColor(0, 90, 200))
+    water.setRenderer(QgsSingleSymbolRenderer(symbol))
+    for local in (plots, water):
+        project.addMapLayer(local, False)
+        garden.addLayer(local)
+
+    service = PublishedService(
+        "Jardins partagés",
+        READY,
+        service_id="svc-jardins",
+        layers=[PublishedLayer(plots.id(), LAYER, "Parcels", 2154), PublishedLayer(water.id(), LAYER2, "Water points", 2154)],
+    )
+    iface.messageBar().createMessage.reset_mock()
+    actions.offer_after_publish("org-1", [service], "“Jardins partagés” is now an editable feature service.", Qgis.MessageLevel.Success)
+    check(iface.messageBar().createMessage.called, "the bar offers to edit the service")
+    check(service_memory.read(plots).layer_id == LAYER and service_memory.read(water).layer_id == LAYER2, "each original remembers its layer (CA-6)")
+
+    described = len(asked_counts)
+    del messages[:]
+    actions._edit_published([service], MagicMock())
+    group = next((child for child in root.children() if child.customProperty(service_layer.GROUP_KEY) == "svc-jardins"), None)
+    check(group is not None and group.name() == "Jardins partagés", "a group named after the service (CA-5): {}".format(messages))
+    names = [child.layer().name() for child in group.findLayers()]
+    check(names == ["Parcels (ALIGN)", "Water points (ALIGN)"], "its layers, in the service's order: {}".format(names))
+    check(root.children().index(group) < root.children().index(root.findGroup("Base")), "where the originals were")
+    opened = [child.layer() for child in group.findLayers()]
+    check(all(layer.isValid() and layer.isEditable() for layer in opened), "each in editing mode")
+    check(opened[1].renderer().symbol().color() == QColor(0, 90, 200), "styled as its original")
+    kept = root.findGroup("Local originals")
+    check(kept is not None and all(kept.findLayer(local.id()) is not None for local in (plots, water)), "the originals kept, hidden")
+    check(len(asked_counts) == described + 1, "one description read for the service's two layers")
+    check(messages[-1] == "2 layers are in editing mode: save each one to write its changes to ALIGN.", messages)
+    for layer in opened:
+        layer.rollBack()
+
+    # Originals at the top of the tree, among other layers: a new group, named
+    # after the service, where the first was; the user's layers untouched (edge).
+    loose = [QgsVectorLayer("Point?crs=EPSG:2154", name, "memory") for name in ("a", "b", "c")]
+    for local in loose:
+        project.addMapLayer(local)
+    made = service_layer.service_group("svc-other", "Autre service", [loose[0].id(), loose[2].id()])
+    check(made.name() == "Autre service" and made.parent() is root, "a new group, named after the service")
+    check(made.customProperty(service_layer.GROUP_KEY) == "svc-other", "and it is the service's")
+    check(service_layer.service_group("svc-other", "Renamed", [loose[1].id()]) is made, "found again: one group per service")
 
 
 def main():
@@ -171,6 +235,8 @@ def main():
     session.live = True
     actions._on_signed_in()
     check(unsigned.isValid(), "after the sign-in, the layer reads (CA-11)")
+
+    check_service_of_several_layers(project, actions, iface, messages, asked_counts)
 
     actions.detach()
     check(iface.removeCustomActionForLayerType.call_count == 2, "detach takes the menu entries back")

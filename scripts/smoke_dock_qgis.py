@@ -14,7 +14,10 @@ The real panel, with ALIGN's answers given in-process. What is under test:
 * a sign-in waiting in the browser shows "Signing in from the browser…" with
   Copy link and Cancel (CA-25);
 * signed out, the panel keeps nothing it read for the account: no organization,
-  no service, no service sheet (CA-20).
+  no service, no service sheet (CA-20);
+* in service mode, "Publish the checked layers as one service" and its name:
+  the button says so, and the batch carries the name; unchecked, one service
+  per layer (TCK-2346).
 
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
@@ -87,6 +90,45 @@ def _enabled(box, org_id):
 
 def _tooltip(box, org_id):
     return box.itemData(box.findData(org_id), Qt.ItemDataRole.ToolTipRole) or ""
+
+
+def check_one_service(app, session, folder):
+    """TCK-2346 — the checked layers as one service, or one service each."""
+    from align_connector.panel import dock as dock_module
+
+    batches = []
+    lot = dock_module.AlignDock(session, batches.append)
+    lot.show_panel()
+    publish = lot.publish
+    publish.org_box.setCurrentIndex(publish.org_box.findData("o-team"))
+    project = QgsProject.instance()
+    for name in ("parcelles", "points_eau"):
+        path = os.path.join(folder, name + ".geojson")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write('{"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"nom": "a"}, "geometry": {"type": "Point", "coordinates": [4.35, 50.85]}}]}')
+        project.addMapLayer(QgsVectorLayer(path, name, "ogr"))
+    app.processEvents()
+    check(not publish.one_service_box.isVisibleTo(publish), "files: no service option")
+    publish.service_box.setChecked(True)
+    check(publish.one_service_box.isVisibleTo(publish) and not publish.service_name.isEnabled(), "service mode: the option shows, the name waits")
+    publish.all_box.setChecked(True)
+    check(publish.publish_button.text() == "Publish 2 layers as feature services", publish.publish_button.text())
+    publish.one_service_box.setChecked(True)
+    check(publish.service_name.isEnabled() and publish.service_name.text() == "Untitled map", "a name proposed: {}".format(publish.service_name.text()))
+    check(publish.publish_button.text() == "Publish 2 layers as one feature service", publish.publish_button.text())
+    publish.service_name.setText("Jardins partagés")
+    publish.publish_button.click()
+    check(len(batches) == 1 and batches[0].one_service_title == "Jardins partagés", "the batch carries the service's name")
+    titles = [request.plan.title for request in batches[0].service_requests]
+    check(titles == ["points_eau", "parcelles"], "both layers, in the panel's order: {}".format(titles))
+
+    publish.one_service_box.setChecked(False)
+    publish.all_box.setChecked(True)
+    publish.publish_button.click()
+    check(len(batches) == 2 and batches[1].one_service_title is None, "unchecked: one service per layer (edge)")
+    project.clear()
+    publish.detach()
+    lot.deleteLater()
 
 
 def main():
@@ -205,6 +247,8 @@ def main():
     check(fresh.publish.org_box.currentData() == "o-second", "and Publish is not moved by it: {}".format(fresh.publish.org_box.currentData()))
     fresh.publish.detach()
     fresh.deleteLater()
+
+    check_one_service(app, session, folder)
 
     dock.deleteLater()
     print("panel inside QGIS {}: all checks passed".format(Qgis.QGIS_VERSION))

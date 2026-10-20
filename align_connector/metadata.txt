@@ -8,6 +8,17 @@ version=0.8.0
 author=Geo Nova
 email=contact@aligngeo.com
 changelog=0.8.0 (not released yet: needs ALIGN's feature services in production)
+    Several layers as one feature service: with "Publish as editable feature
+    services" checked, "Publish the checked layers as one service" and its
+    name make one service with a layer for each checked vector layer, one
+    address, one set of rights and keys; unchecked, each layer becomes its
+    own service, as before. One request asks ALIGN for every service of a
+    click, once their files have all been sent. A layer ALIGN refuses stops
+    the one service and is named; with one service per layer, the others
+    are published and the refused one is named. "Edit in QGIS" opens the
+    layers of a service of several layers in a group named after it, each
+    styled as its original. Needs the publication contract of ALIGN's
+    TCK-2346: the plugin and the server go together.
     A service layer takes the input rules set in ALIGN (Settings > Forms):
     lists with their labels, sliders, check boxes and calendars; required
     fields, bounds and conditions as QGIS constraints with their messages;

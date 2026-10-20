@@ -33,10 +33,12 @@ from .outcome import SUCCESS
 class _PublicationRow(QFrame):
     """One publication: where it goes, how far it is, how it ended."""
 
-    def __init__(self, title, org_name, busy=False, parent=None):
+    def __init__(self, title, org_name, busy=False, progress_text=None, parent=None):
         super().__init__(parent)
         self.title = title
         self.org_name = org_name
+        #: What the row says while it moves, when it is not a transfer.
+        self.progress_text = progress_text
         self.setFrameShape(qt_enum(QFrame, "Shape", "StyledPanel"))
         layout = QVBoxLayout(self)
 
@@ -67,7 +69,9 @@ class _PublicationRow(QFrame):
 
     def set_progress(self, progress):
         self.bar.setValue(int(progress))
-        if progress >= 100:
+        if self.progress_text:
+            self.status.setText(self.progress_text)
+        elif progress >= 100:
             self.status.setText(tr("Cataloguing…"))
         elif progress > 0:
             self.status.setText(tr("Uploading…"))
@@ -120,13 +124,15 @@ class ActivityView(QWidget):
         #: and code. Bounded; survives "Clear finished".
         self.history = []
 
-    def start(self, task, org_id, title=None, link=None, busy=False):
+    def start(self, task, org_id, title=None, link=None, busy=False, progress_text=None):
         """A publication just left: give it a row that moves.
 
         :param link: builds the "Open in ALIGN" URL from ``(org_id, asset_id)``;
             the item's page by default
+        :param progress_text: what the row says while it moves, for a task
+            that is not a transfer (the preparation of feature services)
         """
-        row = _PublicationRow(title or task.asset_name, task.org_name, busy=busy)
+        row = _PublicationRow(title or task.asset_name, task.org_name, busy=busy, progress_text=progress_text)
         self._rows_layout.insertWidget(0, row)
         self._rows[task] = (row, org_id, link or config.item_url)
         self.empty.setVisible(False)

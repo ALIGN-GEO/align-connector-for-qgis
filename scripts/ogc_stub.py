@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """A tiny OGC API Features server, for the smoke scripts that run inside QGIS.
 
-It stands for ALIGN's facade: one service, one layer of three points, every
-answer ``private, no-store`` as ALIGN's facade sends (TCK-2348). It records
+It stands for ALIGN's facade: one service, two layers of three points (the
+second for a service of several layers, TCK-2346), every answer ``private,
+no-store`` as ALIGN's facade sends (TCK-2348). It records
 who sent what, so a script can tell which requests the plugin signed; with
 ``require_token`` it answers 401 to an unsigned request, as ALIGN does.
 
@@ -15,6 +16,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 SERVICE = "/api/v1/orgs/org-1/feature-services/svc-jardins/ogc"
 LAYER = "0123456789abcdef"
+LAYER2 = "fedcba9876543210"
+LAYERS = (LAYER, LAYER2)
 TOKEN = "alg_at_smoke"
 
 
@@ -88,18 +91,22 @@ class Recorder(BaseHTTPRequestHandler):
                     ]
                 },
             )
-        collection = {
-            "id": LAYER,
-            "title": "Jardins",
-            "itemType": "feature",
-            "extent": {"spatial": {"bbox": [[2.2, 48.8, 2.5, 48.9]]}},
-            "links": [{"href": base + "/collections/" + LAYER + "/items", "rel": "items", "type": "application/geo+json"}],
+        collections = {
+            layer_id: {
+                "id": layer_id,
+                "title": "Jardins",
+                "itemType": "feature",
+                "extent": {"spatial": {"bbox": [[2.2, 48.8, 2.5, 48.9]]}},
+                "links": [{"href": base + "/collections/" + layer_id + "/items", "rel": "items", "type": "application/geo+json"}],
+            }
+            for layer_id in LAYERS
         }
         if path == SERVICE + "/collections":
-            return self._send(200, {"collections": [collection], "links": []})
-        if path == SERVICE + "/collections/" + LAYER:
-            return self._send(200, collection)
-        if path == SERVICE + "/collections/" + LAYER + "/items":
+            return self._send(200, {"collections": list(collections.values()), "links": []})
+        named = path[len(SERVICE + "/collections/"):].split("/")[0] if path.startswith(SERVICE + "/collections/") else None
+        if named in collections and path == SERVICE + "/collections/" + named:
+            return self._send(200, collections[named])
+        if named in collections and path == SERVICE + "/collections/" + named + "/items":
             features = [
                 {"type": "Feature", "id": i, "geometry": {"type": "Point", "coordinates": [2.3 + i / 100.0, 48.85]}, "properties": {"nom": "Jardin {}".format(i)}}
                 for i in (1, 2, 3)

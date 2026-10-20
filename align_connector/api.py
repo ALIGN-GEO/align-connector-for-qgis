@@ -475,27 +475,36 @@ def preview_feature_service(session, org_id, asset_id):
     return result.body
 
 
-def start_feature_service(session, org_id, asset_id, layer_name, title, visibility=None, keep_source=False):
-    """Ask ALIGN to publish an uploaded file as a feature service (TCK-2318).
+def start_feature_services(session, org_id, services, visibility=None, keep_source=False):
+    """Ask ALIGN to publish uploaded files as feature services (TCK-2318, TCK-2346).
 
-    The file was sent for this purpose only, so by default ALIGN removes it
-    once the service is ready (``keep_source``).
+    One request for every service of a lot: ALIGN checks it whole before it
+    starts anything, and starts one job per service. The files were sent for
+    this purpose only, so by default ALIGN removes them once the services are
+    ready (``keep_source``).
 
-    :returns: the job, ``{"jobId", "serviceId", "status", ...}``
+    :param services: ``[{title, layers: [{assetId, layerName, title?}]}]``
+        (``feature_service.service_request``)
+    :returns: the jobs, one per service in the order asked,
+        ``[{"jobId", "serviceId", "status", "title", ...}]``
     """
     token = session.access_token()
     if not token:
         raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
-    payload = {"assetId": asset_id, "layerName": layer_name, "title": title, "keepSource": bool(keep_source)}
+    payload = {"services": list(services), "keepSource": bool(keep_source)}
     if visibility:
         payload["visibility"] = visibility
     result = net.post_json(config.feature_publications_endpoint(org_id), payload, bearer=token)
     if not result.ok:
         _feature_service_refusal(result, tr("ALIGN could not start the feature service"))
-    body = result.body if isinstance(result.body, dict) else None
-    if not body or not body.get("jobId"):
+    jobs = result.body.get("jobs") if isinstance(result.body, dict) else None
+    if (
+        not isinstance(jobs, list)
+        or len(jobs) != len(payload["services"])
+        or not all(isinstance(job, dict) and job.get("jobId") for job in jobs)
+    ):
         raise ApiError(tr("ALIGN returned an unexpected answer while starting the feature service."))
-    return body
+    return jobs
 
 
 def feature_service_job(session, org_id, job_id):

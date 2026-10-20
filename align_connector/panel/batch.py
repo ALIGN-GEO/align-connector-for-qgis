@@ -71,9 +71,13 @@ class Request(object):
 
 class Batch(object):
     """What one click on Publish sends: the requests, what they share, and
-    whether a web map should assemble them once they have all landed."""
+    whether a web map should assemble them once they have all landed.
 
-    def __init__(self, org, visibility, description, capacity_line, requests, web_map_name=None, map_view=None):
+    :param service_title: the name of the one feature service the checked
+        vector layers make (TCK-2346); ``None``: one service per layer
+    """
+
+    def __init__(self, org, visibility, description, capacity_line, requests, web_map_name=None, map_view=None, service_title=None):
         self.org = org
         self.visibility = visibility
         self.description = description
@@ -81,11 +85,23 @@ class Batch(object):
         self.requests = requests
         self.web_map_name = web_map_name
         self.map_view = map_view
+        self.service_title = service_title
 
     @property
     def as_service(self):
         """Whether one of the layers goes as a feature service."""
-        return any(getattr(r.plan, "as_service", False) for r in self.requests)
+        return bool(self.service_requests)
+
+    @property
+    def service_requests(self):
+        """The requests whose layer becomes a feature service, in panel order."""
+        return [r for r in self.requests if getattr(r.plan, "as_service", False)]
+
+    @property
+    def one_service_title(self):
+        """The name of the one service the layers make, or ``None`` for one
+        service per layer: a single layer is its own service either way."""
+        return self.service_title if self.service_title and len(self.service_requests) > 1 else None
 
 
 def rows_of(layers):
@@ -151,15 +167,21 @@ def replaceable(row, org_id):
     return link
 
 
-def describe_plan(plans):
+def describe_plan(plans, one_service=False):
     """What the Publish button says: how many layers one click will send,
     how many of them replace an item already on ALIGN, and how many become
-    feature services."""
+    feature services; with `one_service` (TCK-2346), that those make one."""
     count = len(plans)
     replaced = sum(1 for p in plans if getattr(p, "replace", None) is not None)
     services = sum(1 for p in plans if getattr(p, "as_service", False))
     if count == 0:
         return tr("Nothing selected")
+    if services > 1 and one_service:
+        if services == count:
+            return tr("Publish {} layers as one feature service").format(count)
+        if replaced == 0:
+            return tr("Publish {} layers ({} in one feature service)").format(count, services)
+        return tr("Publish {} layers ({} in one feature service, {} replaced)").format(count, services, replaced)
     if services:
         if services == count:
             return tr("Publish 1 layer as a feature service") if count == 1 else tr(

@@ -160,8 +160,8 @@ class AlignDock(QgsDockWidget):
 
     # -- publications -------------------------------------------------------
 
-    def track(self, task, org_id, title=None, link=None, busy=False):
-        self.activity.start(task, org_id, title=title, link=link, busy=busy)
+    def track(self, task, org_id, title=None, link=None, busy=False, progress_text=None):
+        self.activity.start(task, org_id, title=title, link=link, busy=busy, progress_text=progress_text)
 
     def settle(self, task, outcome):
         self.activity.finish(task, outcome)

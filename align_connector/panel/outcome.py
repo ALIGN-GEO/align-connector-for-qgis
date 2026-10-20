@@ -9,7 +9,8 @@ Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
 from ..i18n import tr
-from ..publish.feature_service import describe_result
+from ..publish.feature_service import PENDING, READY, describe_result, layer_summary
+from ..publish.notices import notice_texts
 
 SUCCESS = "success"
 WARNING = "warning"
@@ -109,22 +110,57 @@ def outcome_of(task, succeeded):
 
 
 def _service_outcome(task, name, org):
-    """A layer published as a feature service (TCK-2320): what it holds, or
-    that ALIGN is still preparing it when the follow was cancelled. The item
-    to open is the service, not the file it came from."""
-    service_id = getattr(task, "service_id", None)
-    result = getattr(task, "service_result", None)
-    if isinstance(result, dict):
-        text = tr("“{}” is now an editable feature service in {} on ALIGN.").format(name, org)
-        text += " " + describe_result(result)
-        return Outcome(SUCCESS, text, service_id)
-    return Outcome(
-        INFO,
-        tr("“{}” was sent to {}; ALIGN is still preparing the feature service, which will appear in your Datastore.").format(
-            name, org
-        ),
-        service_id,
-    )
+    """A layer sent to become a feature service (TCK-2320): its file is on
+    ALIGN, and the lot's service task asks for the service next (TCK-2346).
+    No link: the file goes once the service is ready."""
+    joins = getattr(task, "joins_service", None)
+    if joins:
+        return Outcome(INFO, tr("“{}” was sent to {}; it will be a layer of the feature service “{}”.").format(name, org, joins))
+    return Outcome(INFO, tr("“{}” was sent to {}; ALIGN prepares its feature service next.").format(name, org))
+
+
+def services_outcome(task, succeeded):
+    """Read a finished `PublishServicesTask` (TCK-2346) and say what came of
+    each service: what it holds, that ALIGN is still preparing it, or why it
+    was not made. The item to open is the service, when there is one."""
+    org = getattr(task, "org_name", None) or "ALIGN"
+    if not succeeded:
+        if getattr(task, "was_cancelled", False):
+            return Outcome(INFO, tr("Publishing cancelled. No feature service was started."))
+        return Outcome(WARNING, getattr(task, "error_message", None) or tr("Publishing failed."))
+    services = list(getattr(task, "services", None) or [])
+    ready = [service for service in services if service.state == READY]
+    pending = [service for service in services if service.state == PENDING]
+    missed = [service for service in services if service.state not in (READY, PENDING)]
+    parts = []
+    if len(services) == 1 and ready:
+        parts.append(tr("“{}” is now an editable feature service in {} on ALIGN.").format(ready[0].title, org))
+        parts.append(describe_result(ready[0].result))
+    elif ready:
+        parts.append(
+            tr("1 editable feature service is ready in {} on ALIGN.").format(org)
+            if len(ready) == 1
+            else tr("{} editable feature services are ready in {} on ALIGN.").format(len(ready), org)
+        )
+        for service in ready:
+            layers = service.result.get("layers") if isinstance(service.result, dict) else None
+            parts.extend(layer_summary(layer) for layer in layers or [] if isinstance(layer, dict))
+            parts.extend(notice_texts(service.result))
+    for service in pending:
+        parts.append(
+            tr("“{}” was sent to {}; ALIGN is still preparing the feature service, which will appear in your Datastore.").format(
+                service.title, org
+            )
+        )
+    for service in missed:
+        parts.append(
+            tr("“{}” is stored in your Datastore, but it did not become a feature service: {}").format(service.title, service.reason)
+        )
+    follow_error = getattr(task, "follow_error", None)
+    if follow_error:
+        parts.append(follow_error)
+    level = WARNING if missed or follow_error else (INFO if pending or not ready else SUCCESS)
+    return Outcome(level, " ".join(parts), ready[0].service_id if len(ready) == 1 else None)
 
 
 def _schema_sentence(changes):

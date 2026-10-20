@@ -35,10 +35,11 @@ from .panel import webmap
 from .panel.camera import canvas_map_view
 from .panel.dock import AlignDock, dock_area
 from .panel.follow import LotFollower
-from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of
+from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of, services_outcome
 from .processing.provider import AlignProcessingProvider
 from .publish import memory
 from .publish.reference_task import RegisterReferenceTask
+from .publish.service_task import PublishServicesTask
 from .publish.task import PublishLayerTask, utc_now
 from .publish.webmap_task import ComposeWebMapTask
 from .qtcompat import qt_enum, run_exec
@@ -82,7 +83,8 @@ class AlignConnectorPlugin:
         #: Running publishes. QGIS' task manager does not own the Python
         #: object, so dropping our reference would collect a task mid-upload.
         self._tasks = []
-        #: The lot each publish task belongs to, when a web map waits for the lot.
+        #: The lots each publish task belongs to: a web map, or the feature
+        #: services, waiting for the last of them.
         self._followers = {}
 
     # -- i18n ---------------------------------------------------------------
@@ -345,12 +347,16 @@ class AlignConnectorPlugin:
 
         When the batch asks for a web map, a follower waits for the last task
         and the camera is read now, from what the publisher is looking at.
+        The layers that become feature services have their own follower: once
+        their files have all landed, one task asks ALIGN for the services
+        (TCK-2346).
         """
         org = batch.org
         follower = None
         if batch.web_map_name:
             batch.map_view = canvas_map_view(self.iface.mapCanvas())
             follower = LotFollower(batch, self._on_lot_finished)
+        services = LotFollower(batch, self._on_service_files_sent) if batch.as_service else None
         for request in batch.requests:
             if request.briefing.reference is not None:
                 # A service is registered, not uploaded (TCK-2207).
@@ -379,13 +385,18 @@ class AlignConnectorPlugin:
                     iso=request.briefing.iso,
                     replace=request.plan.replace,
                     as_service=getattr(request.plan, "as_service", False),
+                    joins_service=batch.one_service_title,
                 )
             task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
             task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
             self._tasks.append(task)
-            if follower is not None:
-                follower.started(task, request)
-                self._followers[id(task)] = follower
+            lots = [follower] if follower is not None else []
+            if services is not None and getattr(request.plan, "as_service", False):
+                lots.append(services)
+            for lot in lots:
+                lot.started(task, request)
+            if lots:
+                self._followers[id(task)] = lots
             self.dock.track(task, org["id"])
             QgsApplication.taskManager().addTask(task)
 
@@ -399,7 +410,63 @@ class AlignConnectorPlugin:
             text = self.tr("Publishing {} layers to {} — follow them in the ALIGN panel.").format(count, org["name"])
         if batch.web_map_name:
             text += " " + self.tr("The web map “{}” will be created once they have all landed.").format(batch.web_map_name)
+        if batch.one_service_title:
+            text += " " + self.tr("They will make one feature service, “{}”.").format(batch.one_service_title)
         self._message(text, qt_enum(Qgis, "MessageLevel", "Info"))
+
+    def _on_service_files_sent(self, follower):
+        """Every file of the lot's feature services has landed, or failed: ask
+        ALIGN for the services, in one request (TCK-2346). One service of
+        several layers is all or nothing: a layer that could not be sent
+        stops it, and the message says which."""
+        batch = follower.batch
+        org = batch.org
+        records = follower.records()
+        sent = [(task.layer_id, task.asset_id, request.plan.title) for request, task, ok in records if ok and task.asset_id]
+        unsent = [request.plan.title for request, task, ok in records if not ok or not task.asset_id]
+        one = batch.one_service_title
+        if one is not None and unsent:
+            self._message(
+                self.tr("The feature service “{}” was not created: {} could not be sent. The layers that were sent are in your Datastore.").format(
+                    one, ", ".join("“{}”".format(title) for title in unsent)
+                ),
+                qt_enum(Qgis, "MessageLevel", "Warning"),
+            )
+            return
+        if not sent:
+            return
+        task = PublishServicesTask(
+            self.session,
+            org["id"],
+            org["name"],
+            sent,
+            service_title=one,
+            visibility=batch.visibility,
+            capacity_line=batch.capacity_line,
+        )
+        task.taskCompleted.connect(lambda t=task: self._on_services_finished(t, True))
+        task.taskTerminated.connect(lambda t=task: self._on_services_finished(t, False))
+        self._tasks.append(task)
+        preparing = self.tr("Preparing the feature service…") if one is not None or len(sent) == 1 else self.tr("Preparing the feature services…")
+        self.dock.track(task, org["id"], title=task.asset_name, progress_text=preparing)
+        QgsApplication.taskManager().addTask(task)
+
+    def _on_services_finished(self, task, succeeded):
+        """Report what came of each service, and offer to edit the ready ones from QGIS."""
+        if task in self._tasks:
+            self._tasks.remove(task)
+        outcome = services_outcome(task, succeeded)
+        if self.dock is not None:
+            self.dock.settle(task, outcome)
+        if task.needs_sign_in:
+            self.session.sign_out()
+            self._refresh_state()
+        level = _LEVELS.get(outcome.level, qt_enum(Qgis, "MessageLevel", "Warning"))
+        ready = [service for service in task.services if service.layers]
+        if succeeded and ready:
+            self.service_actions.offer_after_publish(task.org_id, ready, outcome.text, level)
+            return
+        self._message(outcome.text, level)
 
     def _on_lot_finished(self, follower):
         """Every layer of the lot has landed, or failed: ask for the web map."""
@@ -478,9 +545,8 @@ class AlignConnectorPlugin:
         if self.dock is not None:
             self.dock.settle(task, outcome)
         self._remember_publication(task, succeeded)
-        follower = self._followers.pop(id(task), None)
-        if follower is not None:
-            follower.finished(task, succeeded)
+        for lot in self._followers.pop(id(task), []):
+            lot.finished(task, succeeded)
 
         if not succeeded and task.needs_sign_in:
             # The session died mid-publish; say so once, and leave the menu
@@ -488,15 +554,7 @@ class AlignConnectorPlugin:
             self.session.sign_out()
             self._refresh_state()
 
-        level = _LEVELS.get(outcome.level, qt_enum(Qgis, "MessageLevel", "Warning"))
-        if succeeded and getattr(task, "service_result", None) is not None:
-            self._offer_service_layer(task, outcome.text, level)
-            return
-        self._message(outcome.text, level)
-
-    def _offer_service_layer(self, task, text, level):
-        """The service is ready (TCK-2320): offer to edit it from QGIS (TCK-2348)."""
-        self.service_actions.offer_after_publish(task, text, level)
+        self._message(outcome.text, _LEVELS.get(outcome.level, qt_enum(Qgis, "MessageLevel", "Warning")))
 
     def _open_from_services(self, org_id, service, row, edit):
         self.service_actions.open_from_services(org_id, service, row, edit)

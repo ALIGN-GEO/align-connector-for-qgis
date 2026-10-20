@@ -1,0 +1,16 @@
+{
+  "description": "TCK-2348 — the publication notices clients translate by code (the QGIS plugin). A code, its parameters and the English message ALIGN shows. Changing a code or a parameter name breaks those clients: change them together.",
+  "notices": [
+    { "code": "fieldBinaryDropped", "params": { "field": "photo" }, "message": "The field \"photo\" holds binary data and is not published." },
+    { "code": "fieldRenamed", "params": { "from": "fid", "to": "source_fid", "reserved": "fid" }, "message": "The field \"fid\" is kept as \"source_fid\": the service numbers its features itself." },
+    { "code": "fieldRenamed", "params": { "from": "GEOM", "to": "source_geom", "reserved": "geom" }, "message": "The field \"GEOM\" is kept as \"source_geom\": the service keeps the geometry in its own column." },
+    { "code": "curvesLinearized", "params": {}, "message": "Curved geometries are published as their linear approximation." },
+    { "code": "dimensionsDropped", "params": { "dimensions": "Z" }, "message": "The Z (altitude) values of the geometries are not kept: the layer is published in 2D." },
+    { "code": "dimensionsDropped", "params": { "dimensions": "M" }, "message": "The M (measure) values of the geometries are not kept: the layer is published in 2D." },
+    { "code": "dimensionsDropped", "params": { "dimensions": "ZM" }, "message": "The Z (altitude) and M (measure) values of the geometries are not kept: the layer is published in 2D." },
+    { "code": "projectionUnknown", "params": {}, "message": "The projection of this layer is unknown: choose it before publishing." },
+    { "code": "sourceKept", "params": {}, "message": "The file was kept: you can no longer remove it." },
+    { "code": "sourceShared", "params": {}, "message": "The file was kept: another service of the same publication is built from it." },
+    { "code": "countsIncomplete", "params": {}, "message": "The publication finished after an interruption: the counts shown may be incomplete." }
+  ]
+}

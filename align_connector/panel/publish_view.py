@@ -161,12 +161,31 @@ class PublishView(QWidget):
         self.service_box.setToolTip(
             tr(
                 "ALIGN moves the features into your organization's database, where QGIS and the Map builder "
-                "edit them live. Each layer becomes a new feature service."
+                "edit them live: a new feature service for each layer, or one for all the checked layers."
             )
         )
         self.service_box.toggled.connect(self._on_service_toggled)
         self.service_box.setVisible(False)
         batch_form.addRow("", self.service_box)
+        # The checked layers as one service of several layers, or one service
+        # each (TCK-2346, Benjamin 2026-10-20): the same choice as the app's
+        # dialog and the Map builder's, in the same words.
+        self.one_service_box = QCheckBox(tr("Publish the checked layers as one service"))
+        self.one_service_box.setToolTip(
+            tr(
+                "One feature service with a layer for each checked vector layer: one address, one set of rights "
+                "and keys. Unchecked, each layer becomes its own service."
+            )
+        )
+        self.one_service_box.toggled.connect(self._on_one_service_toggled)
+        self.one_service_box.setVisible(False)
+        batch_form.addRow("", self.one_service_box)
+        self.service_name = QLineEdit()
+        self.service_name.setPlaceholderText(tr("Name of the service"))
+        self.service_name.setMaxLength(256)
+        self.service_name.setEnabled(False)
+        self.service_name.setVisible(False)
+        batch_form.addRow("", self.service_name)
 
         # -- the web map (TCK-2204) -------------------------------------------
         self.webmap_box = QCheckBox(tr("Also create a web map with these layers"))
@@ -354,6 +373,10 @@ class PublishView(QWidget):
     def _service_mode(self):
         return self._feature_services and self.service_box.isChecked()
 
+    def _one_service(self):
+        """The checked vector layers make one service (TCK-2346)."""
+        return self._service_mode() and self.one_service_box.isChecked()
+
     def _on_service_toggled(self, _checked):
         # A web map is assembled from files, and a feature service is not one
         # yet: the two options do not go together in one click.
@@ -361,7 +384,15 @@ class PublishView(QWidget):
         if service:
             self.webmap_box.setChecked(False)
         self.webmap_box.setEnabled(not service)
+        self.one_service_box.setVisible(service)
+        self.service_name.setVisible(service)
         self._on_current_changed(self.tree.currentItem(), None)
+        self._update_button()
+
+    def _on_one_service_toggled(self, checked):
+        self.service_name.setEnabled(checked)
+        if checked and not self.service_name.text().strip():
+            self.service_name.setText(_project_title())
         self._update_button()
 
     def _on_webmap_toggled(self, checked):
@@ -504,7 +535,7 @@ class PublishView(QWidget):
 
     def _update_button(self):
         plans = self._plans()
-        self.publish_button.setText(batch.describe_plan(plans))
+        self.publish_button.setText(batch.describe_plan(plans, one_service=self._one_service()))
         self.publish_button.setEnabled(bool(plans) and self.selected_org() is not None)
 
     def _plans(self):
@@ -552,6 +583,7 @@ class PublishView(QWidget):
         web_map_name = None
         if self.webmap_box.isChecked():
             web_map_name = self.webmap_title.text().strip() or _project_title()
+        service_title = (self.service_name.text().strip() or _project_title()) if self._one_service() else None
         self._on_publish(
             batch.Batch(
                 org,
@@ -560,6 +592,7 @@ class PublishView(QWidget):
                 self._capacity_line,
                 requests,
                 web_map_name=web_map_name,
+                service_title=service_title,
             )
         )
         # What left is left: a second click must not send it again.

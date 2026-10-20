@@ -45,6 +45,8 @@ def notice_text(notice):
         return tr("The projection of this layer is unknown: choose it before publishing.")
     if code == "sourceKept":
         return tr("The file was kept: you can no longer remove it.")
+    if code == "sourceShared":
+        return tr("The file was kept: another service of the same publication is built from it.")
     if code == "countsIncomplete":
         return tr("The publication finished after an interruption: the counts shown may be incomplete.")
     return html.escape(str(notice.get("message") or ""), quote=False)

@@ -116,11 +116,13 @@ jobs:
       - name: Services become live references
         run: python scripts/smoke_services.py
 
-      # A vector layer published as an editable feature service (TCK-2320):
-      # the layer ALIGN is asked to publish, the job followed to its end, the
-      # result in words, the OAPIF source (no credential in it, TCK-2348), the
-      # refusals, and a batch whose vector layers become new services, never
-      # replacements.
+      # Vector layers published as editable feature services (TCK-2320,
+      # TCK-2346): the layer ALIGN is asked to publish, the services of one
+      # request (the checked layers as one service, all or nothing, or one
+      # service per layer), the jobs followed to their end, the result in
+      # words layer by layer, the OAPIF source (no credential in it,
+      # TCK-2348), the refusals, and a batch whose vector layers become new
+      # services, never replacements.
       - name: Layers become editable feature services
         run: python scripts/smoke_feature_service.py
 
@@ -199,8 +201,15 @@ jobs:
       - name: A revocation, learnt at once (reading, saving, opening a project)
         run: python3 scripts/smoke_session_watch_qgis.py
 
-      - name: The panel (greyed organizations, one organization for both tabs, the tab kept, the sign-in waiting)
+      - name: The panel (greyed organizations, one organization for both tabs, the tab kept, the sign-in waiting, one service)
         run: python3 scripts/smoke_dock_qgis.py
+
+      # TCK-2346 — the lot's files, then one request for its services.
+      - name: A lot of feature services (the files sent, then one task for the services)
+        run: python3 scripts/smoke_service_lot_qgis.py
+
+      - name: The services task (one request, all or nothing, each layer to its original)
+        run: python3 scripts/smoke_services_task_qgis.py
 
       - name: The input rules on a service layer (set, replaced, a refused save explained)
         run: python3 scripts/smoke_service_form_qgis.py

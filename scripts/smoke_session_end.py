@@ -22,6 +22,7 @@ Runs on a plain interpreter — no QGIS. What is under test:
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
+import json
 import pathlib
 import sys
 import tempfile
@@ -180,9 +181,11 @@ def test_the_notices_are_said_by_code():
     check("<b>" not in notice_text(hostile) and "&lt;b&gt;photo" in notice_text(hostile), "a field name's markup is escaped")
     check(notice_texts({"notices": [renamed, unknown]})[1] == "A sentence from a newer ALIGN.", "a result's notices, in order")
     check(notice_texts({"warnings": ["From an older ALIGN."]}) == ["From an older ALIGN."], "an older ALIGN's warnings, as they were")
-    for code in ("fieldBinaryDropped", "fieldRenamed", "curvesLinearized", "dimensionsDropped", "projectionUnknown", "sourceKept", "countsIncomplete"):
-        golden = {"code": code, "params": {"field": "f", "from": "a", "to": "b", "reserved": "fid", "dimensions": "Z"}, "message": "MESSAGE"}
-        check(notice_text(golden) != "MESSAGE", "every code ALIGN sends is said by the plugin: {}".format(code))
+    # ALIGN's own fixture (``feature-publication-notices.golden.json``): a code it adds fails here first.
+    golden = json.loads((REPO / "scripts" / "fixtures" / "feature-publication-notices.golden.json").read_text(encoding="utf-8"))
+    for notice in golden["notices"]:
+        said = dict(notice, message="MESSAGE")
+        check(notice_text(said) != "MESSAGE", "every code ALIGN sends is said by the plugin: {}".format(notice["code"]))
 
 
 class _Layer(object):
