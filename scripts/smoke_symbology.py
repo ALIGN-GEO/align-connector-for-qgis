@@ -20,8 +20,10 @@ report a publisher reads BEFORE sending:
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
+import base64
 import pathlib
 import sys
+import tempfile
 import types
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -84,6 +86,44 @@ def vector(geometry, renderer, labels=False):
 def check(condition, message):
     if not condition:
         raise AssertionError(message)
+
+
+def label_settings(field="nom", expression=False, placement="AroundPoint", scales=None, **text):
+    """A QgsPalLayerSettings stand-in: plain attributes, as the real class has, and its methods."""
+    buffer = Stub(enabled=True, size=1.0, sizeUnit="MM", color=color("#ffffff"))
+    text_format = Stub(**dict(dict(size=10.0, sizeUnit="Point", color=color("#1f2937"), buffer=buffer,
+                                   font=Stub(family="Open Sans"), background=Stub(enabled=False), shadow=Stub(enabled=False)), **text))
+    return types.SimpleNamespace(
+        fieldName=field, isExpression=expression, drawLabels=True,
+        placement=types.SimpleNamespace(name=placement) if placement else None,
+        scaleVisibility=scales is not None, minimumScale=(scales or (0, 0))[0], maximumScale=(scales or (0, 0))[1],
+        format=lambda: text_format, dataDefinedProperties=lambda: Stub(hasActiveProperties=False),
+    )
+
+
+def labelled(geometry, renderer, settings, kind="simple"):
+    return Stub(geometryType=geometry, renderer=renderer, labelsEnabled=True, labeling=Stub(type=kind, settings=settings))
+
+
+def marker_layer(path, fill="#d62828", **extra):
+    attrs = dict(layerType="SvgMarker", path=path, color=color(fill), fillColor=color(fill), strokeColor=color("#111111"),
+                 strokeWidth=0.5, strokeWidthUnit="MM", size=6.0, sizeUnit="MM", dataDefinedProperties=Stub(hasActiveProperties=False))
+    attrs.update(extra)
+    return Stub(**attrs)
+
+
+QGIS_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<circle cx="12" cy="12" r="9" fill="param(fill) #000000" fill-opacity="param(fill-opacity) 1" '
+    'stroke="param(outline) #232323" stroke-width="param(outline-width) 1"/></svg>'
+)
+
+
+def svg_file(markup=QGIS_SVG, name="pin.svg"):
+    folder = pathlib.Path(tempfile.mkdtemp())
+    path = folder / name
+    path.write_text(markup, encoding="utf-8")
+    return str(path)
 
 
 def test_a_simple_fill_keeps_colour_opacity_and_outline_in_pixels():
@@ -268,6 +308,116 @@ def test_the_dialog_sentence_says_what_travels_and_what_was_simplified():
     check(sentence.startswith("Style: single symbol. Simplified: Labels are not transmitted yet. The symbol"), sentence)
 
 
+def test_simple_labels_travel_with_size_colour_halo_and_zoom_range():
+    marker = Stub(layerType="SimpleMarker", color=color("#f59e0b"), size=2.0, sizeUnit="MM", dataDefinedProperties=Stub(hasActiveProperties=False))
+    layer = labelled(0, Stub(type="singleSymbol", symbol=symbol(marker)), label_settings(scales=(25000, 1000)))
+    result = symbology.convert(layer)
+    check(result.style["labels"] == {
+        "field": "nom", "size": 13.33, "color": "#1f2937", "haloColor": "#ffffff", "haloWidth": 3.78,
+        "placement": "point", "minZoom": 13.5, "maxZoom": 18.2,
+    }, result.style["labels"])
+    check(result.summary == "single symbol, labels on nom", result.summary)
+    check(any("Open Sans" in line for line in result.report), result.report)
+    check(any("zoom levels" in line for line in result.report), result.report)
+    check(not any("not transmitted" in line for line in result.report), result.report)
+
+
+def test_labels_follow_a_line_and_report_what_alignment_cannot_follow():
+    line = Stub(layerType="SimpleLine", color=color("#0f172a"), width=0.5, widthUnit="MM", penStyle=1, dataDefinedProperties=Stub(hasActiveProperties=False))
+    result = symbology.convert(labelled(1, Stub(type="singleSymbol", symbol=symbol(line)), label_settings(placement="Curved")))
+    check(result.style["labels"]["placement"] == "line", result.style["labels"])
+
+    result = symbology.convert(labelled(2, Stub(type="singleSymbol", symbol=symbol(fill_layer())), label_settings(placement="PerimeterCurved")))
+    check(result.style["labels"]["placement"] == "point", result.style["labels"])
+    check(any("PerimeterCurved" in line for line in result.report), result.report)
+
+    big = label_settings(size=200.0, buffer=Stub(enabled=True, size=5.0, sizeUnit="MM", color=color("#ffffff")))
+    result = symbology.convert(labelled(2, Stub(type="singleSymbol", symbol=symbol(fill_layer())), big))
+    check(result.style["labels"]["size"] == 72 and result.style["labels"]["haloWidth"] == 10, result.style["labels"])
+    check(sum("within ALIGN's range" in line for line in result.report) == 2, result.report)
+
+
+def test_an_expression_label_travels_only_when_it_is_a_field():
+    renderer = Stub(type="singleSymbol", symbol=symbol(fill_layer()))
+    result = symbology.convert(labelled(2, renderer, label_settings(field='"code ilot"', expression=True)))
+    check(result.style["labels"]["field"] == "code ilot", result.style["labels"])
+
+    result = symbology.convert(labelled(2, renderer, label_settings(field="upper(nom)", expression=True)))
+    check("labels" not in result.style, result.style)
+    check(any("upper(nom)" in line and "not transmitted" in line for line in result.report), result.report)
+
+    result = symbology.convert(labelled(2, renderer, label_settings(), kind="rule-based"))
+    check("labels" not in result.style and any("rule-based" in line for line in result.report), result.report)
+
+    result = symbology.convert(labelled(2, Stub(type="nullSymbol"), label_settings()))
+    check(result.style is None and any("travel with a style" in line for line in result.report), result.report)
+
+
+def test_an_svg_marker_travels_with_its_outline_written_and_its_fill_left_to_align():
+    renderer = Stub(type="singleSymbol", symbol=symbol(marker_layer(svg_file())))
+    result = symbology.convert(vector(0, renderer))
+    images = result.style["images"]
+    check(images["markerColor"] == "#d62828" and images["markerSize"] == 22.68, images)
+    svg = images["markerSvg"]
+    # The fill stays a parameter: ALIGN colours the marker, per class when there are classes.
+    check('fill="param(fill) #000000"' in svg, svg)
+    # 0.5 mm of outline on a 6 mm marker whose own width is 24: 2 units, as QGIS draws it.
+    check('stroke="#111111"' in svg and 'stroke-width="2"' in svg and 'fill-opacity="1"' in svg, svg)
+    check(result.summary == "single symbol, SVG marker", result.summary)
+    check(not any("flat" in line for line in result.report), result.report)
+
+
+def test_categorized_markers_share_one_svg_and_differing_ones_are_reported():
+    path = svg_file()
+    categories = [
+        Stub(value="A", label="A", symbol=symbol(marker_layer(path, fill="#f59e0b")), renderState=True),
+        Stub(value="B", label="B", symbol=symbol(marker_layer(path, fill="#10b981")), renderState=True),
+    ]
+    result = symbology.convert(vector(0, Stub(type="categorizedSymbol", classAttribute="zone", categories=categories)))
+    check("markerSvg" in result.style["images"], result.style)
+    check([r["paint"]["circle-color"] for r in result.style["symbology"]["rules"]] == ["#f59e0b", "#10b981"], result.style["symbology"])
+
+    categories[1] = Stub(value="B", label="B", symbol=symbol(marker_layer(svg_file(name="other.svg"))), renderState=True)
+    result = symbology.convert(vector(0, Stub(type="categorizedSymbol", classAttribute="zone", categories=categories)))
+    check("images" not in result.style, result.style)
+    check(any("different images" in line and "plain circle" in line for line in result.report), result.report)
+
+
+def test_an_svg_fill_travels_as_a_pattern_written_and_sized_as_qgis_draws_it():
+    layer = fill_layer(layer_type="SVGFill", svgFilePath=svg_file(), svgFillColor=color("#b45309"), svgStrokeColor=color("#78350f", 0.5),
+                       svgStrokeWidth=0.2, svgStrokeWidthUnit="MM", patternWidth=5.0, patternWidthUnit="MM")
+    result = symbology.convert(vector(2, Stub(type="singleSymbol", symbol=symbol(layer))))
+    pattern = result.style["images"]["fillPatternSvg"]
+    check(pattern.startswith('<svg width="18.9" height="18.9" xmlns='), pattern[:80])
+    check('fill="#b45309"' in pattern and 'stroke="#78350f"' in pattern and 'stroke-opacity' not in pattern, pattern)
+    check("param(" not in pattern, pattern)
+    check(result.summary == "single symbol, SVG pattern", result.summary)
+    check(not any("flat" in line for line in result.report), result.report)
+
+
+def test_an_svg_that_cannot_travel_is_said_before_the_send():
+    cases = [
+        (str(pathlib.Path(tempfile.mkdtemp()) / "gone.svg"), "not found"),
+        ("https://icons.example/pin.svg", "on the web"),
+        (svg_file('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'), "self-contained"),
+        (svg_file('<svg xmlns="http://www.w3.org/2000/svg"><image href="https://tracker.example/p.png"/></svg>'), "self-contained"),
+        (svg_file('<svg xmlns="http://www.w3.org/2000/svg"><path d="{}"/></svg>'.format("M0 0" * 70000)), "256 KB"),
+        (svg_file("not an image"), "not SVG"),
+    ]
+    for path, reason in cases:
+        result = symbology.convert(vector(0, Stub(type="singleSymbol", symbol=symbol(marker_layer(path)))))
+        check("images" not in result.style, (path, result.style))
+        check(any(reason in line and "plain circle" in line for line in result.report), (reason, result.report))
+
+    embedded = "base64:" + base64.b64encode(QGIS_SVG.encode("utf-8")).decode("ascii")
+    result = symbology.convert(vector(0, Stub(type="singleSymbol", symbol=symbol(marker_layer(embedded)))))
+    check(result.style["images"]["markerSvg"].startswith("<svg"), "an SVG embedded in the project travels")
+
+    internal = svg_file('<svg xmlns="http://www.w3.org/2000/svg"><defs><path id="a" d="M0 0h1v1z"/></defs><use href="#a"/></svg>')
+    result = symbology.convert(vector(0, Stub(type="singleSymbol", symbol=symbol(marker_layer(internal)))))
+    check("images" in result.style, "a reference inside the file is self-contained (#527)")
+
+
 def main():
     tests = [
         test_a_simple_fill_keeps_colour_opacity_and_outline_in_pixels,
@@ -281,6 +431,13 @@ def main():
         test_map_units_and_too_wide_outlines_are_reported,
         test_heatmap_cluster_null_and_unknown_renderers,
         test_the_dialog_sentence_says_what_travels_and_what_was_simplified,
+        test_simple_labels_travel_with_size_colour_halo_and_zoom_range,
+        test_labels_follow_a_line_and_report_what_alignment_cannot_follow,
+        test_an_expression_label_travels_only_when_it_is_a_field,
+        test_an_svg_marker_travels_with_its_outline_written_and_its_fill_left_to_align,
+        test_categorized_markers_share_one_svg_and_differing_ones_are_reported,
+        test_an_svg_fill_travels_as_a_pattern_written_and_sized_as_qgis_draws_it,
+        test_an_svg_that_cannot_travel_is_said_before_the_send,
     ]
     for test in tests:
         test()
