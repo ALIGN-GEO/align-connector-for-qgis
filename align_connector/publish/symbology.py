@@ -561,7 +561,11 @@ def _images(renderer, family, report):
     wanted = _SVG_LAYER_TYPES.get(family)
     if wanted is None:
         return None
-    layers = [layer for symbol in _symbols_of(renderer) for layer in (_call(symbol, "symbolLayers", []) or [])
+    # The symbols are clones that own their layers: they must outlive every
+    # read of a layer below, or QGIS frees the layers under us (a black marker
+    # read from a freed SvgMarker, and a crash waiting to happen).
+    symbols = _symbols_of(renderer)
+    layers = [layer for symbol in symbols for layer in (_call(symbol, "symbolLayers", []) or [])
               if _call(layer, "layerType", "") == wanted]
     if not layers:
         return None
