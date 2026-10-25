@@ -8,6 +8,13 @@ version=0.8.0
 author=Geo Nova
 email=contact@aligngeo.com
 changelog=0.8.0 (not released yet: needs ALIGN's feature services in production)
+    Labels and SVG images travel with a published layer: its simple labels
+    (a field, their size, colour, halo, placement and scale range) and its
+    SVG marker or SVG fill reach ALIGN, which draws them as QGIS does. What
+    cannot travel is named before the send: a label expression, rule-based
+    labels, the font, an SVG on the web, one that runs a script or links to
+    another file, or one over 256 KB. Needs ALIGN's PH-37; an older ALIGN
+    publishes the layer without them.
     Several layers as one feature service: with "Publish as editable feature
     services" checked, "Publish the checked layers as one service" and its
     name make one service with a layer for each checked vector layer, one

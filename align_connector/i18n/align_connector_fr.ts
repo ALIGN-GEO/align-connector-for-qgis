@@ -375,7 +375,7 @@
         <translation>Catalogage…</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="155"/>
+        <location filename="../../align_connector/publish/symbology.py" line="189"/>
         <source>Categorized renderer without usable categories: the first symbol applies to everything.</source>
         <translation>Rendu catégorisé sans catégorie utilisable : le premier symbole s'applique à tout.</translation>
     </message>
@@ -607,7 +607,7 @@
         <translation>Entités</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="266"/>
+        <location filename="../../align_connector/publish/symbology.py" line="300"/>
         <source>Features outside every category are drawn in neutral grey (QGIS would hide them).</source>
         <translation>Les entités hors de toute catégorie sont dessinées en gris neutre (QGIS les masquerait).</translation>
     </message>
@@ -642,22 +642,22 @@
         <translation>Indiquez l'organisation où publier, par son nom ou son identifiant.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="187"/>
+        <location filename="../../align_connector/publish/symbology.py" line="221"/>
         <source>Graduated by size: the classes keep their colours, the sizes do not vary on the web.</source>
         <translation>Gradué par taille : les classes gardent leurs couleurs, les tailles ne varient pas sur le web.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="183"/>
+        <location filename="../../align_connector/publish/symbology.py" line="217"/>
         <source>Graduated renderer without usable classes: the first symbol applies to everything.</source>
         <translation>Rendu gradué sans classe utilisable : le premier symbole s'applique à tout.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="110"/>
+        <location filename="../../align_connector/publish/symbology.py" line="144"/>
         <source>Heatmap: the web engine's own colour ramp applies.</source>
         <translation>Carte de chaleur : la rampe de couleurs du moteur web s'applique.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="140"/>
+        <location filename="../../align_connector/publish/symbology.py" line="174"/>
         <source>Hidden category '{}' is not transmitted.</source>
         <translation>La catégorie masquée « {} » n'est pas transmise.</translation>
     </message>
@@ -717,9 +717,64 @@
         <translation>Type</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="82"/>
-        <source>Labels are not transmitted yet; add them in the Map builder.</source>
-        <translation>Les étiquettes ne sont pas encore transmises ; ajoutez-les dans le Map builder.</translation>
+        <location filename="../../align_connector/publish/symbology.py" line="110"/>
+        <source>Labels and SVG images travel with a style: without one, ALIGN's default applies.</source>
+        <translation>Les étiquettes et les images SVG voyagent avec un style : sans lui, le style par défaut d'ALIGN s'applique.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="503"/>
+        <source>Labels: drawn in the map's font, not '{}'.</source>
+        <translation>Étiquettes : dessinées dans la police de la carte, pas en « {} ».</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="497"/>
+        <source>Labels: halo</source>
+        <translation>Étiquettes : halo</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="510"/>
+        <source>Labels: properties driven by expressions are ignored.</source>
+        <translation>Étiquettes : les propriétés pilotées par des expressions sont ignorées.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="470"/>
+        <source>Labels: rule-based labelling is not transmitted; add the labels in the Map builder.</source>
+        <translation>Étiquettes : l'étiquetage par règles n'est pas transmis ; ajoutez les étiquettes dans le Map builder.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="487"/>
+        <source>Labels: size</source>
+        <translation>Étiquettes : taille</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="530"/>
+        <source>Labels: the '{}' placement is drawn as a label on the feature's point.</source>
+        <translation>Étiquettes : le placement « {} » est dessiné en étiquette sur le point de l'entité.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="505"/>
+        <source>Labels: the background shape is not transmitted.</source>
+        <translation>Étiquettes : le fond n'est pas transmis.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="481"/>
+        <source>Labels: the expression '{}' is not transmitted, only a field is; add the labels in the Map builder.</source>
+        <translation>Étiquettes : l'expression « {} » n'est pas transmise, seul un champ l'est ; ajoutez les étiquettes dans le Map builder.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="549"/>
+        <source>Labels: the scale range becomes map zoom levels, exact at the equator only.</source>
+        <translation>Étiquettes : la plage d'échelles devient des niveaux de zoom, exacts à l'équateur seulement.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="507"/>
+        <source>Labels: the shadow is not transmitted.</source>
+        <translation>Étiquettes : l'ombre n'est pas transmise.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="474"/>
+        <source>Labels: this labelling cannot be read, so it is not transmitted.</source>
+        <translation>Étiquettes : cet étiquetage est illisible, il n'est donc pas transmis.</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/services_model.py" line="75"/>
@@ -849,12 +904,12 @@
         <translation>Aucune publication pour l'instant. Choisissez des couches dans la vue Publier.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="79"/>
+        <location filename="../../align_connector/publish/symbology.py" line="103"/>
         <source>No renderer: the layer takes ALIGN's default style.</source>
         <translation>Pas de rendu : la couche prend le style par défaut d'ALIGN.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="126"/>
+        <location filename="../../align_connector/publish/symbology.py" line="160"/>
         <source>No symbol in QGIS (the layer is invisible there): it takes ALIGN's default style.</source>
         <translation>Pas de symbole dans QGIS (la couche y est invisible) : elle prend le style par défaut d'ALIGN.</translation>
     </message>
@@ -998,7 +1053,7 @@
         <translation>Propriétaire</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="122"/>
+        <location filename="../../align_connector/publish/symbology.py" line="156"/>
         <source>Point displacement is rendered as plain points.</source>
         <translation>Le déplacement de points est rendu en points simples.</translation>
     </message>
@@ -1295,7 +1350,7 @@
         <translation>Actualiser</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="129"/>
+        <location filename="../../align_connector/publish/symbology.py" line="163"/>
         <source>Renderer '{}' has no web equivalent: the layer takes ALIGN's default style.</source>
         <translation>Le rendu « {} » n'a pas d'équivalent web : la couche prend le style par défaut d'ALIGN.</translation>
     </message>
@@ -1325,14 +1380,44 @@
         <translation>Remplacement de « {} » sur ALIGN</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="240"/>
+        <location filename="../../align_connector/publish/symbology.py" line="274"/>
         <source>Rule-based renderer transmitted as categories on '{}'.</source>
         <translation>Rendu par règles transmis en catégories sur « {} ».</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="243"/>
+        <location filename="../../align_connector/publish/symbology.py" line="277"/>
         <source>Rule-based renderer with expressions ALIGN cannot read: the first rule's symbol applies to everything.</source>
         <translation>Rendu par règles avec des expressions qu'ALIGN ne sait pas lire : le symbole de la première règle s'applique à tout.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="115"/>
+        <source>SVG marker</source>
+        <translation>marqueur SVG</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="115"/>
+        <source>SVG pattern</source>
+        <translation>motif SVG</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="590"/>
+        <source>SVG: marker size</source>
+        <translation>SVG : taille du marqueur</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="571"/>
+        <source>SVG: the classes draw different images, and ALIGN draws one per layer; {}.</source>
+        <translation>SVG : les classes dessinent des images différentes, et ALIGN en dessine une par couche ; {}.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="581"/>
+        <source>SVG: the image weighs more than ALIGN's limit of 256 KB; {}.</source>
+        <translation>SVG : l'image dépasse la limite d'ALIGN de 256 Ko ; {}.</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="576"/>
+        <source>SVG: {}; {}.</source>
+        <translation>SVG : {} ; {}.</translation>
     </message>
     <message>
         <location filename="../../align_connector/panel/services_view.py" line="71"/>
@@ -1886,7 +1971,7 @@
         <translation>Requête inattendue</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="75"/>
+        <location filename="../../align_connector/publish/symbology.py" line="99"/>
         <source>Unknown geometry type: the layer takes ALIGN's default style.</source>
         <translation>Type de géométrie inconnu : la couche prend le style par défaut d'ALIGN.</translation>
     </message>
@@ -2086,7 +2171,7 @@
         <translation>archive</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="286"/>
+        <location filename="../../align_connector/publish/symbology.py" line="320"/>
         <source>bottom</source>
         <translation>du dessous</translation>
     </message>
@@ -2096,23 +2181,23 @@
         <translation>octets</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="163"/>
-        <location filename="../../align_connector/publish/symbology.py" line="242"/>
+        <location filename="../../align_connector/publish/symbology.py" line="197"/>
+        <location filename="../../align_connector/publish/symbology.py" line="276"/>
         <source>categorized on {}, {} classes</source>
         <translation>catégorisé sur {}, {} classes</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="142"/>
+        <location filename="../../align_connector/publish/symbology.py" line="176"/>
         <source>category '{}'</source>
         <translation>catégorie « {} »</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="290"/>
+        <location filename="../../align_connector/publish/symbology.py" line="325"/>
         <source>circle</source>
         <translation>cercle</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="173"/>
+        <location filename="../../align_connector/publish/symbology.py" line="207"/>
         <source>class '{}'</source>
         <translation>classe « {} »</translation>
     </message>
@@ -2122,22 +2207,32 @@
         <translation>contact</translation>
     </message>
     <message>
+        <location filename="../../align_connector/publish/symbology.py" line="568"/>
+        <source>drawn as a plain circle</source>
+        <translation>dessiné en cercle simple</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="568"/>
+        <source>drawn as a plain fill</source>
+        <translation>dessiné en remplissage uni</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/panel/publish_view.py" line="626"/>
         <source>editor</source>
         <translation>éditeur</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="290"/>
+        <location filename="../../align_connector/publish/symbology.py" line="325"/>
         <source>fill</source>
         <translation>remplissage</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="195"/>
+        <location filename="../../align_connector/publish/symbology.py" line="229"/>
         <source>graduated on {}, {} classes</source>
         <translation>gradué sur {}, {} classes</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="111"/>
+        <location filename="../../align_connector/publish/symbology.py" line="145"/>
         <source>heatmap</source>
         <translation>carte de chaleur</translation>
     </message>
@@ -2152,13 +2247,18 @@
         <translation>sa publication n'a pas abouti</translation>
     </message>
     <message>
+        <location filename="../../align_connector/publish/symbology.py" line="118"/>
+        <source>labels on {}</source>
+        <translation>étiquettes sur {}</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/publish/isometa.py" line="115"/>
         <location filename="../../align_connector/publish/isometa.py" line="116"/>
         <source>licence</source>
         <translation>licence</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="290"/>
+        <location filename="../../align_connector/publish/symbology.py" line="325"/>
         <source>line</source>
         <translation>ligne</translation>
     </message>
@@ -2214,55 +2314,115 @@
         <translation>retypé {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="216"/>
+        <location filename="../../align_connector/publish/symbology.py" line="250"/>
         <source>rule '{}'</source>
         <translation>règle « {} »</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="286"/>
+        <location filename="../../align_connector/publish/symbology.py" line="320"/>
         <source>simple</source>
         <translation>simple</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="248"/>
-        <location filename="../../align_connector/publish/symbology.py" line="97"/>
-        <location filename="../../align_connector/publish/symbology.py" line="158"/>
-        <location filename="../../align_connector/publish/symbology.py" line="185"/>
+        <location filename="../../align_connector/publish/symbology.py" line="282"/>
+        <location filename="../../align_connector/publish/symbology.py" line="131"/>
+        <location filename="../../align_connector/publish/symbology.py" line="192"/>
+        <location filename="../../align_connector/publish/symbology.py" line="219"/>
         <source>single symbol</source>
         <translation>symbole unique</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="117"/>
+        <location filename="../../align_connector/publish/svg_images.py" line="88"/>
+        <source>the SVG '{}'</source>
+        <translation>le SVG « {} »</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/svg_images.py" line="79"/>
+        <source>the SVG '{}' is on the web; ALIGN keeps only an SVG written into the style</source>
+        <translation>le SVG « {} » est sur le web ; ALIGN ne garde qu'un SVG écrit dans le style</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/svg_images.py" line="77"/>
+        <source>the SVG embedded in the project</source>
+        <translation>le SVG intégré au projet</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/svg_images.py" line="76"/>
+        <source>the SVG embedded in the project cannot be read</source>
+        <translation>le SVG intégré au projet est illisible</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/svg_images.py" line="87"/>
+        <source>the SVG file '{}' cannot be read</source>
+        <translation>le fichier SVG « {} » est illisible</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/svg_images.py" line="89"/>
+        <source>the SVG file '{}' is not found on this computer</source>
+        <translation>le fichier SVG « {} » est introuvable sur cet ordinateur</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="589"/>
+        <source>the SVG marker size</source>
+        <translation>la taille du marqueur SVG</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="618"/>
+        <source>the SVG outline</source>
+        <translation>le contour du SVG</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="601"/>
+        <source>the SVG pattern width</source>
+        <translation>la largeur du motif SVG</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="151"/>
         <source>the cluster distance</source>
         <translation>la distance de regroupement</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="160"/>
+        <location filename="../../align_connector/publish/symbology.py" line="194"/>
         <source>the first category</source>
         <translation>la première catégorie</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="190"/>
+        <location filename="../../align_connector/publish/symbology.py" line="224"/>
         <source>the first class</source>
         <translation>la première classe</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="247"/>
-        <location filename="../../align_connector/publish/symbology.py" line="238"/>
+        <location filename="../../align_connector/publish/symbology.py" line="281"/>
+        <location filename="../../align_connector/publish/symbology.py" line="272"/>
         <source>the first rule</source>
         <translation>la première règle</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="109"/>
+        <location filename="../../align_connector/publish/symbology.py" line="143"/>
         <source>the heatmap radius</source>
         <translation>le rayon de la carte de chaleur</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="96"/>
-        <location filename="../../align_connector/publish/symbology.py" line="157"/>
-        <location filename="../../align_connector/publish/symbology.py" line="184"/>
+        <location filename="../../align_connector/publish/symbology.py" line="496"/>
+        <source>the label halo</source>
+        <translation>le halo des étiquettes</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="486"/>
+        <source>the label size</source>
+        <translation>la taille des étiquettes</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="130"/>
+        <location filename="../../align_connector/publish/symbology.py" line="191"/>
+        <location filename="../../align_connector/publish/symbology.py" line="218"/>
         <source>the symbol</source>
         <translation>le symbole</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/svg_images.py" line="71"/>
+        <source>the symbol names no SVG file</source>
+        <translation>le symbole ne nomme aucun fichier SVG</translation>
     </message>
     <message>
         <location filename="../../align_connector/publish/exporter.py" line="381"/>
@@ -2285,12 +2445,12 @@
         <translation>erreur inattendue</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="129"/>
+        <location filename="../../align_connector/publish/symbology.py" line="163"/>
         <source>unknown</source>
         <translation>inconnu</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="290"/>
+        <location filename="../../align_connector/publish/symbology.py" line="325"/>
         <source>unknown symbol layer</source>
         <translation>couche de symbole inconnue</translation>
     </message>
@@ -2315,7 +2475,7 @@
         <translation>{} (ALIGN, lecture)</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="119"/>
+        <location filename="../../align_connector/publish/symbology.py" line="153"/>
         <source>{} (clustered)</source>
         <translation>{} (regroupé)</translation>
     </message>
@@ -2370,6 +2530,11 @@
         <translation>{} géométries invalides ont été réparées.</translation>
     </message>
     <message>
+        <location filename="../../align_connector/publish/svg_images.py" line="95"/>
+        <source>{} is not SVG markup</source>
+        <translation>{} n'est pas du balisage SVG</translation>
+    </message>
+    <message>
         <location filename="../../align_connector/publish/isometa.py" line="111"/>
         <source>{} keywords</source>
         <translation>{} mots-clés</translation>
@@ -2395,22 +2560,27 @@
         <translation>{} couches publiées en un seul service d'entités éditable.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="326"/>
+        <location filename="../../align_connector/publish/symbology.py" line="361"/>
         <source>{} outline</source>
         <translation>contour de {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="311"/>
+        <location filename="../../align_connector/publish/svg_images.py" line="97"/>
+        <source>{} runs a script or links to another file; ALIGN keeps only a self-contained SVG</source>
+        <translation>{} exécute un script ou renvoie à un autre fichier ; ALIGN ne garde qu'un SVG autonome</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="346"/>
         <source>{} size</source>
         <translation>taille de {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="318"/>
+        <location filename="../../align_connector/publish/symbology.py" line="353"/>
         <source>{} stroke</source>
         <translation>trait de {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="306"/>
+        <location filename="../../align_connector/publish/symbology.py" line="341"/>
         <source>{} width</source>
         <translation>largeur de {}</translation>
     </message>
@@ -2420,42 +2590,42 @@
         <translation>{}, {} : {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="289"/>
+        <location filename="../../align_connector/publish/symbology.py" line="324"/>
         <source>{}: '{}' has no web equivalent, rendered as a flat {}.</source>
         <translation>{} : « {} » n'a pas d'équivalent web, rendu en {} à plat.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="309"/>
+        <location filename="../../align_connector/publish/symbology.py" line="344"/>
         <source>{}: dash pattern not transmitted, solid line.</source>
         <translation>{} : motif de tirets non transmis, ligne continue.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="488"/>
+        <location filename="../../align_connector/publish/symbology.py" line="751"/>
         <source>{}: map-unit size has no screen equivalent, rendered at 1 mm.</source>
         <translation>{} : une taille en unités de carte n'a pas d'équivalent écran, rendue à 1 mm.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="314"/>
+        <location filename="../../align_connector/publish/symbology.py" line="349"/>
         <source>{}: marker shape rendered as a circle.</source>
         <translation>{} : forme du marqueur rendue en cercle.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="303"/>
+        <location filename="../../align_connector/publish/symbology.py" line="338"/>
         <source>{}: no brush, the polygon is transparent.</source>
         <translation>{} : pas de remplissage, le polygone est transparent.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="353"/>
+        <location filename="../../align_connector/publish/symbology.py" line="388"/>
         <source>{}: no readable colour, ALIGN's default blue applies.</source>
         <translation>{} : aucune couleur lisible, le bleu par défaut d'ALIGN s'applique.</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="330"/>
+        <location filename="../../align_connector/publish/symbology.py" line="365"/>
         <source>{}: outline width reduced to {} px (ALIGN's maximum).</source>
         <translation>{} : largeur de contour réduite à {} px (maximum d'ALIGN).</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="292"/>
+        <location filename="../../align_connector/publish/symbology.py" line="327"/>
         <source>{}: properties driven by expressions are ignored.</source>
         <translation>{} : les propriétés pilotées par des expressions sont ignorées.</translation>
     </message>
@@ -2465,7 +2635,12 @@
         <translation>{} : {}</translation>
     </message>
     <message>
-        <location filename="../../align_connector/publish/symbology.py" line="285"/>
+        <location filename="../../align_connector/publish/symbology.py" line="659"/>
+        <source>{}: {} px, within ALIGN's range ({} to {} px).</source>
+        <translation>{} : {} px, dans la plage d'ALIGN ({} à {} px).</translation>
+    </message>
+    <message>
+        <location filename="../../align_connector/publish/symbology.py" line="319"/>
         <source>{}: {} symbol layers, only the {} one is kept.</source>
         <translation>{} : {} couches de symbole, seule celle {} est gardée.</translation>
     </message>

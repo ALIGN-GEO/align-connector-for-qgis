@@ -217,6 +217,11 @@ jobs:
       - name: QGIS's own message bar (raw errors after a revocation, a rules refusal)
         run: python3 scripts/smoke_message_bar_qgis.py
 
+      # PH-37 / PH-38 — what a publish reads from real QGIS objects: an SVG
+      # marker's colour from a live symbol layer, a JPEG's system from its layer.
+      - name: A publish reads live QGIS objects (SVG marker colour, a JPEG's system)
+        run: python3 scripts/smoke_publish_style_qgis.py
+
   metadata:
     runs-on: ubuntu-latest
     steps:

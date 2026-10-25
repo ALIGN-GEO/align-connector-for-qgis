@@ -112,6 +112,16 @@ def main():
         raster.source_file_of(FakeLayer(os.path.join(workdir, "gone.tif"))) is None,
     )
 
+    print("a georeferenced JPEG or PNG beside its world file (PH-38)")
+    for image, world in (("ortho.jpg", "ortho.jgw"), ("plan.png", "plan.pgw")):
+        with open(os.path.join(workdir, image), "wb") as handle:
+            handle.write(b"not really an image")
+        with open(os.path.join(workdir, world), "w") as handle:
+            handle.write("2.5\n0\n0\n-2.5\n651001.25\n6862998.75\n")
+        # The world file stays on this machine: the image is written out as a
+        # GeoTIFF from QGIS's reading of both (extent and CRS), never sent alone.
+        check("{} is written as a GeoTIFF, not sent alone".format(image), raster.source_file_of(FakeLayer(os.path.join(workdir, image))) is None)
+
     print("a remote service")
     try:
         raster.export_raster(FakeLayer("url=https://example.org/wms", FakeProvider(name="wms")))

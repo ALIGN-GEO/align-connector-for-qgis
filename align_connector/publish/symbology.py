@@ -17,10 +17,12 @@ so the decisions are proven on a plain interpreter with stand-ins
 Copyright (C) 2026 Geo Nova
 SPDX-License-Identifier: GPL-2.0-or-later
 """
+import math
 import re
 from contextlib import suppress
 
 from ..i18n import tr
+from . import svg_images
 
 #: Paint family per geometry, the MapLibre vocabulary ALIGN keys its style on.
 _FAMILY_BY_GEOMETRY = {0: "circle", 1: "line", 2: "fill", "point": "circle", "line": "line", "polygon": "fill"}
@@ -50,6 +52,28 @@ _EQUALITY = re.compile(
 #: QGIS classification method ids → the ALIGN scheme vocabulary (Style.ts).
 _SCHEMES = {"EqualInterval": "equal-interval", "Quantile": "quantile", "Jenks": "natural-breaks"}
 
+#: The symbol layer whose SVG ALIGN draws, per family (PH-37): a point's
+#: marker, a polygon's pattern. Lines have none.
+_SVG_LAYER_TYPES = {"circle": "SvgMarker", "fill": "SVGFill"}
+
+#: Bounds of a published style's labels and marker (Style.ts, AssetLabels and AssetImages).
+_LABEL_SIZE_PX = (4.0, 72.0)
+_HALO_MAX_PX = 10.0
+_MARKER_SIZE_PX = (4.0, 128.0)
+_LABEL_FIELD_MAX = 256
+
+#: QGIS label placements, by enum name (QGIS 4) and by value (QGIS 3).
+_LINE_PLACEMENTS = ("Line", "Curved", "PerimeterCurved", 2, 3, 7)
+_POINT_PLACEMENTS = ("AroundPoint", "OverPoint", "OrderedPositionsAroundPoint", 0, 1, 6)
+_HORIZONTAL_PLACEMENTS = ("Horizontal", 4)
+
+#: The map scale at web zoom 0, at the 96 dpi QGIS assumes for a screen: a
+#: label's scale range becomes zoom levels, exact at the equator only.
+_SCALE_AT_ZOOM_0 = 295829355.45
+
+#: ``"field"`` or ``field``: a label expression that is only a field.
+_FIELD_EXPRESSION = re.compile(r'^\s*(?:"(?P<quoted>[^"]+)"|(?P<bare>[A-Za-z_][A-Za-z0-9_]*))\s*$')
+
 
 class Conversion(object):
     """What the layer's symbology becomes, and what was lost on the way.
@@ -78,11 +102,21 @@ def convert(layer):
     if renderer is None:
         return Conversion(None, None, [tr("No renderer: the layer takes ALIGN's default style.")])
 
-    if _labels_enabled(layer):
-        report.append(tr("Labels are not transmitted yet; add them in the Map builder."))
-
     style, summary = _convert_renderer(renderer, family, report)
-    return Conversion(style, summary, report)
+    labels = _labels(layer, family, report) if _labels_enabled(layer) else None
+    images = _images(renderer, family, report)
+    if style is None:
+        if labels or images:
+            report.append(tr("Labels and SVG images travel with a style: without one, ALIGN's default applies."))
+        return Conversion(None, summary, report)
+    parts = [summary]
+    if images:
+        style["images"] = images
+        parts.append(tr("SVG marker") if "markerSvg" in images else tr("SVG pattern"))
+    if labels:
+        style["labels"] = labels
+        parts.append(tr("labels on {}").format(labels["field"]))
+    return Conversion(style, ", ".join(parts), report)
 
 
 # ---------------------------------------------------------------------------
@@ -285,7 +319,8 @@ def _symbol_paint(symbol, family, report, what):
         report.append(tr("{}: {} symbol layers, only the {} one is kept.").format(
             _cap(what), len(layers), tr("simple") if layer is not layers[0] else tr("bottom")))
     layer_type = _call(layer, "layerType", "") if layer is not None else ""
-    if layer is not None and layer_type not in _FAITHFUL_LAYER_TYPES:
+    # An SVG marker or pattern travels as an image; `_images` says so when it cannot.
+    if layer is not None and layer_type not in _FAITHFUL_LAYER_TYPES and layer_type != _SVG_LAYER_TYPES.get(family):
         report.append(tr("{}: '{}' has no web equivalent, rendered as a flat {}.").format(
             _cap(what), layer_type or tr("unknown symbol layer"), {"fill": tr("fill"), "line": tr("line"), "circle": tr("circle")}[family]))
     if layer is not None and _data_defined(layer):
@@ -419,8 +454,240 @@ def _is_circle(shape):
 
 
 # ---------------------------------------------------------------------------
+# Labels (PH-37)
+# ---------------------------------------------------------------------------
+
+def _labels(layer, family, report):
+    """The layer's simple labelling as ALIGN's ``labels`` block, or ``None``.
+
+    ALIGN labels a feature with one field, in one size, colour and halo, on a
+    point or along a line, between two zooms. Whatever QGIS adds to that is
+    named in the report.
+    """
+    labeling = _call(layer, "labeling", None)
+    kind = _call(labeling, "type", "")
+    if kind == "rule-based":
+        report.append(tr("Labels: rule-based labelling is not transmitted; add the labels in the Map builder."))
+        return None
+    settings = _call(labeling, "settings", None)
+    if kind != "simple" or settings is None:
+        report.append(tr("Labels: this labelling cannot be read, so it is not transmitted."))
+        return None
+    if not _attr(settings, "drawLabels", True):
+        return None
+
+    field = _label_field(settings)
+    if not field:
+        report.append(tr("Labels: the expression '{}' is not transmitted, only a field is; add the labels in the Map builder.").format(
+            _attr(settings, "fieldName", "") or ""))
+        return None
+
+    text_format = _call(settings, "format", None)
+    size = _px(_call(text_format, "size", 10.0), _call(text_format, "sizeUnit", "Point"), report, tr("the label size"))
+    labels = {"field": field, "size": _bounded(size, _LABEL_SIZE_PX, report, tr("Labels: size"))}
+    color = _hex(_call(text_format, "color", None))
+    if color:
+        labels["color"] = color[0]
+    buffer = _call(text_format, "buffer", None)
+    if buffer is not None and _call(buffer, "enabled", False):
+        halo = _hex(_call(buffer, "color", None))
+        if halo:
+            labels["haloColor"] = halo[0]
+        width = _px(_call(buffer, "size", 1.0), _call(buffer, "sizeUnit", "mm"), report, tr("the label halo"))
+        labels["haloWidth"] = _bounded(width, (0.0, _HALO_MAX_PX), report, tr("Labels: halo"))
+    labels["placement"] = _placement(_attr(settings, "placement", None), family, report)
+    labels.update(_zoom_range(settings, report))
+
+    font = _call(_call(text_format, "font", None), "family", "")
+    if font:
+        report.append(tr("Labels: drawn in the map's font, not '{}'.").format(font))
+    if _call(_call(text_format, "background", None), "enabled", False):
+        report.append(tr("Labels: the background shape is not transmitted."))
+    if _call(_call(text_format, "shadow", None), "enabled", False):
+        report.append(tr("Labels: the shadow is not transmitted."))
+    properties = _call(settings, "dataDefinedProperties", None)
+    if properties is not None and _call(properties, "hasActiveProperties", False):
+        report.append(tr("Labels: properties driven by expressions are ignored."))
+    return labels
+
+
+def _label_field(settings):
+    """The field the labels read: the field itself, or an expression that is only a field."""
+    name = (_attr(settings, "fieldName", "") or "").strip()
+    if _attr(settings, "isExpression", False):
+        match = _FIELD_EXPRESSION.match(name)
+        name = (match.group("quoted") or match.group("bare")) if match else ""
+    return name if 0 < len(name) <= _LABEL_FIELD_MAX else None
+
+
+def _placement(placement, family, report):
+    """``line`` along a line, ``point`` otherwise; a QGIS placement ALIGN draws differently is reported."""
+    names = (getattr(placement, "name", None), placement)
+    if family == "line" and any(name in _LINE_PLACEMENTS for name in names):
+        return "line"
+    expected = _POINT_PLACEMENTS + _HORIZONTAL_PLACEMENTS if family != "line" else _HORIZONTAL_PLACEMENTS
+    if placement is not None and not any(name in expected for name in names):
+        report.append(tr("Labels: the '{}' placement is drawn as a label on the feature's point.").format(
+            getattr(placement, "name", None) or placement))
+    return "point"
+
+
+def _zoom_range(settings, report):
+    """The labels' scale range as web zoom levels: ``minZoom`` from the most
+    zoomed-out scale, ``maxZoom`` from the most zoomed-in one; 0 is no limit."""
+    if not _attr(settings, "scaleVisibility", False):
+        return {}
+    zooms = {}
+    for key, attribute in (("minZoom", "minimumScale"), ("maxZoom", "maximumScale")):
+        try:
+            scale = float(_attr(settings, attribute, 0) or 0)
+        except (TypeError, ValueError):
+            scale = 0.0
+        if scale > 0:
+            zooms[key] = round(min(max(math.log2(_SCALE_AT_ZOOM_0 / scale), 0.0), 24.0), 1)
+    if zooms:
+        report.append(tr("Labels: the scale range becomes map zoom levels, exact at the equator only."))
+    return zooms
+
+
+# ---------------------------------------------------------------------------
+# SVG images (PH-37)
+# ---------------------------------------------------------------------------
+
+def _images(renderer, family, report):
+    """The SVG marker of a point layer or the SVG pattern of a polygon layer,
+    as ALIGN's ``images`` block, or ``None``. One image per layer: the classes
+    of a categorized marker share it, each in its own colour."""
+    wanted = _SVG_LAYER_TYPES.get(family)
+    if wanted is None:
+        return None
+    # The symbols are clones that own their layers: they must outlive every
+    # read of a layer below, or QGIS frees the layers under us (a black marker
+    # read from a freed SvgMarker, and a crash waiting to happen).
+    symbols = _symbols_of(renderer)
+    layers = [layer for symbol in symbols for layer in (_call(symbol, "symbolLayers", []) or [])
+              if _call(layer, "layerType", "") == wanted]
+    if not layers:
+        return None
+    plain = tr("drawn as a plain circle") if family == "circle" else tr("drawn as a plain fill")
+    paths = {_svg_path(layer) for layer in layers}
+    if len(paths) > 1:
+        report.append(tr("SVG: the classes draw different images, and ALIGN draws one per layer; {}.").format(plain))
+        return None
+    layer = layers[0]
+    found = svg_images.read(_svg_path(layer), _svg_search_paths())
+    if found.markup is None:
+        report.append(tr("SVG: {}; {}.").format(found.problem, plain))
+        return None
+    images = _marker(layer, found.markup, report) if family == "circle" else _pattern(layer, found.markup, report)
+    markup = images.get("markerSvg") or images.get("fillPatternSvg")
+    if len(markup) > svg_images.MAX_CHARS:
+        report.append(tr("SVG: the image weighs more than ALIGN's limit of 256 KB; {}.").format(plain))
+        return None
+    return images
+
+
+def _marker(layer, markup, report):
+    """An SVG marker: its outline as QGIS sets it, written into the markup;
+    its fill left to ALIGN, which colours the marker per class."""
+    size = _px(_call(layer, "size", 2.0), _call(layer, "sizeUnit", "mm"), report, tr("the SVG marker size"))
+    size = _bounded(size, _MARKER_SIZE_PX, report, tr("SVG: marker size"))
+    images = {"markerSvg": svg_images.with_parameters(markup, _outline_parameters(layer, markup, size, "", report)), "markerSize": size}
+    fill = _hex(_call(layer, "fillColor", None))
+    if fill:
+        images["markerColor"] = fill[0]
+        images["markerSvg"] = svg_images.with_parameters(images["markerSvg"], {"fill-opacity": _number_text(fill[1])})
+    return images
+
+
+def _pattern(layer, markup, report):
+    """An SVG fill: every parameter written, the tile drawn at QGIS's width."""
+    width = _px(_call(layer, "patternWidth", 20.0), _call(layer, "patternWidthUnit", "mm"), report, tr("the SVG pattern width"))
+    width = max(width, 2.0)
+    values = _outline_parameters(layer, markup, width, "svg", report)
+    fill = _hex(_call(layer, "svgFillColor", None))
+    if fill:
+        values.update({"fill": fill[0], "fill-opacity": _number_text(fill[1])})
+    return {"fillPatternSvg": svg_images.sized(svg_images.with_parameters(markup, values), width)}
+
+
+def _outline_parameters(layer, markup, drawn_px, prefix, report):
+    """QGIS's outline parameters for an SVG drawn ``drawn_px`` wide. The width
+    is in the SVG's own units, as QGIS writes it: pixels × viewBox ÷ drawn size."""
+    getter = (lambda name: prefix + name[0].upper() + name[1:]) if prefix else (lambda name: name)
+    values = {}
+    stroke = _hex(_call(layer, getter("strokeColor"), None))
+    if stroke:
+        values.update({"outline": stroke[0], "outline-opacity": _number_text(stroke[1])})
+    width_px = _px(_call(layer, getter("strokeWidth"), 0.0), _call(layer, getter("strokeWidthUnit"), "mm"), report, tr("the SVG outline"))
+    view = svg_images.view_box_width(markup)
+    values["outline-width"] = _number_text(width_px * view / drawn_px if view else width_px)
+    return values
+
+
+def _svg_path(layer):
+    return (_call(layer, "path", None) or _call(layer, "svgFilePath", None) or "").strip()
+
+
+def _svg_search_paths():
+    """QGIS's SVG library folders, where a symbol may name its file without a path."""
+    with suppress(Exception):
+        from qgis.core import QgsApplication
+
+        return [str(path) for path in QgsApplication.svgPaths()]
+    return []
+
+
+def _symbols_of(renderer):
+    """Every symbol the renderer draws with: its symbol, or its visible classes and rules."""
+    kind = _call(renderer, "type", "")
+    if kind in ("pointCluster", "pointDisplacement"):
+        return _symbols_of(_call(renderer, "embeddedRenderer", None))
+    holders = []
+    if kind == "singleSymbol":
+        holders = [renderer]
+    elif kind == "categorizedSymbol":
+        holders = [c for c in (_call(renderer, "categories", []) or []) if _call(c, "renderState", True)]
+    elif kind == "graduatedSymbol":
+        holders = [r for r in (_call(renderer, "ranges", []) or []) if _call(r, "renderState", True)]
+    elif kind == "RuleRenderer":
+        holders = [r for r in (_call(_call(renderer, "rootRule", None), "children", []) or []) if _call(r, "active", True)]
+    return [symbol for symbol in (_symbol_of(holder) for holder in holders) if symbol is not None]
+
+
+def _bounded(value, bounds, report, what):
+    """``value`` within ``bounds``, reported when it had to move."""
+    low, high = bounds
+    bounded = round(min(max(value, low), high), 2)
+    if bounded != round(value, 2):
+        report.append(tr("{}: {} px, within ALIGN's range ({} to {} px).").format(what, bounded, int(low), int(high)))
+    return bounded
+
+
+def _number_text(value):
+    """A number as an SVG attribute writes it: short, no trailing zeros."""
+    return "{:.4f}".format(float(value)).rstrip("0").rstrip(".") or "0"
+
+
+# ---------------------------------------------------------------------------
 # Readers, pure and defensive
 # ---------------------------------------------------------------------------
+
+def _attr(target, name, default=None):
+    """``target.name``, called when it is a method: QgsPalLayerSettings holds
+    plain attributes where the rest of the API has accessors."""
+    if target is None:
+        return default
+    try:
+        value = getattr(target, name)
+    except AttributeError:
+        return default
+    if callable(value):
+        try:
+            return value()
+        except Exception:  # noqa: BLE001 — same contract as `_call`
+            return default
+    return value
 
 def _style(family, base, outline, symbology):
     style = {"renderType": family, "paint": base, "symbology": symbology}

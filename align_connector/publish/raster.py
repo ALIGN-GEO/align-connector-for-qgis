@@ -174,7 +174,7 @@ def export_raster(layer, target_dir=None):
     writer.setOutputFormat("GTiff")
     writer.setCreateOptions(_CREATE_OPTIONS)
 
-    error = _write(writer, pipe, provider)
+    error = _write(writer, pipe, provider, _crs_of(layer, provider))
     if error != qt_enum(QgsRasterFileWriter, "WriterError", "NoError"):
         raise ExportFailed(tr("Could not write this raster to a publishable file (GDAL error {}).").format(error))
     if not os.path.exists(path) or os.path.getsize(path) == 0:
@@ -189,14 +189,24 @@ def export_raster(layer, target_dir=None):
     )
 
 
-def _write(writer, pipe, provider):
+def _crs_of(layer, provider):
+    """The system the layer is drawn in: the one QGIS shows, set by the user
+    when the file carries none (a JPEG and its world file, without a .prj);
+    the provider's own when the layer has no valid one (PH-38)."""
+    crs = layer.crs() if callable(getattr(layer, "crs", None)) else None
+    if crs is not None and crs.isValid():
+        return crs
+    return provider.crs()
+
+
+def _write(writer, pipe, provider, crs):
     """Call whichever ``writeRaster`` this QGIS build exposes.
 
     Recent builds take a coordinate-transform context; older ones in our
     supported range do not. Same behaviour, one argument apart — absorbed here
     rather than at the call site.
     """
-    args = (pipe, provider.xSize(), provider.ySize(), provider.extent(), provider.crs())
+    args = (pipe, provider.xSize(), provider.ySize(), provider.extent(), crs)
     try:
         return writer.writeRaster(*args, QgsCoordinateTransformContext())
     except TypeError:  # pragma: no cover — only reachable on older QGIS builds
