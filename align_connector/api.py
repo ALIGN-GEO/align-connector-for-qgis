@@ -25,9 +25,12 @@ class ApiError(Exception):
         413 storage) without parsing the sentence (TCK-2179).
     """
 
-    def __init__(self, message, needs_sign_in=False, status=None, code=None):
+    def __init__(self, message, needs_sign_in=False, status=None, code=None, retry_after=None):
         super().__init__(message)
         self.message = message
+        #: Seconds ALIGN asked to wait before asking again (a 429's
+        #: ``Retry-After``), or None (TCK-2296, defect 69).
+        self.retry_after = retry_after
         #: The server's own refusal code, when it sent one (TCK-2218): lets a
         #: caller tell "the item is gone" from "you may not", both 4xx.
         self.code = code
@@ -77,29 +80,55 @@ def _whole(number):
     return int(number) if float(number).is_integer() else number
 
 
+def connector_not_allowed():
+    """The organization's switch for the plugin is off, not the role
+    (TCK-1666): its own sentence, in the user's language, with the remedy."""
+    return tr(
+        "This organization has not enabled the QGIS plugin for its members. "
+        "An owner or admin can turn it on in Settings → Integrations."
+    )
+
+
+#: The code ALIGN's rate limiter puts on its refusals, whatever their status.
+RATE_LIMITED = "RATE_LIMITED"
+
+
+def _seconds(value):
+    """A ``Retry-After`` in seconds, at least one; None for a date or nothing readable."""
+    try:
+        return max(1, int(str(value).strip()))
+    except (TypeError, ValueError):
+        return None
+
+
 def _raise_for(result, fallback):
     """Turn a failed response into an :class:`ApiError` a user can act on.
 
     A status the plugin knows gets the plugin's own sentence, in the user's
     language; the server's English text is only shown for a status the plugin
     has no words for (TCK-2183).
+
+    ALIGN's rate limiter answers 429, and 403 once it bans: both carry the
+    code RATE_LIMITED and a Retry-After, and both are a pace refusal, never a
+    refusal of the user's role (TCK-2296, defect 71).
     """
+    if result.code() == RATE_LIMITED:
+        message, _sign_in = _refusal(429)
+        raise ApiError(
+            message, status=result.status, code=RATE_LIMITED, retry_after=_seconds(result.headers.get("retry-after"))
+        )
     known = _refusal(result.status)
     if known:
         message, needs_sign_in = known
         if result.status == 402:
             message = _credits_refusal(result) or message
         elif result.status == 403 and result.code() == "QGIS_CONNECTOR_NOT_ALLOWED":
-            # The organization's switch, not the role (TCK-1666): its own
-            # sentence, in the user's language, with the remedy.
-            message = tr(
-                "This organization has not enabled the QGIS plugin for its members. "
-                "An owner or admin can turn it on in Settings → Integrations."
-            )
+            message = connector_not_allowed()
         elif result.status == 415:
             # The server names the type it refused: worth more than our line.
             message = result.message(message)
-        raise ApiError(message, needs_sign_in=needs_sign_in, status=result.status)
+        retry_after = _seconds(result.headers.get("retry-after")) if result.status == 429 else None
+        raise ApiError(message, needs_sign_in=needs_sign_in, status=result.status, retry_after=retry_after)
     if result.status == net.NO_RESPONSE:
         raise ApiError(tr("ALIGN could not be reached. Check your connection and try again."))
     raise ApiError(result.message(fallback), status=result.status)
@@ -108,7 +137,7 @@ def _raise_for(result, fallback):
 def list_organizations(session):
     """The organizations the signed-in user belongs to.
 
-    :returns: list of ``{"id", "name", "role"}``, in the order ALIGN returns them
+    :returns: list of ``{"id", "name", "role", "connector"}``, in the order ALIGN returns them
     :raises ApiError: when the call fails
     """
     token = session.access_token()
@@ -123,8 +152,15 @@ def list_organizations(session):
     if not isinstance(items, list):
         raise ApiError(tr("ALIGN returned an unexpected answer while listing organizations."))
 
+    # TCK-2348 (CA-17): ALIGN lists every organization, each saying whether it
+    # opens itself to the plugin; an older ALIGN leaves out those that do not.
     return [
-        {"id": item.get("id"), "name": item.get("name"), "role": item.get("role")}
+        {
+            "id": item.get("id"),
+            "name": item.get("name"),
+            "role": item.get("role"),
+            "connector": item.get("connector") if isinstance(item.get("connector"), dict) else None,
+        }
         for item in items
         if isinstance(item, dict) and item.get("id")
     ]
@@ -137,7 +173,10 @@ def capacity(session, org_id):
     secret: bytes used and allowed, and whole credits. ALIGN never says what a
     credit is worth; neither does this.
 
-    :returns: ``{"storage": {"usedBytes", "limitBytes"}, "credits": {"available"}}``
+    :returns: ``{"storage": {"usedBytes", "limitBytes"}, "credits": {"available"},
+        "featureServices"}``; `featureServices` says whether a layer may be
+        published here as an editable feature service (TCK-2320), False from a
+        server that does not say
     :raises ApiError: when the call fails
     """
     token = session.access_token()
@@ -159,6 +198,7 @@ def capacity(session, org_id):
             "limitBytes": _count(storage.get("limitBytes")),
         },
         "credits": {"available": _count(credits.get("available"))},
+        "featureServices": body.get("featureServices") is True,
     }
 
 
@@ -420,3 +460,86 @@ def create_reference(session, org_id, name, body, provenance=None, description=N
         "name": answer.get("name") or name,
         "gisFormat": answer.get("gisFormat"),
     }
+
+
+def _feature_service_refusal(result, fallback):
+    """A refusal of the feature-service doors (TCK-2320), in the user's words.
+
+    A token from before this version carries no `features:*` scope: ALIGN
+    answers INSUFFICIENT_SCOPE, and the remedy is to sign in again. The
+    refusals that already say what to do (a layer that cannot be published,
+    a plan without feature services) keep ALIGN's sentence.
+    """
+    if result.status == 403 and result.code() == "INSUFFICIENT_SCOPE":
+        raise ApiError(
+            tr("Sign in to ALIGN again to publish and edit feature services from QGIS."),
+            needs_sign_in=True,
+            status=403,
+            code="INSUFFICIENT_SCOPE",
+        )
+    if result.status == 403 and result.code() == "PLAN_REQUIRED":
+        raise ApiError(result.message(fallback), status=403, code="PLAN_REQUIRED")
+    if result.status == 422 and result.code() == "FEATURE_PUBLICATION_REFUSED":
+        raise ApiError(result.message(fallback), status=422, code="FEATURE_PUBLICATION_REFUSED")
+    _raise_for(result, fallback)
+
+
+def preview_feature_service(session, org_id, asset_id):
+    """The layers of an uploaded file, as a feature service would hold them (TCK-2318).
+
+    :returns: ``{"layers": [{name, featureCount, geometryType, srid, fields, warnings, refusal?}]}``
+    """
+    token = session.access_token()
+    if not token:
+        raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
+    result = net.post_json(config.feature_publication_preview_endpoint(org_id), {"assetId": asset_id}, bearer=token)
+    if not result.ok:
+        _feature_service_refusal(result, tr("ALIGN could not read the layers of the file"))
+    if not isinstance(result.body, dict):
+        raise ApiError(tr("ALIGN returned an unexpected answer while reading the file."))
+    return result.body
+
+
+def start_feature_services(session, org_id, services, visibility=None, keep_source=False):
+    """Ask ALIGN to publish uploaded files as feature services (TCK-2318, TCK-2346).
+
+    One request for every service of a lot: ALIGN checks it whole before it
+    starts anything, and starts one job per service. The files were sent for
+    this purpose only, so by default ALIGN removes them once the services are
+    ready (``keep_source``).
+
+    :param services: ``[{title, layers: [{assetId, layerName, title?}]}]``
+        (``feature_service.service_request``)
+    :returns: the jobs, one per service in the order asked,
+        ``[{"jobId", "serviceId", "status", "title", ...}]``
+    """
+    token = session.access_token()
+    if not token:
+        raise ApiError(tr("You are not signed in to ALIGN."), needs_sign_in=True)
+    payload = {"services": list(services), "keepSource": bool(keep_source)}
+    if visibility:
+        payload["visibility"] = visibility
+    result = net.post_json(config.feature_publications_endpoint(org_id), payload, bearer=token)
+    if not result.ok:
+        _feature_service_refusal(result, tr("ALIGN could not start the feature service"))
+    jobs = result.body.get("jobs") if isinstance(result.body, dict) else None
+    if (
+        not isinstance(jobs, list)
+        or len(jobs) != len(payload["services"])
+        or not all(isinstance(job, dict) and job.get("jobId") for job in jobs)
+    ):
+        raise ApiError(tr("ALIGN returned an unexpected answer while starting the feature service."))
+    return jobs
+
+
+def feature_service_job(session, org_id, job_id):
+    """ALIGN's current view of a publication job."""
+    token = session.access_token()
+    if not token:
+        raise ApiError(tr("Your ALIGN session expired while the feature service was being prepared."), needs_sign_in=True)
+    result = net.get_json(config.feature_publication_job_endpoint(org_id, job_id), bearer=token)
+    if not result.ok:
+        _feature_service_refusal(result, tr("Could not follow the feature service"))
+    if not isinstance(result.body, dict):
+        raise ApiError(tr("ALIGN returned an unexpected answer while following the feature service."))
+    return result.body

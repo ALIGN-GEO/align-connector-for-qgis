@@ -42,28 +42,35 @@ from ..i18n import tr
 from ..publish import briefing, memory, support, tiles
 from ..publish.wording import describe_capacity
 from ..qtcompat import qt_enum
-from . import batch
+from . import batch, org_choice
 
 
 class PublishView(QWidget):
     """Collects what a batch needs, and hands it to the caller in one piece."""
 
-    def __init__(self, session, on_publish, on_rows=None, on_show_messages=None, parent=None):
+    def __init__(self, session, on_publish, on_rows=None, on_show_messages=None, on_org_chosen=None, chosen_org=None, parent=None):
         """
         :param on_publish: called with one :class:`batch.Batch` per click on Publish
         :param on_rows: called with the rows each time the list is rebuilt (the Messages view listens)
         :param on_show_messages: called when the user asks to see the refusals
+        :param on_org_chosen: called with the organization id chosen here (the Services tab follows)
+        :param chosen_org: ``() -> id``, the organization last chosen in either tab, chosen again when the list refills
         """
         super().__init__(parent)
         self.session = session
         self._on_publish = on_publish
         self._on_rows = on_rows
         self._on_show_messages = on_show_messages
+        self._on_org_chosen = on_org_chosen
+        self._chosen_org = chosen_org or (lambda: None)
         self._orgs = []
         #: Whether ALIGN was asked at least once: the diagnostic tells "none"
         #: from "never loaded" (TCK-2219).
         self._orgs_loaded = False
         self._capacity_line = None
+        #: Whether the organization selected may publish feature services
+        #: (TCK-2320), as its capacity answer says; the publication checks again.
+        self._feature_services = False
         self._titles = {}
         self._selection_only = set()
         #: Layers the publisher wants as NEW items although they remember one (TCK-2218).
@@ -147,6 +154,39 @@ class PublishView(QWidget):
         self.description_edit.setFixedHeight(64)
         batch_form.addRow(tr("Description"), self.description_edit)
 
+        # -- as feature services (TCK-2320) -----------------------------------
+        # Offered only where ALIGN would accept it: shown for an organization
+        # whose plan includes feature services, hidden otherwise.
+        self.service_box = QCheckBox(tr("Publish as editable feature services (OGC API – Features)"))
+        self.service_box.setToolTip(
+            tr(
+                "ALIGN moves the features into your organization's database, where QGIS and the Map builder "
+                "edit them live: a new feature service for each layer, or one for all the checked layers."
+            )
+        )
+        self.service_box.toggled.connect(self._on_service_toggled)
+        self.service_box.setVisible(False)
+        batch_form.addRow("", self.service_box)
+        # The checked layers as one service of several layers, or one service
+        # each (TCK-2346, Benjamin 2026-10-20): the same choice as the app's
+        # dialog and the Map builder's, in the same words.
+        self.one_service_box = QCheckBox(tr("Publish the checked layers as one service"))
+        self.one_service_box.setToolTip(
+            tr(
+                "One feature service with a layer for each checked vector layer: one address, one set of rights "
+                "and keys. Unchecked, each layer becomes its own service."
+            )
+        )
+        self.one_service_box.toggled.connect(self._on_one_service_toggled)
+        self.one_service_box.setVisible(False)
+        batch_form.addRow("", self.one_service_box)
+        self.service_name = QLineEdit()
+        self.service_name.setPlaceholderText(tr("Name of the service"))
+        self.service_name.setMaxLength(256)
+        self.service_name.setEnabled(False)
+        self.service_name.setVisible(False)
+        batch_form.addRow("", self.service_name)
+
         # -- the web map (TCK-2204) -------------------------------------------
         self.webmap_box = QCheckBox(tr("Also create a web map with these layers"))
         self.webmap_box.toggled.connect(self._on_webmap_toggled)
@@ -183,6 +223,9 @@ class PublishView(QWidget):
         root.addedChildren.connect(self._on_project_changed)
         root.removedChildren.connect(self._on_project_changed)
         project.cleared.connect(self._on_project_changed)
+        # A project read builds its tree before its layers are loaded: the
+        # list is read again once QGIS is done (TCK-2296, defect 67).
+        project.readProject.connect(self._on_project_changed)
         self._attached = True
 
     def detach(self):
@@ -190,7 +233,7 @@ class PublishView(QWidget):
         if not self._attached:
             return
         project = QgsProject.instance()
-        for signal in (project.layerTreeRoot().addedChildren, project.layerTreeRoot().removedChildren, project.cleared):
+        for signal in (project.layerTreeRoot().addedChildren, project.layerTreeRoot().removedChildren, project.cleared, project.readProject):
             try:
                 signal.disconnect(self._on_project_changed)
             except (TypeError, RuntimeError):
@@ -218,19 +261,39 @@ class PublishView(QWidget):
             return None
         return [{"name": org.get("name"), "role": org.get("role")} for org in self._orgs]
 
-    def refresh_organizations(self):
+    def organization_list(self):
+        """The organizations as last loaded, ids included: the Services tab's list."""
+        return list(self._orgs)
+
+    def forget(self):
+        """Signed out: drop what was read for the account (TCK-2348, CA-20)."""
         self.capacity.setText("")
+        self._orgs = []
+        self._orgs_loaded = False
         self.org_box.blockSignals(True)
         self.org_box.clear()
+        self.org_box.blockSignals(False)
+        self._on_org_changed()
+
+    def refresh_organizations(self):
+        self.capacity.setText("")
+        kept = self.org_box.currentData() or self._chosen_org()
+        self.org_box.blockSignals(True)
         self._orgs = []
         self._orgs_loaded = True
         try:
             self._orgs = api.list_organizations(self.session)
         except api.ApiError as exc:
             self.capacity.setText(exc.message)
-        for org in self._orgs:
-            label = org["name"] if not org.get("role") else "{}  ({})".format(org["name"], _role_label(org["role"]))
-            self.org_box.addItem(label, org["id"])
+        # TCK-2348 (CA-17): an organization that does not allow the plugin
+        # stays listed, greyed, its reason in the tooltip.
+        org_choice.fill(
+            self.org_box,
+            self._orgs,
+            lambda org: org["name"] if not org.get("role") else "{}  ({})".format(org["name"], _role_label(org["role"])),
+            org_choice.connector_refusal,
+            keep=kept,
+        )
         self.org_box.blockSignals(False)
         if not self._orgs and not self.capacity.text():
             self.capacity.setText(tr("You do not belong to any ALIGN organization yet."))
@@ -307,6 +370,31 @@ class PublishView(QWidget):
         self._sync_all_box()
         self._update_button()
 
+    def _service_mode(self):
+        return self._feature_services and self.service_box.isChecked()
+
+    def _one_service(self):
+        """The checked vector layers make one service (TCK-2346)."""
+        return self._service_mode() and self.one_service_box.isChecked()
+
+    def _on_service_toggled(self, _checked):
+        # A web map is assembled from files, and a feature service is not one
+        # yet: the two options do not go together in one click.
+        service = self._service_mode()
+        if service:
+            self.webmap_box.setChecked(False)
+        self.webmap_box.setEnabled(not service)
+        self.one_service_box.setVisible(service)
+        self.service_name.setVisible(service)
+        self._on_current_changed(self.tree.currentItem(), None)
+        self._update_button()
+
+    def _on_one_service_toggled(self, checked):
+        self.service_name.setEnabled(checked)
+        if checked and not self.service_name.text().strip():
+            self.service_name.setText(_project_title())
+        self._update_button()
+
     def _on_webmap_toggled(self, checked):
         self.webmap_title.setEnabled(checked)
         self.webmap_note.setVisible(checked)
@@ -328,6 +416,9 @@ class PublishView(QWidget):
         # Already on ALIGN (TCK-2218): say where, and offer to replace it when
         # the batch goes to that organization; elsewhere it goes as new.
         link = batch.replaceable(row, self.selected_org_id()) if row is not None else None
+        if self._service_mode() and info.kind == "vector":
+            # A feature service is always a new item.
+            link = None
         self.replace_box.blockSignals(True)
         self.replace_box.setVisible(link is not None)
         self.replace_box.setChecked(link is not None and layer_id not in self._publish_as_new)
@@ -380,6 +471,11 @@ class PublishView(QWidget):
             self._selection_only.discard(layer_id)
         self._on_current_changed(current, None)
 
+    def choose_organization(self, org_id):
+        """The Services tab chose ``org_id`` (TCK-2348, CA-24): follow it when it may be used here."""
+        if org_id != self.org_box.currentData():
+            org_choice.choose(self.org_box, org_id)
+
     def _on_org_changed(self, _index=None):
         """Refresh the capacity line for the organization now selected (TCK-2179).
 
@@ -388,7 +484,10 @@ class PublishView(QWidget):
         a publish, it only removes a convenience, and the server guards.
         """
         self._capacity_line = None
+        self._set_feature_services(False)
         org = self.selected_org()
+        if org is not None and self._on_org_chosen is not None:
+            self._on_org_chosen(org["id"])
         self._update_button()
         # Whether the highlighted layer replaces its item depends on the
         # organization now selected (TCK-2218): the form follows the switch.
@@ -410,6 +509,23 @@ class PublishView(QWidget):
             QApplication.restoreOverrideCursor()
         self._capacity_line = describe_capacity(info)
         self.capacity.setText(self._capacity_line)
+        self._set_feature_services(info.get("featureServices") is True)
+
+    def _set_feature_services(self, offered):
+        # A session signed in before the plugin asked for the features scopes
+        # would upload the file, then be refused the service: say it here.
+        granted = offered and self.session.has_scope("features:write")
+        self._feature_services = granted
+        self.service_box.setVisible(offered)
+        self.service_box.setEnabled(granted)
+        if offered and not granted:
+            self.service_box.setChecked(False)
+        self.service_box.setText(
+            tr("Publish as editable feature services (OGC API – Features)")
+            if granted or not offered
+            else tr("Publish as editable feature services (OGC API – Features): sign in to ALIGN again to use it")
+        )
+        self._on_service_toggled(self.service_box.isChecked())
 
     def _sync_all_box(self):
         checkable = [item for item in self._items() if _checkable(item)]
@@ -419,7 +535,7 @@ class PublishView(QWidget):
 
     def _update_button(self):
         plans = self._plans()
-        self.publish_button.setText(batch.describe_plan(plans))
+        self.publish_button.setText(batch.describe_plan(plans, one_service=self._one_service()))
         self.publish_button.setEnabled(bool(plans) and self.selected_org() is not None)
 
     def _plans(self):
@@ -430,6 +546,7 @@ class PublishView(QWidget):
             self._selection_only,
             org_id=self.selected_org_id(),
             publish_as_new=self._publish_as_new,
+            as_service=self._service_mode(),
         )
 
     def _publish(self):
@@ -466,6 +583,7 @@ class PublishView(QWidget):
         web_map_name = None
         if self.webmap_box.isChecked():
             web_map_name = self.webmap_title.text().strip() or _project_title()
+        service_title = (self.service_name.text().strip() or _project_title()) if self._one_service() else None
         self._on_publish(
             batch.Batch(
                 org,
@@ -474,6 +592,7 @@ class PublishView(QWidget):
                 self._capacity_line,
                 requests,
                 web_map_name=web_map_name,
+                service_title=service_title,
             )
         )
         # What left is left: a second click must not send it again.

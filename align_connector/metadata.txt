@@ -4,10 +4,95 @@ qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 description=Publish QGIS layers to your ALIGN organization's Datastore.
 about=Sign in to ALIGN from QGIS and publish a layer to your organization's Datastore in a few clicks: vector and raster, cloud-native files as they are, web services as live references, with the layer's style and metadata; or publish a whole project as a web map. Your ALIGN role decides what you may publish: the plugin never grants access, it carries your identity and shows what the server answers. Also available as the Processing algorithm align:publishlayer, for models, batch runs and automation. Requires an ALIGN account (aligngeo.com). This plugin is free software (GPL-2.0-or-later); the ALIGN service it talks to is a commercial product, and ALIGN is a trademark of Geo Nova: a fork is welcome, under another name.
-version=0.5.2
+version=0.8.0
 author=Geo Nova
 email=contact@aligngeo.com
-changelog=0.5.2 (2026-10-15)
+changelog=0.8.0 (2026-10-27)
+    Labels and SVG images travel with a published layer: its simple labels
+    (a field, their size, colour, halo, placement and scale range) and its
+    SVG marker or SVG fill reach ALIGN, which draws them as QGIS does. What
+    cannot travel is named before the send: a label expression, rule-based
+    labels, the font, an SVG on the web, one that runs a script or links to
+    another file, or one over 256 KB. Needs ALIGN's PH-37; an older ALIGN
+    publishes the layer without them.
+    Several layers as one feature service: with "Publish as editable feature
+    services" checked, "Publish the checked layers as one service" and its
+    name make one service with a layer for each checked vector layer, one
+    address, one set of rights and keys; unchecked, each layer becomes its
+    own service, as before. One request asks ALIGN for every service of a
+    click, once their files have all been sent. A layer ALIGN refuses stops
+    the one service and is named; with one service per layer, the others
+    are published and the refused one is named. "Edit in QGIS" opens the
+    layers of a service of several layers in a group named after it, each
+    styled as its original. Needs the publication contract of ALIGN's
+    TCK-2346: the plugin and the server go together.
+    A click that publishes more layers than ALIGN lets one person start in a
+    minute no longer loses the extra layers: when ALIGN says when to come
+    back, each layer waits and is sent then, and a cancel still stops it.
+    When ALIGN blocks a client that asked too often, the plugin says it is
+    being rate-limited and waits, never that your role does not allow it.
+    A layer ALIGN will not publish as a feature service (types mixed, too
+    many features, a field it cannot name) is refused in your language, under
+    the layer's name in QGIS.
+    A service layer takes the input rules set in ALIGN (Settings > Forms):
+    lists with their labels, sliders, check boxes and calendars; required
+    fields, bounds and conditions as QGIS constraints with their messages;
+    the label of each field; "visible if". Set when the layer opens, and
+    again when the project reopens or you sign in: ALIGN is the source. A
+    rule QGIS cannot take is named once, at the opening, and checked by
+    ALIGN when you save. When ALIGN refuses a save for its rules, the
+    plugin says why, in ALIGN's words when QGIS passes them on (3.44, for
+    a new feature), otherwise by naming the feature, field and rule, a
+    changed feature included; QGIS's own messages about it are taken back,
+    and the edits stay.
+    QGIS's raw errors for an ALIGN layer after a revocation are now taken
+    back from the message bar, those naming the layer by name included (a
+    refused change, a refused save): the bar hands Python a plain widget,
+    which the plugin read as empty; the plugin's own messages stay.
+    An organization that turned the plugin off says so in the Services tab.
+    The Publish tab lists the layers of a project just opened.
+    One organization for both tabs, chosen again after signing in.
+    The task's title in QGIS's task list is in your language.
+    The Publish tab's box reads "Publish as editable feature services (OGC
+    API – Features)".
+    0.7.0 (never published; its changes are part of 0.8.0)
+    One consent: the plugin signs its feature-service layers itself, with the
+    session opened at "Sign in", so no second approval and no QGIS page.
+    Service layers carry no authentication configuration in the project.
+    Editing from QGIS needs QGIS 3.36 or later.
+    A Services tab lists your organization's feature services, with a search,
+    each service's sheet and layers, and opens a layer for reading or editing.
+    "Edit in QGIS" is in the context menu of a service layer and of the layer
+    it was published from, at any time; "Open read-only" when you may not edit.
+    The service layer is named "<title> (ALIGN)"; the local original is kept,
+    hidden, in a group "Local originals".
+    A project reopened without a session says so on its service layers and
+    reads them again after the sign-in.
+    The organizations load after a sign-in made with the panel hidden.
+    A revocation in ALIGN is learnt at once: ALIGN's first refusal makes the
+    plugin ask ALIGN, and it says "QGIS's access to ALIGN was withdrawn" (or
+    that the session expired) with a "Sign in…" button, in place of QGIS's
+    raw errors for the ALIGN layers; the panel says "Not connected". A
+    project holding ALIGN service layers checks the session before they load.
+    An edit refused that way stays in QGIS's edit buffer.
+    A refresh that cannot reach ALIGN keeps the session (it used to end it).
+    A layer open for reading is named "<title> (ALIGN, read-only)"; a name
+    you chose is never rewritten.
+    Publication notices are said in your language.
+    The Services tab keeps the service in hand, and the ALIGN button keeps
+    the tab in use. One organization for both tabs; an organization the
+    plugin may not use, or without feature services, is greyed with the
+    reason. "Edit in QGIS" carries the ALIGN icon.
+    Signing in shows "Signing in from the browser…" with Copy link and
+    Cancel; clicking "Sign in" again starts afresh at once.
+    0.6.0 (never published; its changes are part of 0.8.0)
+    Publish vector layers as editable feature services, where the
+    organization's plan includes them: the features move into the
+    organization's database and are served through OGC API Features. "Edit
+    it in QGIS" opens the service in place of the local layer, which is kept
+    hidden, signed by QGIS' own OAuth2 method (QGIS 3.34 or later). Signing
+    in now asks for the features scopes: sign in again after updating.
+    0.5.2 (2026-10-15)
     No functional change. Two optional QGIS API probes in the style reader
     are written with contextlib.suppress instead of try/except/pass, so the
     plugins.qgis.org security scan (Bandit B110) accepts the package.

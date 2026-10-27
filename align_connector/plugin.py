@@ -26,28 +26,31 @@ import os
 from qgis.core import Qgis, QgsApplication, QgsMapLayer, QgsProject
 from qgis.PyQt.QtCore import QCoreApplication, QUrl
 from qgis.PyQt.QtGui import QDesktopServices, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QMenu, QToolButton
+from qgis.PyQt.QtWidgets import QAction, QApplication, QMenu, QPushButton, QToolButton
 
 from . import config, diagnostic, i18n
 from .auth import AlignSession
+from .auth.session import ENDED_BY_ALIGN, EXPIRED
 from .panel import webmap
 from .panel.camera import canvas_map_view
 from .panel.dock import AlignDock, dock_area
 from .panel.follow import LotFollower
-from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of
+from .panel.outcome import INFO, SUCCESS, WARNING, Outcome, outcome_of, services_outcome
 from .processing.provider import AlignProcessingProvider
 from .publish import memory
 from .publish.reference_task import RegisterReferenceTask
+from .publish.service_task import PublishServicesTask
 from .publish.task import PublishLayerTask, utc_now
 from .publish.webmap_task import ComposeWebMapTask
 from .qtcompat import qt_enum, run_exec
+from .service_actions import ServiceLayerActions
 from .settings_dialog import SettingsDialog
 
 #: Menu title under QGIS' "Web" menu. Kept in one place: it is both what we add
 #: and what we must remove, and the two must never drift apart.
 MENU_TITLE = "&ALIGN"
 
-PLUGIN_NAME = "ALIGN Connector"
+PLUGIN_NAME = config.PLUGIN_NAME
 
 
 class AlignConnectorPlugin:
@@ -75,10 +78,13 @@ class AlignConnectorPlugin:
         #: The Processing provider, registered by :meth:`initProcessing`.
         self.provider = None
         self.session = AlignSession()
+        #: The feature-service layers: signer, context menu, session (TCK-2348).
+        self.service_actions = None
         #: Running publishes. QGIS' task manager does not own the Python
         #: object, so dropping our reference would collect a task mid-upload.
         self._tasks = []
-        #: The lot each publish task belongs to, when a web map waits for the lot.
+        #: The lots each publish task belongs to: a web map, or the feature
+        #: services, waiting for the last of them.
         self._followers = {}
 
     # -- i18n ---------------------------------------------------------------
@@ -159,7 +165,11 @@ class AlignConnectorPlugin:
         # back its saved place if the dock is there when the window is laid
         # out. QGIS shows a dock it adds; a tool is opened when asked.
         self.dock = AlignDock(
-            self.session, self._start_batch, self.iface.mainWindow(), on_copy_diagnostic=self._copy_diagnostic
+            self.session,
+            self._start_batch,
+            self.iface.mainWindow(),
+            on_copy_diagnostic=self._copy_diagnostic,
+            on_open_service=self._open_from_services,
         )
         self.iface.addDockWidget(dock_area(), self.dock)
         self.dock.hide()
@@ -173,6 +183,11 @@ class AlignConnectorPlugin:
             self.iface.addCustomActionForLayerType(action, None, _layer_type(kind), True)
             self._layer_actions.append(action)
 
+        self.service_actions = ServiceLayerActions(
+            self.iface, self.session, self._message, icon=QIcon(os.path.join(self.plugin_dir, "icon.png"))
+        )
+        self.service_actions.attach()
+
         self.session.signed_in.connect(self._on_signed_in)
         self.session.signed_out.connect(self._on_signed_out)
         self.session.failed.connect(self._on_failed)
@@ -182,6 +197,9 @@ class AlignConnectorPlugin:
 
     def unload(self):
         """Remove everything :meth:`initGui` added — no more, no less."""
+        if self.service_actions is not None:
+            self.service_actions.detach()
+            self.service_actions = None
         for action in self._actions:
             self.iface.removePluginWebMenu(MENU_TITLE, action)
         for action in self._toolbar_actions:
@@ -277,11 +295,32 @@ class AlignConnectorPlugin:
 
     def _on_signed_in(self):
         self._refresh_state()
-        self._message(self.tr("Connected to ALIGN."), qt_enum(Qgis, "MessageLevel", "Success"))
+        # The authorization is the person's; the organization is chosen in the
+        # panel, for each publication (TCK-2348, CA-24).
+        self._message(
+            self.tr("Connected to ALIGN. Choose the organization in the ALIGN panel, in the Publish or Services tab."),
+            qt_enum(Qgis, "MessageLevel", "Success"),
+        )
 
     def _on_signed_out(self):
         self._refresh_state()
-        self._message(self.tr("Signed out of ALIGN."), qt_enum(Qgis, "MessageLevel", "Info"))
+        # TCK-2348 (CA-21) — say why: a withdrawal is not an expiry, and
+        # neither is the user's own sign-out. The first two offer to sign in.
+        reason = self.session.end_reason
+        if reason == ENDED_BY_ALIGN:
+            self._offer_sign_in(self.tr("QGIS's access to ALIGN was withdrawn. Sign in again."))
+        elif reason == EXPIRED:
+            self._offer_sign_in(self.tr("Your ALIGN session has expired. Sign in again."))
+        else:
+            self._message(self.tr("Signed out of ALIGN."), qt_enum(Qgis, "MessageLevel", "Info"))
+
+    def _offer_sign_in(self, text):
+        bar = self.iface.messageBar()
+        widget = bar.createMessage(PLUGIN_NAME, text)
+        button = QPushButton(self.tr("Sign in…"))
+        button.clicked.connect(lambda _checked=False, w=widget: (bar.popWidget(w), self.session.sign_in()))
+        widget.layout().addWidget(button)
+        bar.pushWidget(widget, qt_enum(Qgis, "MessageLevel", "Warning"), 0)
 
     def _on_failed(self, reason):
         self._refresh_state()
@@ -308,12 +347,16 @@ class AlignConnectorPlugin:
 
         When the batch asks for a web map, a follower waits for the last task
         and the camera is read now, from what the publisher is looking at.
+        The layers that become feature services have their own follower: once
+        their files have all landed, one task asks ALIGN for the services
+        (TCK-2346).
         """
         org = batch.org
         follower = None
         if batch.web_map_name:
             batch.map_view = canvas_map_view(self.iface.mapCanvas())
             follower = LotFollower(batch, self._on_lot_finished)
+        services = LotFollower(batch, self._on_service_files_sent) if batch.as_service else None
         for request in batch.requests:
             if request.briefing.reference is not None:
                 # A service is registered, not uploaded (TCK-2207).
@@ -341,13 +384,19 @@ class AlignConnectorPlugin:
                     style=request.briefing.style,
                     iso=request.briefing.iso,
                     replace=request.plan.replace,
+                    as_service=getattr(request.plan, "as_service", False),
+                    joins_service=batch.one_service_title,
                 )
             task.taskCompleted.connect(lambda t=task: self._on_publish_finished(t, True))
             task.taskTerminated.connect(lambda t=task: self._on_publish_finished(t, False))
             self._tasks.append(task)
-            if follower is not None:
-                follower.started(task, request)
-                self._followers[id(task)] = follower
+            lots = [follower] if follower is not None else []
+            if services is not None and getattr(request.plan, "as_service", False):
+                lots.append(services)
+            for lot in lots:
+                lot.started(task, request)
+            if lots:
+                self._followers[id(task)] = lots
             self.dock.track(task, org["id"])
             QgsApplication.taskManager().addTask(task)
 
@@ -361,7 +410,63 @@ class AlignConnectorPlugin:
             text = self.tr("Publishing {} layers to {} — follow them in the ALIGN panel.").format(count, org["name"])
         if batch.web_map_name:
             text += " " + self.tr("The web map “{}” will be created once they have all landed.").format(batch.web_map_name)
+        if batch.one_service_title:
+            text += " " + self.tr("They will make one feature service, “{}”.").format(batch.one_service_title)
         self._message(text, qt_enum(Qgis, "MessageLevel", "Info"))
+
+    def _on_service_files_sent(self, follower):
+        """Every file of the lot's feature services has landed, or failed: ask
+        ALIGN for the services, in one request (TCK-2346). One service of
+        several layers is all or nothing: a layer that could not be sent
+        stops it, and the message says which."""
+        batch = follower.batch
+        org = batch.org
+        records = follower.records()
+        sent = [(task.layer_id, task.asset_id, request.plan.title) for request, task, ok in records if ok and task.asset_id]
+        unsent = [request.plan.title for request, task, ok in records if not ok or not task.asset_id]
+        one = batch.one_service_title
+        if one is not None and unsent:
+            self._message(
+                self.tr("The feature service “{}” was not created: {} could not be sent. The layers that were sent are in your Datastore.").format(
+                    one, ", ".join("“{}”".format(title) for title in unsent)
+                ),
+                qt_enum(Qgis, "MessageLevel", "Warning"),
+            )
+            return
+        if not sent:
+            return
+        task = PublishServicesTask(
+            self.session,
+            org["id"],
+            org["name"],
+            sent,
+            service_title=one,
+            visibility=batch.visibility,
+            capacity_line=batch.capacity_line,
+        )
+        task.taskCompleted.connect(lambda t=task: self._on_services_finished(t, True))
+        task.taskTerminated.connect(lambda t=task: self._on_services_finished(t, False))
+        self._tasks.append(task)
+        preparing = self.tr("Preparing the feature service…") if one is not None or len(sent) == 1 else self.tr("Preparing the feature services…")
+        self.dock.track(task, org["id"], title=task.asset_name, progress_text=preparing)
+        QgsApplication.taskManager().addTask(task)
+
+    def _on_services_finished(self, task, succeeded):
+        """Report what came of each service, and offer to edit the ready ones from QGIS."""
+        if task in self._tasks:
+            self._tasks.remove(task)
+        outcome = services_outcome(task, succeeded)
+        if self.dock is not None:
+            self.dock.settle(task, outcome)
+        if task.needs_sign_in:
+            self.session.sign_out()
+            self._refresh_state()
+        level = _LEVELS.get(outcome.level, qt_enum(Qgis, "MessageLevel", "Warning"))
+        ready = [service for service in task.services if service.layers]
+        if succeeded and ready:
+            self.service_actions.offer_after_publish(task.org_id, ready, outcome.text, level)
+            return
+        self._message(outcome.text, level)
 
     def _on_lot_finished(self, follower):
         """Every layer of the lot has landed, or failed: ask for the web map."""
@@ -415,6 +520,10 @@ class AlignConnectorPlugin:
         layer_id = getattr(task, "layer_id", None)
         if not succeeded or not asset_id or not layer_id or isinstance(task, RegisterReferenceTask):
             return
+        if getattr(task, "as_service", False):
+            # A feature service is edited in place, never replaced by a new
+            # file: the layer must not offer to replace it next time.
+            return
         layer = QgsProject.instance().mapLayer(layer_id)
         if layer is None:
             return
@@ -436,9 +545,8 @@ class AlignConnectorPlugin:
         if self.dock is not None:
             self.dock.settle(task, outcome)
         self._remember_publication(task, succeeded)
-        follower = self._followers.pop(id(task), None)
-        if follower is not None:
-            follower.finished(task, succeeded)
+        for lot in self._followers.pop(id(task), []):
+            lot.finished(task, succeeded)
 
         if not succeeded and task.needs_sign_in:
             # The session died mid-publish; say so once, and leave the menu
@@ -447,6 +555,9 @@ class AlignConnectorPlugin:
             self._refresh_state()
 
         self._message(outcome.text, _LEVELS.get(outcome.level, qt_enum(Qgis, "MessageLevel", "Warning")))
+
+    def _open_from_services(self, org_id, service, row, edit):
+        self.service_actions.open_from_services(org_id, service, row, edit)
 
 
 _LEVELS = {SUCCESS: qt_enum(Qgis, "MessageLevel", "Success"), INFO: qt_enum(Qgis, "MessageLevel", "Info")}

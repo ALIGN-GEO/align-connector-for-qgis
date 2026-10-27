@@ -26,6 +26,10 @@ _REFRESH_TOKEN = _PREFIX + "refresh_token"
 _ACCESS_TOKEN = _PREFIX + "access_token"
 _ACCESS_EXPIRY = _PREFIX + "access_expires_at"
 _ACCOUNT = _PREFIX + "account"
+#: The scopes ALIGN granted, as its token answer listed them (TCK-2320): a
+#: session from before the feature services lacks theirs, and the panel says
+#: so before a publish rather than after the upload.
+_SCOPES = _PREFIX + "scopes"
 
 
 class MasterPasswordRequired(Exception):
@@ -67,7 +71,7 @@ def _read(key):
     return value or None
 
 
-def save_session(refresh_token, access_token, access_expires_at, account=None):
+def save_session(refresh_token, access_token, access_expires_at, account=None, scopes=None):
     """Persist a session. Values are encrypted at rest by QGIS."""
     ensure_unlocked()
     _write(_REFRESH_TOKEN, refresh_token)
@@ -75,9 +79,11 @@ def save_session(refresh_token, access_token, access_expires_at, account=None):
     _write(_ACCESS_EXPIRY, str(access_expires_at))
     if account:
         _write(_ACCOUNT, account)
+    if scopes:
+        _write(_SCOPES, scopes)
 
 
-def update_access_token(access_token, access_expires_at, refresh_token=None):
+def update_access_token(access_token, access_expires_at, refresh_token=None, scopes=None):
     """Record the outcome of a refresh.
 
     The refresh token rotates on every use: storing the new one is not an
@@ -88,6 +94,8 @@ def update_access_token(access_token, access_expires_at, refresh_token=None):
     _write(_ACCESS_EXPIRY, str(access_expires_at))
     if refresh_token:
         _write(_REFRESH_TOKEN, refresh_token)
+    if scopes:
+        _write(_SCOPES, scopes)
 
 
 def refresh_token():
@@ -111,6 +119,16 @@ def account():
     return _read(_ACCOUNT)
 
 
+def granted_scopes():
+    """The scopes of the session, empty when ALIGN never listed them."""
+    try:
+        return tuple((_read(_SCOPES) or "").split())
+    except Exception:
+        # A locked store grants nothing, and asking must never raise here:
+        # this is called to decide what the panel offers.
+        return ()
+
+
 def clear():
     """Forget the session locally. Idempotent.
 
@@ -119,7 +137,7 @@ def clear():
     we should at least stop holding.
     """
     manager = _manager()
-    for key in (_REFRESH_TOKEN, _ACCESS_TOKEN, _ACCESS_EXPIRY, _ACCOUNT):
+    for key in (_REFRESH_TOKEN, _ACCESS_TOKEN, _ACCESS_EXPIRY, _ACCOUNT, _SCOPES):
         manager.removeAuthSetting(key)
 
 

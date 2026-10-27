@@ -116,6 +116,40 @@ jobs:
       - name: Services become live references
         run: python scripts/smoke_services.py
 
+      # Vector layers published as editable feature services (TCK-2320,
+      # TCK-2346): the layer ALIGN is asked to publish, the services of one
+      # request (the checked layers as one service, all or nothing, or one
+      # service per layer), the jobs followed to their end, the result in
+      # words layer by layer, the OAPIF source (no credential in it,
+      # TCK-2348), the refusals, and a batch whose vector layers become new
+      # services, never replacements.
+      - name: Layers become editable feature services
+        run: python scripts/smoke_feature_service.py
+
+      # Where the plugin's token may go (TCK-2348, CA-10): only the exact
+      # origin of the API and a feature service's OGC path; never a
+      # neighbouring origin, another route, or a path that walks out.
+      - name: The request signer signs only ALIGN's service requests
+        run: python scripts/smoke_request_signer.py
+
+      # The service layers' decisions (TCK-2348): what a layer remembers of
+      # its service, the names, the Services tab's model, the two reads and
+      # their refusals, and the session feeding the signer.
+      - name: Service layers, Services tab, session
+        run: python scripts/smoke_service_layers.py
+
+      # Patch 0003 (TCK-2348): why a session ends, a sign-in abandoned for a
+      # fresh one, the notices by code, the read-only names, the greyed
+      # organizations, which projects hold service layers.
+      - name: Session end, sign-in restart, notices, names, organizations
+        run: python scripts/smoke_session_end.py
+
+      # TCK-2343: a service layer's input rules, from ALIGN's golden fixture
+      # of the form, as QGIS widgets, constraints and "visible if"; what the
+      # plugin cannot translate is left to ALIGN, and named.
+      - name: The input rules of a service layer, as QGIS settings
+        run: python scripts/smoke_form_rules.py
+
       # Every sentence of the source is in the .ts, translated, and the
       # shipped .qm is the compilation of that .ts (TCK-2183). The Qt
       # round trip (scripts/smoke_i18n.py) needs a QGIS and runs on the
@@ -155,6 +189,38 @@ jobs:
 
       - name: The Processing provider registers and refuses what it must
         run: python3 scripts/smoke_processing.py
+
+      # TCK-2348 — real requests through QGIS' network manager and a real
+      # OAPIF layer, against a local stand-in of ALIGN's facade.
+      - name: The signer signs inside QGIS, and nowhere else
+        run: python3 scripts/smoke_signer_qgis.py
+
+      - name: Service layers end to end (names, menu, no credential in the project, sign-in)
+        run: python3 scripts/smoke_service_layers_qgis.py
+
+      - name: A revocation, learnt at once (reading, saving, opening a project)
+        run: python3 scripts/smoke_session_watch_qgis.py
+
+      - name: The panel (greyed organizations, one organization for both tabs, the tab kept, the sign-in waiting, one service)
+        run: python3 scripts/smoke_dock_qgis.py
+
+      # TCK-2346 — the lot's files, then one request for its services.
+      - name: A lot of feature services (the files sent, then one task for the services)
+        run: python3 scripts/smoke_service_lot_qgis.py
+
+      - name: The services task (one request, all or nothing, each layer to its original)
+        run: python3 scripts/smoke_services_task_qgis.py
+
+      - name: The input rules on a service layer (set, replaced, a refused save explained)
+        run: python3 scripts/smoke_service_form_qgis.py
+
+      - name: QGIS's own message bar (raw errors after a revocation, a rules refusal)
+        run: python3 scripts/smoke_message_bar_qgis.py
+
+      # PH-37 / PH-38 — what a publish reads from real QGIS objects: an SVG
+      # marker's colour from a live symbol layer, a JPEG's system from its layer.
+      - name: A publish reads live QGIS objects (SVG marker colour, a JPEG's system)
+        run: python3 scripts/smoke_publish_style_qgis.py
 
   metadata:
     runs-on: ubuntu-latest

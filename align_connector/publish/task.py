@@ -14,13 +14,16 @@ SPDX-License-Identifier: GPL-2.0-or-later
 """
 import os
 import shutil
+import time
 
 from qgis.core import QgsTask
 
 from .. import api
+from ..i18n import tr
 from ..qtcompat import qt_enum
 from ..metadata import plugin_version
 from .exporter import ExportFailed, export_for_publish
+from .pacing import paced
 from .uploader import ResumableUploader, UploadCancelled, UploadFailed
 
 #: How the export is weighted against the transfer in the progress bar. Writing
@@ -60,6 +63,11 @@ def with_capacity(message, status, capacity_line):
     return message
 
 
+def task_title(asset_name, replacing):
+    """The task's title in QGIS's task list, in the user's language."""
+    return (tr("Replacing “{}” on ALIGN") if replacing else tr("Publishing “{}” to ALIGN")).format(asset_name)
+
+
 class PublishLayerTask(QgsTask):
     """Export one layer, send it, and catalogue it in ALIGN."""
 
@@ -77,16 +85,22 @@ class PublishLayerTask(QgsTask):
         style=None,
         iso=None,
         replace=None,
+        as_service=False,
+        joins_service=None,
     ):
         """
         :param replace: the :class:`memory.Link` of the item this layer was
             published as, to replace in place (TCK-2218); ``None`` publishes a
             new item.
+        :param as_service: the layer becomes an editable feature service
+            (TCK-2320): the file is sent in the layer's own projection, and the
+            lot's :class:`service_task.PublishServicesTask` asks ALIGN for the
+            service once every file has landed (TCK-2346); a replacement does
+            not apply.
+        :param joins_service: the name of the one service the layer is a layer
+            of, or ``None`` when it is its own service
         """
-        super().__init__(
-            ("Replacing “{}” on ALIGN" if replace is not None else "Publishing “{}” to ALIGN").format(asset_name),
-            qt_enum(QgsTask, "Flag", "CanCancel"),
-        )
+        super().__init__(task_title(asset_name, replacing=replace is not None), qt_enum(QgsTask, "Flag", "CanCancel"))
         self.session = session
         self.layer = layer
         self.org_id = org_id
@@ -139,6 +153,12 @@ class PublishLayerTask(QgsTask):
         #: What changed in the attribute schema, as ALIGN read it off the two
         #: files: ``{"added", "removed", "retyped"}`` lists, or None.
         self.schema_changes = None
+        #: The file of a feature service (TCK-2320, TCK-2346): sent only; the
+        #: service is asked for by the lot once every file has landed.
+        self.as_service = bool(as_service)
+        if self.as_service:
+            self.replace = None
+        self.joins_service = joins_service if self.as_service else None
 
         self._workdir = None
 
@@ -146,7 +166,7 @@ class PublishLayerTask(QgsTask):
 
     def run(self):
         try:
-            export = export_for_publish(self.layer, selected_only=self.selected_only)
+            export = export_for_publish(self.layer, selected_only=self.selected_only, as_service=self.as_service)
             self.flattened_fields = export.flattened
             self.source_crs = export.source_crs
             # Only a directory WE created is ever removed. A raster published
@@ -195,14 +215,19 @@ class PublishLayerTask(QgsTask):
     # -- internals ----------------------------------------------------------
 
     def _publish_new(self, export, size_bytes):
-        """A new item: session, transfer, catalogue."""
-        session_info = api.open_upload_session(
-            self.session,
-            self.org_id,
-            export.filename,
-            export.content_type,
-            size_bytes,
-            already_servable=export.already_servable,
+        """A new item: session, transfer, catalogue. A lot of layers opens its
+        sessions together: when ALIGN asks one to wait, it waits (defect 69)."""
+        session_info = paced(
+            lambda: api.open_upload_session(
+                self.session,
+                self.org_id,
+                export.filename,
+                export.content_type,
+                size_bytes,
+                already_servable=export.already_servable,
+            ),
+            cancelled=self.isCanceled,
+            sleep=time.sleep,
         )
         self.asset_id = session_info["assetId"]
         self._send(export, session_info)
@@ -227,13 +252,17 @@ class PublishLayerTask(QgsTask):
         a kind ALIGN converts — stops the publish with ALIGN's reason, so the
         publisher chooses knowingly between retrying and publishing as new."""
         try:
-            return api.open_replace_session(
-                self.session,
-                self.replace.org_id,
-                self.replace.asset_id,
-                export.filename,
-                export.content_type,
-                size_bytes,
+            return paced(
+                lambda: api.open_replace_session(
+                    self.session,
+                    self.replace.org_id,
+                    self.replace.asset_id,
+                    export.filename,
+                    export.content_type,
+                    size_bytes,
+                ),
+                cancelled=self.isCanceled,
+                sleep=time.sleep,
             )
         except api.ApiError as exc:
             if exc.status == 404 and exc.code == "DATASTORE_ASSET_NOT_FOUND":
