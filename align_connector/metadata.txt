@@ -7,7 +7,7 @@ about=Sign in to ALIGN from QGIS and publish a layer to your organization's Data
 version=0.8.0
 author=Geo Nova
 email=contact@aligngeo.com
-changelog=0.8.0 (not released yet: needs ALIGN's feature services in production)
+changelog=0.8.0 (2026-10-27)
     Labels and SVG images travel with a published layer: its simple labels
     (a field, their size, colour, halo, placement and scale range) and its
     SVG marker or SVG fill reach ALIGN, which draws them as QGIS does. What
@@ -55,7 +55,7 @@ changelog=0.8.0 (not released yet: needs ALIGN's feature services in production)
     The task's title in QGIS's task list is in your language.
     The Publish tab's box reads "Publish as editable feature services (OGC
     API – Features)".
-    0.7.0 (not released)
+    0.7.0 (never published; its changes are part of 0.8.0)
     One consent: the plugin signs its feature-service layers itself, with the
     session opened at "Sign in", so no second approval and no QGIS page.
     Service layers carry no authentication configuration in the project.
@@ -85,7 +85,7 @@ changelog=0.8.0 (not released yet: needs ALIGN's feature services in production)
     reason. "Edit in QGIS" carries the ALIGN icon.
     Signing in shows "Signing in from the browser…" with Copy link and
     Cancel; clicking "Sign in" again starts afresh at once.
-    0.6.0 (not released)
+    0.6.0 (never published; its changes are part of 0.8.0)
     Publish vector layers as editable feature services, where the
     organization's plan includes them: the features move into the
     organization's database and are served through OGC API Features. "Edit
